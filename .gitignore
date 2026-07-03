@@ -4,3 +4,7 @@ build-*/
 *.obj
 compile_commands.json
 .cache/
+
+# Generated test audio (deterministic; regenerate with genfixtures + make_lossy.sh).
+# Only the golden manifest/SVG under tests/golden/ are committed (§3).
+/tests/golden/fixtures/

@@ -25,6 +25,15 @@ cmake --build build
 
 ## Test
 
+Fixtures are generated, not committed (deterministic — see PLAN.md §11):
+
+```bash
+./build/tools/genfixtures/genfixtures tests/golden/fixtures
+bash tests/integration/make_lossy.sh tests/golden/fixtures
+```
+
+Then:
+
 ```bash
 ctest --test-dir build --output-on-failure
 for s in tests/integration/*.sh; do bash "$s" || echo "FAILED: $s"; done
