@@ -1,0 +1,1 @@
+#include "soundpalette/version.h"

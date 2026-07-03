@@ -1,0 +1,3 @@
+add_executable(soundpalette main.cpp)
+target_link_libraries(soundpalette PRIVATE soundpalette_core)
+sp_set_warnings(soundpalette)
