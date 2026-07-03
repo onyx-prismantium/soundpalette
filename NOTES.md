@@ -63,3 +63,30 @@ document it here and report instead of changing constants or tests.
 
 Gate verified: `ctest -R "decode|loudness"` → 3/3 pass (`decode/duration`, `decode/lossy`,
 `loudness/calibration`); full clean rebuild produces zero compiler warnings.
+
+## M2 — Feature extraction
+
+- `centroid_hz` and `rolloff85_hz` are averaged over the *full* 0..Nyquist spectrum (bins
+  0..1024 @ N=2048); the 20 Hz-20 kHz restriction in §6 is stated explicitly only for
+  `flatness`, and the six perceptual `bands` use the same 20 Hz-20 kHz total as their
+  denominator (otherwise the "fractions sum to ≈1" requirement in §6 wouldn't hold, since
+  power outside 20 Hz-20 kHz would be excluded from the numerator but not the denominator).
+- `roughness`'s spectral flux is only accumulated between *consecutive valid* frames (i.e.
+  frames that individually passed the `total_power >= 1e-9` skip test), not between raw
+  frame indices — so if a low-power frame is skipped, the frame after it is not diffed
+  against a phantom/zeroed predecessor.
+- Envelope follower for `attack_s`/`tail_s` uses the standard exponential time-constant form
+  `alpha = exp(-dt/tau)` (§6 says "5 ms time constant", a physical time constant, which is a
+  different parameterization from the "one-pole ... fc" cutoff-frequency filters used in
+  `genfixtures`, §11). Both `attack_s` and `tail_s` are scale-invariant (relative-threshold
+  measures against the buffer's own peak), so it does not matter whether they're computed on
+  the raw or the -23 LUFS-normalized copy; implemented on the normalized copy per §6's "for
+  all further analysis" framing. `zcr` is likewise scale-invariant and computed directly on
+  the un-normalized buffer.
+- All six §11 feature unit tests (`centroid_sine`, `centroid_noise`, `flatness`, `zcr`,
+  `attack`, `tail`) passed on the first run against the M1 fixtures with no tolerance or
+  formula adjustments needed.
+
+Gate verified: `ctest -R features` → 6/6 pass; full clean rebuild produces zero compiler
+warnings; full `ctest` suite (10 tests: M0 placeholder + M1 decode/loudness + M2 features)
+green.

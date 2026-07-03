@@ -6,6 +6,14 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(ENABLE_TESTS OFF CACHE BOOL "libebur128 test suite" FORCE)
 FetchContent_MakeAvailable(libebur128)
 
+# KissFFT: real FFT for STFT features (§4 integration notes).
+set(KISSFFT_DATATYPE "float" CACHE STRING "" FORCE)
+set(KISSFFT_STATIC ON CACHE BOOL "" FORCE)
+set(KISSFFT_TEST OFF CACHE BOOL "" FORCE)
+set(KISSFFT_TOOLS OFF CACHE BOOL "" FORCE)
+set(KISSFFT_PKGCONFIG OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(kissfft)
+
 # Vendored miniaudio + stb_vorbis implementation, isolated in its own object library so the
 # vendor code is NOT built with our -Wall -Wextra -Werror (§13.6 cleanliness is about our code).
 add_library(soundpalette_vendor_audio OBJECT
@@ -22,6 +30,7 @@ target_link_libraries(soundpalette_vendor_audio PUBLIC Threads::Threads)
 add_library(soundpalette_core STATIC
     src/version.cpp
     src/audio.cpp
+    src/features.cpp
     $<TARGET_OBJECTS:soundpalette_vendor_audio>
 )
 
@@ -36,4 +45,4 @@ target_include_directories(soundpalette_core PRIVATE
 target_compile_features(soundpalette_core PUBLIC cxx_std_20)
 sp_set_warnings(soundpalette_core)
 target_link_libraries(soundpalette_core PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
-target_link_libraries(soundpalette_core PRIVATE ebur128)
+target_link_libraries(soundpalette_core PRIVATE ebur128 kissfft)

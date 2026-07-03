@@ -3,6 +3,7 @@ FetchContent_MakeAvailable(doctest)
 add_executable(sp_unit_tests
     test_placeholder.cpp
     test_decode.cpp
+    test_features.cpp
 )
 target_link_libraries(sp_unit_tests PRIVATE soundpalette_core doctest::doctest)
 sp_set_warnings(sp_unit_tests)
