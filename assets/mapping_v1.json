@@ -1,0 +1,63 @@
+{
+  "mapping_version": 1,
+  "bright01": {
+    "lo_hz": 200.0,
+    "hi_hz": 8000.0
+  },
+  "warm01": {
+    "lo": 0.1,
+    "hi": 0.7
+  },
+  "ton01": {
+    "flatness_hi": 0.5
+  },
+  "loud01": {
+    "lo_lufs": -40.0,
+    "hi_lufs": -10.0
+  },
+  "atk01": {
+    "lo_s": 0.002,
+    "hi_s": 0.15
+  },
+  "tail01": {
+    "lo_s": 0.05,
+    "hi_s": 3.0
+  },
+  "flat01": {
+    "hi": 0.6
+  },
+  "rough01": {
+    "scale": 4.0
+  },
+  "jitter01": {
+    "flat_weight": 0.7,
+    "rough_weight": 0.3
+  },
+  "hue": {
+    "base_deg": 220.0,
+    "warm_span_deg": 200.0
+  },
+  "sat": {
+    "base": 25.0,
+    "ton_span": 60.0
+  },
+  "light": {
+    "base": 28.0,
+    "bright_span": 50.0
+  },
+  "size": {
+    "base_px": 14.0,
+    "loud_span_px": 50.0
+  },
+  "spikes": {
+    "threshold": 0.35,
+    "count_base": 4.0,
+    "count_span": 10.0
+  },
+  "silent": {
+    "hue_deg": 0.0,
+    "sat": 0.0,
+    "light": 60.0,
+    "size_px": 8.0
+  }
+}

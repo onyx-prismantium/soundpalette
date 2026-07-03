@@ -90,3 +90,69 @@ Gate verified: `ctest -R "decode|loudness"` → 3/3 pass (`decode/duration`, `de
 Gate verified: `ctest -R features` → 6/6 pass; full clean rebuild produces zero compiler
 warnings; full `ctest` suite (10 tests: M0 placeholder + M1 decode/loudness + M2 features)
 green.
+
+## M3 — Mapping, manifest, scan
+
+- §5's normative `map_v1(const Features&, const Loudness&, std::uint64_t seed)` signature has
+  no `MappingConfig` parameter, yet §7 says the GUI tuner (§10) must live-re-derive `Visual`
+  for the whole grid from a runtime-edited copy of the config, and §15 explicitly names "the
+  app's runtime `MappingConfig`" as the one sanctioned piece of global mutable state. Resolved
+  this by giving `mapping.h` a module-level active `MappingConfig` (`active_mapping_config()` /
+  `set_active_mapping_config()` / `reset_active_mapping_config()`, mutex-guarded) that `map_v1`
+  and `mapping_dims` read implicitly — matching the normative 3-argument signature exactly while
+  still giving M6's tuner something to mutate.
+- Added `mapping_dims()` (not in §5's API list) returning the seven `[bright01, warm01, ton01,
+  atk01, tail01, loud01, jitter01]` values in the fixed order §9's `lint` needs for z-scoring
+  and §8's manifest `stats` block needs for aggregation. This is an internal addition, not a
+  deviation — §5's preamble says "signatures are normative; adjust internals freely," and both
+  `lint` (M4) and the manifest `stats` block need the exact same seven numbers.
+- `bright01`'s formula is written in §7 as `lin01(log2(centroid_hz), log2(200), log2(8000))`,
+  using `log2` where the generic `log01` helper is defined in terms of `log10`. These are
+  mathematically identical (the log-base cancels in the ratio), so `bright01` is implemented
+  via the shared `log01` helper rather than duplicating it with an explicit `log2` — verified
+  by hand on the `sine440_1s.wav` golden entry (see spot-check below).
+- **Ogg fixture non-determinism (found and fixed, not a spec deviation):** `ffmpeg`/`libvorbis`
+  picks a pseudo-random Ogg logical-bitstream serial number on every encode, so re-running
+  `make_lossy.sh` produced a different `sine440_1s.ogg` (and thus a different `sha256` in the
+  manifest) each time — which would have made `golden_scan.sh` fail non-deterministically in
+  CI even though `scan` itself is fully deterministic. Root-caused and fixed rather than
+  weakening the gate: `tests/integration/fix_ogg_serial.py` patches every Ogg page's serial
+  field to a fixed constant and recomputes the page CRC (standard Ogg CRC-32, poly
+  `0x04c11db7`) after encoding. Verified byte-identical `sha256` across three consecutive
+  `make_lossy.sh` runs, and that the patched file still decodes correctly
+  (`decode/lossy` still green).
+- **Spot-check** (§12/M3 requirement) on `tests/golden/palette.json`'s `sine440_1s.wav` entry,
+  by hand against §6/§7 before committing the golden manifest:
+  - `centroid_hz` = 440.0 exactly (pure 440 Hz tone) →
+    `bright01 = log01(440,200,8000) = 0.2138` → `light = 28+50*0.2138 = 38.69`, manifest says
+    `light: 38.6869`. Match.
+  - `bands = [0,0,1,0,0,0]` (all energy in the 250-600 Hz "lowmid" band, correct for a 440 Hz
+    tone) → `warmth = bands[low]+bands[lowmid] = 0+1 = 1.0` → `warm01 = lin01(1.0,0.1,0.7)`
+    clamps to `1.0` → `hue_deg = 220-200*1.0 = 20.0`, manifest says `hue_deg: 20.0`. Match.
+  - `flatness = 0.0` (pure tone, correctly near-zero) → `ton01 = 1.0` →
+    `sat = 25+60*1.0 = 85.0`, manifest says `sat: 85.0`. Match.
+  - `lufs_i = -9.714` (louder than the `-10` upper bound) → `loud01` clamps to `1.0` →
+    `size_px = 14+50*1.0 = 64.0`, manifest says `size_px: 64.0`. Match.
+  - `attack_s = 0.0115` → `atk01 = 1-log01(0.0115,0.002,0.15) ≈ 0.595` → `spikes =
+    round(4+10*0.595) = 10`, manifest says `spikes: 10`, `spike01: 0.5953`. Match (within
+    hand-calc rounding).
+  - `tail_clipped = true` is the qualitatively correct outcome for a sustained undecaying tone
+    (envelope never drops 60 dB from peak within the 1 s buffer). `tail01 =
+    log01(0.715,0.05,3.0) ≈ 0.6497`, manifest says `tail01: 0.6497`. Match.
+  - Separately, `sine997_cal.wav` (the calibration fixture) measured `lufs_i = -23.0016`,
+    within the ±0.5 tolerance of the -23 LUFS target — confirms the libebur128 wiring end to
+    end (peak 0.1001 sine → RMS 0.0708 → -23.0 dBFS, matches).
+- `stats` uses population standard deviation (divide by N, not N-1) — a defensible choice for
+  a descriptive/diagnostic block; not specified either way in §8.
+- Manifest `root` field: always the literal scan-root argument as given (e.g.
+  `"tests/golden/fixtures"`), never resolved to an absolute path — satisfies §8's "no
+  timestamps or absolute paths anywhere" as long as the CLI is invoked with a relative path
+  (true for every gate/script in this plan).
+- A pure-silence file's `lufs_i` is `-inf` per libebur128; since JSON has no `-Infinity`
+  literal, `manifest_to_json` substitutes a finite sentinel (`-900.0`) only for that field's
+  serialization when non-finite. No current fixture exercises this path (none are silent);
+  documented here since it's a real edge case in the schema.
+
+Gate verified: `ctest -R "mapping|manifest"` → 3/3 pass; `golden_scan.sh`, `determinism.sh`,
+`perf.sh` (0.34s for 200 files @ 4 threads, well under the 10s budget) all PASS; full clean
+rebuild zero warnings; full `ctest` suite (13 tests) green.

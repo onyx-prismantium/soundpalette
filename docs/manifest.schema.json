@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://soundpalette.local/manifest.schema.json",
+  "title": "SoundPalette manifest",
+  "description": "Canonical output of `soundpalette scan` (PLAN.md §8).",
+  "type": "object",
+  "required": ["schema_version", "mapping_version", "root", "file_count", "files", "stats"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "mapping_version": { "type": "integer", "const": 1 },
+    "engine_version": { "type": "string" },
+    "root": { "type": "string" },
+    "file_count": { "type": "integer", "minimum": 0 },
+    "files": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/fileEntry" }
+    },
+    "stats": {
+      "type": "object",
+      "required": ["bright01", "warm01", "ton01", "atk01", "tail01", "loud01", "jitter01"],
+      "properties": {
+        "bright01": { "$ref": "#/definitions/dimStats" },
+        "warm01": { "$ref": "#/definitions/dimStats" },
+        "ton01": { "$ref": "#/definitions/dimStats" },
+        "atk01": { "$ref": "#/definitions/dimStats" },
+        "tail01": { "$ref": "#/definitions/dimStats" },
+        "loud01": { "$ref": "#/definitions/dimStats" },
+        "jitter01": { "$ref": "#/definitions/dimStats" }
+      }
+    }
+  },
+  "definitions": {
+    "dimStats": {
+      "type": "object",
+      "required": ["mean", "std", "min", "max"],
+      "properties": {
+        "mean": { "type": "number" },
+        "std": { "type": "number", "minimum": 0 },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "fileEntry": {
+      "type": "object",
+      "required": [
+        "path", "sha256", "error", "duration_s", "sample_rate", "channels", "truncated",
+        "loudness", "features", "visual"
+      ],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "error": { "type": "string" },
+        "duration_s": { "type": "number", "minimum": 0 },
+        "sample_rate": { "type": "integer", "minimum": 0 },
+        "channels": { "type": "integer", "minimum": 0 },
+        "truncated": { "type": "boolean" },
+        "loudness": {
+          "type": "object",
+          "required": ["lufs_i", "true_peak_db", "silent"],
+          "properties": {
+            "lufs_i": { "type": "number" },
+            "true_peak_db": { "type": "number" },
+            "silent": { "type": "boolean" }
+          }
+        },
+        "features": {
+          "type": "object",
+          "required": [
+            "centroid_hz", "rolloff85_hz", "flatness", "zcr", "attack_s", "tail_s",
+            "tail_clipped", "roughness", "warmth", "bands"
+          ],
+          "properties": {
+            "centroid_hz": { "type": "number", "minimum": 0 },
+            "rolloff85_hz": { "type": "number", "minimum": 0 },
+            "flatness": { "type": "number", "minimum": 0, "maximum": 1 },
+            "zcr": { "type": "number", "minimum": 0 },
+            "attack_s": { "type": "number", "minimum": 0 },
+            "tail_s": { "type": "number", "minimum": 0 },
+            "tail_clipped": { "type": "boolean" },
+            "roughness": { "type": "number", "minimum": 0 },
+            "warmth": { "type": "number", "minimum": 0 },
+            "bands": {
+              "type": "array",
+              "minItems": 6,
+              "maxItems": 6,
+              "items": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "visual": {
+          "type": "object",
+          "required": [
+            "hue_deg", "sat", "light", "size_px", "spike01", "spikes", "jitter01", "tail01", "seed"
+          ],
+          "properties": {
+            "hue_deg": { "type": "number", "minimum": 0, "maximum": 360 },
+            "sat": { "type": "number", "minimum": 0, "maximum": 100 },
+            "light": { "type": "number", "minimum": 0, "maximum": 100 },
+            "size_px": { "type": "number", "minimum": 0 },
+            "spike01": { "type": "number", "minimum": 0, "maximum": 1 },
+            "spikes": { "type": "integer", "minimum": 0 },
+            "jitter01": { "type": "number", "minimum": 0, "maximum": 1 },
+            "tail01": { "type": "number", "minimum": 0, "maximum": 1 },
+            "seed": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}

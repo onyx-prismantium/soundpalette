@@ -1,0 +1,1328 @@
+{
+  "schema_version": 1,
+  "mapping_version": 1,
+  "root": "tests/golden/fixtures",
+  "file_count": 29,
+  "files": [
+    {
+      "path": "bright_outlier.wav",
+      "sha256": "a559eaa7ed2706eacf7a0ac051462a07563266c4fc6511d32bba311344c4d446",
+      "error": "",
+      "duration_s": 0.4,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -22.2898,
+        "true_peak_db": -6.0172,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 14428.2682,
+        "rolloff85_hz": 21292.9688,
+        "flatness": 0.3365,
+        "zcr": 0.5878,
+        "attack_s": 0.0063,
+        "tail_s": 0.3526,
+        "tail_clipped": false,
+        "roughness": 0.1543,
+        "warmth": 0.0,
+        "bands": [
+          0.0,
+          0.0,
+          0.0,
+          0.0084,
+          0.2082,
+          0.7835
+        ]
+      },
+      "visual": {
+        "hue_deg": 220.0,
+        "sat": 44.6159,
+        "light": 78.0,
+        "size_px": 43.517,
+        "spike01": 0.733,
+        "spikes": 11,
+        "jitter01": 0.5777,
+        "tail01": 0.4771,
+        "seed": 9004422993170285738
+      }
+    },
+    {
+      "path": "click.wav",
+      "sha256": "f644d39c58796ebe541923eb6a0c404ccd642cefb710079ba348a8e58173bb13",
+      "error": "",
+      "duration_s": 0.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -26.8181,
+        "true_peak_db": 0.1174,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 7.9376,
+        "rolloff85_hz": 23.4375,
+        "flatness": 0.001,
+        "zcr": 0.0,
+        "attack_s": 0.0063,
+        "tail_s": 0.2127,
+        "tail_clipped": false,
+        "roughness": 0.0,
+        "warmth": 0.0007,
+        "bands": [
+          0.9983,
+          0.0005,
+          0.0001,
+          0.0002,
+          0.0003,
+          0.0006
+        ]
+      },
+      "visual": {
+        "hue_deg": 220.0,
+        "sat": 84.8789,
+        "light": 28.0,
+        "size_px": 35.9699,
+        "spike01": 0.7345,
+        "spikes": 11,
+        "jitter01": 0.0012,
+        "tail01": 0.3536,
+        "seed": 10810168846404138579
+      }
+    },
+    {
+      "path": "darkset/dark_00.wav",
+      "sha256": "b8811354edef2641108fec95e0fafa7f382ebffb3cefa77e44cef3a123f38f36",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -29.7561,
+        "true_peak_db": -7.9559,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 191.0213,
+        "rolloff85_hz": 330.6911,
+        "flatness": 0.0002,
+        "zcr": 0.0125,
+        "attack_s": 0.019,
+        "tail_s": 0.9885,
+        "tail_clipped": false,
+        "roughness": 0.2038,
+        "warmth": 0.6612,
+        "bands": [
+          0.2928,
+          0.4337,
+          0.2274,
+          0.0451,
+          0.0008,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 32.9419,
+        "sat": 84.9757,
+        "light": 28.0,
+        "size_px": 31.0732,
+        "spike01": 0.4791,
+        "spikes": 9,
+        "jitter01": 0.2448,
+        "tail01": 0.7288,
+        "seed": 15589315446761457141
+      }
+    },
+    {
+      "path": "darkset/dark_01.wav",
+      "sha256": "44b9b4fede7cb33ce4569c806095575a63a895f5f1836b720503e9ca177d7aea",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -27.5158,
+        "true_peak_db": -7.953,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 192.9977,
+        "rolloff85_hz": 329.6647,
+        "flatness": 0.0002,
+        "zcr": 0.0132,
+        "attack_s": 0.0188,
+        "tail_s": 1.2334,
+        "tail_clipped": false,
+        "roughness": 0.2035,
+        "warmth": 0.6576,
+        "bands": [
+          0.2957,
+          0.4045,
+          0.253,
+          0.0458,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 34.1404,
+        "sat": 84.9741,
+        "light": 28.0,
+        "size_px": 34.807,
+        "spike01": 0.4809,
+        "spikes": 9,
+        "jitter01": 0.2444,
+        "tail01": 0.7829,
+        "seed": 4717451182026746050
+      }
+    },
+    {
+      "path": "darkset/dark_02.wav",
+      "sha256": "23d1b1964af7713b1833760456c4ab1d21c6bd2d1417ceb940e0fba528cd35b7",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -27.7004,
+        "true_peak_db": -7.9551,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 194.1085,
+        "rolloff85_hz": 326.5853,
+        "flatness": 0.0002,
+        "zcr": 0.0129,
+        "attack_s": 0.0284,
+        "tail_s": 1.277,
+        "tail_clipped": false,
+        "roughness": 0.2016,
+        "warmth": 0.6832,
+        "bands": [
+          0.2682,
+          0.466,
+          0.2172,
+          0.0478,
+          0.0008,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 25.5894,
+        "sat": 84.9766,
+        "light": 28.0,
+        "size_px": 34.4993,
+        "spike01": 0.3858,
+        "spikes": 8,
+        "jitter01": 0.2421,
+        "tail01": 0.7914,
+        "seed": 6629637249428411627
+      }
+    },
+    {
+      "path": "darkset/dark_03.wav",
+      "sha256": "a544c9206e0b1e889a726dcc37db142876e1873156769f4cfe3aec52b99263ae",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -31.4322,
+        "true_peak_db": -7.9551,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 186.0617,
+        "rolloff85_hz": 324.3613,
+        "flatness": 0.0002,
+        "zcr": 0.0124,
+        "attack_s": 0.0326,
+        "tail_s": 1.4238,
+        "tail_clipped": false,
+        "roughness": 0.2105,
+        "warmth": 0.6516,
+        "bands": [
+          0.2985,
+          0.4251,
+          0.2266,
+          0.049,
+          0.0008,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 36.1205,
+        "sat": 84.9758,
+        "light": 28.0,
+        "size_px": 28.2797,
+        "spike01": 0.3532,
+        "spikes": 8,
+        "jitter01": 0.2528,
+        "tail01": 0.818,
+        "seed": 2000320413893266424
+      }
+    },
+    {
+      "path": "darkset/dark_04.wav",
+      "sha256": "b0aca469eb529b5a2e1be61cfd14e4ddfafef98e103212b281b7253438f6e0ea",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -28.5001,
+        "true_peak_db": -7.9482,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 192.9217,
+        "rolloff85_hz": 332.9151,
+        "flatness": 0.0002,
+        "zcr": 0.0125,
+        "attack_s": 0.0144,
+        "tail_s": 1.4654,
+        "tail_clipped": true,
+        "roughness": 0.2133,
+        "warmth": 0.6685,
+        "bands": [
+          0.2826,
+          0.4381,
+          0.2304,
+          0.048,
+          0.0008,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 30.484,
+        "sat": 84.9755,
+        "light": 28.0,
+        "size_px": 33.1665,
+        "spike01": 0.5425,
+        "spikes": 9,
+        "jitter01": 0.2562,
+        "tail01": 0.825,
+        "seed": 3912488889108880625
+      }
+    },
+    {
+      "path": "darkset/dark_05.wav",
+      "sha256": "277fa90c14e47b721fcc9b2e97e648960d513aa55f3547a3e56ec50d6f3a5db4",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -30.1346,
+        "true_peak_db": -7.9531,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 200.1731,
+        "rolloff85_hz": 333.4284,
+        "flatness": 0.0002,
+        "zcr": 0.0127,
+        "attack_s": 0.0034,
+        "tail_s": 1.4926,
+        "tail_clipped": true,
+        "roughness": 0.2108,
+        "warmth": 0.6841,
+        "bands": [
+          0.2661,
+          0.4373,
+          0.2468,
+          0.0489,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 25.307,
+        "sat": 84.9746,
+        "light": 28.0117,
+        "size_px": 30.4424,
+        "spike01": 0.876,
+        "spikes": 13,
+        "jitter01": 0.2532,
+        "tail01": 0.8295,
+        "seed": 4636668951778665038
+      }
+    },
+    {
+      "path": "darkset/dark_06.wav",
+      "sha256": "95c80fbaec887f20835791d3341437f48c3b77c29f85a0bc7ef8fc395ad4aeec",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -28.2506,
+        "true_peak_db": -7.9503,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 191.7907,
+        "rolloff85_hz": 328.125,
+        "flatness": 0.0002,
+        "zcr": 0.0129,
+        "attack_s": 0.041,
+        "tail_s": 1.4534,
+        "tail_clipped": true,
+        "roughness": 0.2144,
+        "warmth": 0.6776,
+        "bands": [
+          0.2775,
+          0.4574,
+          0.2202,
+          0.044,
+          0.0008,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 27.4566,
+        "sat": 84.9767,
+        "light": 28.0,
+        "size_px": 33.5823,
+        "spike01": 0.3003,
+        "spikes": 0,
+        "jitter01": 0.2576,
+        "tail01": 0.823,
+        "seed": 10149344466109621399
+      }
+    },
+    {
+      "path": "darkset/dark_07.wav",
+      "sha256": "139f06bf1e66bc25169edde6e22e71810565f96536912717c6a4f57d2b1a5a34",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -28.8914,
+        "true_peak_db": -7.9513,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 205.1635,
+        "rolloff85_hz": 351.7336,
+        "flatness": 0.0002,
+        "zcr": 0.0127,
+        "attack_s": 0.0181,
+        "tail_s": 1.4562,
+        "tail_clipped": true,
+        "roughness": 0.2114,
+        "warmth": 0.674,
+        "bands": [
+          0.2741,
+          0.4312,
+          0.2429,
+          0.0509,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 28.6533,
+        "sat": 84.9741,
+        "light": 28.3455,
+        "size_px": 32.5144,
+        "spike01": 0.4895,
+        "spikes": 9,
+        "jitter01": 0.2539,
+        "tail01": 0.8235,
+        "seed": 13939914076140674516
+      }
+    },
+    {
+      "path": "darkset/dark_08.wav",
+      "sha256": "c6ce57a39dd64ba07453a2c6b8bf5d44e304c12b153b9309dc832c9b8fe1da06",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -28.3852,
+        "true_peak_db": -7.9494,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 201.0758,
+        "rolloff85_hz": 339.5871,
+        "flatness": 0.0002,
+        "zcr": 0.0132,
+        "attack_s": 0.0097,
+        "tail_s": 1.486,
+        "tail_clipped": true,
+        "roughness": 0.2159,
+        "warmth": 0.6735,
+        "bands": [
+          0.2737,
+          0.4187,
+          0.2548,
+          0.0518,
+          0.001,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 28.8239,
+        "sat": 84.9729,
+        "light": 28.0727,
+        "size_px": 33.358,
+        "spike01": 0.6351,
+        "spikes": 10,
+        "jitter01": 0.2594,
+        "tail01": 0.8284,
+        "seed": 9719303456633751309
+      }
+    },
+    {
+      "path": "darkset/dark_09.wav",
+      "sha256": "94ca713befce1166418633e5ba18e43d88041e04612397f782b9038ff0def363",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -27.55,
+        "true_peak_db": -7.9559,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 197.8402,
+        "rolloff85_hz": 339.245,
+        "flatness": 0.0002,
+        "zcr": 0.013,
+        "attack_s": 0.0555,
+        "tail_s": 1.4431,
+        "tail_clipped": true,
+        "roughness": 0.2145,
+        "warmth": 0.676,
+        "bands": [
+          0.2729,
+          0.4325,
+          0.2434,
+          0.0501,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 28.0054,
+        "sat": 84.9738,
+        "light": 28.0,
+        "size_px": 34.7501,
+        "spike01": 0.2303,
+        "spikes": 0,
+        "jitter01": 0.2576,
+        "tail01": 0.8213,
+        "seed": 11222765715821143514
+      }
+    },
+    {
+      "path": "darkset/dark_10.wav",
+      "sha256": "7fc838b0ff23bdde7f2c37a568d058d9a793fc1c45214c549a41f04b9a5f37c6",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -28.5171,
+        "true_peak_db": -7.9558,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 196.481,
+        "rolloff85_hz": 338.7318,
+        "flatness": 0.0002,
+        "zcr": 0.0132,
+        "attack_s": 0.0373,
+        "tail_s": 1.4586,
+        "tail_clipped": true,
+        "roughness": 0.2145,
+        "warmth": 0.6611,
+        "bands": [
+          0.2919,
+          0.4089,
+          0.2522,
+          0.0461,
+          0.0008,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 32.9574,
+        "sat": 84.9751,
+        "light": 28.0,
+        "size_px": 33.1381,
+        "spike01": 0.3221,
+        "spikes": 0,
+        "jitter01": 0.2576,
+        "tail01": 0.8239,
+        "seed": 10490086466931009736
+      }
+    },
+    {
+      "path": "darkset/dark_11.wav",
+      "sha256": "a7758613d0818ef4355a7ba7316ffda29d72bb8091f2d20574f4f25515e893ae",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -29.1282,
+        "true_peak_db": -7.9553,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 193.2304,
+        "rolloff85_hz": 329.3225,
+        "flatness": 0.0002,
+        "zcr": 0.0125,
+        "attack_s": 0.0146,
+        "tail_s": 1.4418,
+        "tail_clipped": true,
+        "roughness": 0.2196,
+        "warmth": 0.6897,
+        "bands": [
+          0.2592,
+          0.4652,
+          0.2244,
+          0.0502,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 23.4431,
+        "sat": 84.9749,
+        "light": 28.0,
+        "size_px": 32.1196,
+        "spike01": 0.5402,
+        "spikes": 9,
+        "jitter01": 0.2638,
+        "tail01": 0.821,
+        "seed": 8986624207743617531
+      }
+    },
+    {
+      "path": "darkset/dark_12.wav",
+      "sha256": "ad24d6d84bad0ebe6e93f1d9f3339864c3f344fcab270662013e21ad01a43fe7",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -28.2874,
+        "true_peak_db": -7.954,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 196.0304,
+        "rolloff85_hz": 332.2308,
+        "flatness": 0.0002,
+        "zcr": 0.0128,
+        "attack_s": 0.0114,
+        "tail_s": 1.4422,
+        "tail_clipped": true,
+        "roughness": 0.213,
+        "warmth": 0.6713,
+        "bands": [
+          0.2812,
+          0.4191,
+          0.2523,
+          0.0465,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 29.5521,
+        "sat": 84.9752,
+        "light": 28.0,
+        "size_px": 33.5209,
+        "spike01": 0.5965,
+        "spikes": 10,
+        "jitter01": 0.2559,
+        "tail01": 0.8211,
+        "seed": 994862399447161490
+      }
+    },
+    {
+      "path": "darkset/dark_13.wav",
+      "sha256": "e0ec7ec814ccde9590452f63f750bdfffd3ba8186774e09b7dfb74c226c4f84c",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -27.148,
+        "true_peak_db": -7.9443,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 185.6257,
+        "rolloff85_hz": 317.1761,
+        "flatness": 0.0002,
+        "zcr": 0.0118,
+        "attack_s": 0.0337,
+        "tail_s": 1.4648,
+        "tail_clipped": true,
+        "roughness": 0.2164,
+        "warmth": 0.6617,
+        "bands": [
+          0.2943,
+          0.444,
+          0.2177,
+          0.0431,
+          0.0008,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 32.7697,
+        "sat": 84.9762,
+        "light": 28.0,
+        "size_px": 35.4199,
+        "spike01": 0.3461,
+        "spikes": 0,
+        "jitter01": 0.2599,
+        "tail01": 0.8249,
+        "seed": 17938144213969320901
+      }
+    },
+    {
+      "path": "darkset/dark_14.wav",
+      "sha256": "5bddc851f7e9bd2356c6394b2a50c47db4a5404f153e7f0dc4349d4dd4602997",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -27.7642,
+        "true_peak_db": -7.9473,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 204.4041,
+        "rolloff85_hz": 353.2733,
+        "flatness": 0.0002,
+        "zcr": 0.0132,
+        "attack_s": 0.0139,
+        "tail_s": 1.483,
+        "tail_clipped": true,
+        "roughness": 0.2228,
+        "warmth": 0.6902,
+        "bands": [
+          0.2595,
+          0.4144,
+          0.2758,
+          0.0493,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 23.2609,
+        "sat": 84.9735,
+        "light": 28.2952,
+        "size_px": 34.393,
+        "spike01": 0.5507,
+        "spikes": 10,
+        "jitter01": 0.2676,
+        "tail01": 0.8279,
+        "seed": 4084546198838552548
+      }
+    },
+    {
+      "path": "darkset/dark_15.wav",
+      "sha256": "d91b9d96693345a6444e73dcdf4a5a7ff31119a7e46bf99248b05ef28cabe530",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -26.2135,
+        "true_peak_db": -7.9559,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 191.865,
+        "rolloff85_hz": 327.4407,
+        "flatness": 0.0002,
+        "zcr": 0.0126,
+        "attack_s": 0.02,
+        "tail_s": 1.478,
+        "tail_clipped": true,
+        "roughness": 0.2204,
+        "warmth": 0.6484,
+        "bands": [
+          0.3031,
+          0.4118,
+          0.2367,
+          0.0475,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 37.1843,
+        "sat": 84.9736,
+        "light": 28.0,
+        "size_px": 36.9774,
+        "spike01": 0.4664,
+        "spikes": 9,
+        "jitter01": 0.2648,
+        "tail01": 0.8271,
+        "seed": 131286375479546023
+      }
+    },
+    {
+      "path": "darkset/dark_16.wav",
+      "sha256": "cc28171d664b5723dca00a44357f3c99ee433e03d0939e225f8ad920c03e8117",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -26.9975,
+        "true_peak_db": -7.9478,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 201.6578,
+        "rolloff85_hz": 340.4425,
+        "flatness": 0.0002,
+        "zcr": 0.0127,
+        "attack_s": 0.0414,
+        "tail_s": 1.4565,
+        "tail_clipped": true,
+        "roughness": 0.2179,
+        "warmth": 0.685,
+        "bands": [
+          0.2626,
+          0.431,
+          0.254,
+          0.0514,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 24.9849,
+        "sat": 84.9739,
+        "light": 28.1119,
+        "size_px": 35.6708,
+        "spike01": 0.298,
+        "spikes": 0,
+        "jitter01": 0.2617,
+        "tail01": 0.8235,
+        "seed": 6801694559158083550
+      }
+    },
+    {
+      "path": "darkset/dark_17.wav",
+      "sha256": "e10f9eeb78d916b4e2162a80b3ab291e933f38ddee915dc2dd6eabf091982130",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -26.4601,
+        "true_peak_db": -7.95,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 199.3579,
+        "rolloff85_hz": 335.6524,
+        "flatness": 0.0002,
+        "zcr": 0.0128,
+        "attack_s": 0.0898,
+        "tail_s": 1.3414,
+        "tail_clipped": true,
+        "roughness": 0.2189,
+        "warmth": 0.6643,
+        "bands": [
+          0.2849,
+          0.4282,
+          0.2361,
+          0.0499,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 31.9056,
+        "sat": 84.9741,
+        "light": 28.0,
+        "size_px": 36.5664,
+        "spike01": 0.1189,
+        "spikes": 0,
+        "jitter01": 0.2629,
+        "tail01": 0.8034,
+        "seed": 6077795971465121153
+      }
+    },
+    {
+      "path": "darkset/dark_18.wav",
+      "sha256": "795fde8e66f46316df8fc9debebc7c96ca28bb684ca0873362463bcfd5ddf525",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -26.2654,
+        "true_peak_db": -7.9546,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 176.9572,
+        "rolloff85_hz": 324.3613,
+        "flatness": 0.0002,
+        "zcr": 0.0121,
+        "attack_s": 0.0211,
+        "tail_s": 1.4763,
+        "tail_clipped": true,
+        "roughness": 0.2196,
+        "warmth": 0.6292,
+        "bands": [
+          0.3209,
+          0.4078,
+          0.2214,
+          0.049,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 43.6118,
+        "sat": 84.9748,
+        "light": 28.0,
+        "size_px": 36.8911,
+        "spike01": 0.4538,
+        "spikes": 9,
+        "jitter01": 0.2638,
+        "tail01": 0.8268,
+        "seed": 13920818077884693600
+      }
+    },
+    {
+      "path": "darkset/dark_19.wav",
+      "sha256": "7bcb4d1ca7c97e5a03db2f26a20a8638364e38bb0365f54e14aa704bd8a4d4b3",
+      "error": "",
+      "duration_s": 1.5,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -27.1334,
+        "true_peak_db": -7.945,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 197.4214,
+        "rolloff85_hz": 343.1797,
+        "flatness": 0.0002,
+        "zcr": 0.0124,
+        "attack_s": 0.0262,
+        "tail_s": 1.4705,
+        "tail_clipped": true,
+        "roughness": 0.2215,
+        "warmth": 0.6777,
+        "bands": [
+          0.2729,
+          0.4254,
+          0.2522,
+          0.0485,
+          0.0009,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 27.4454,
+        "sat": 84.9751,
+        "light": 28.0,
+        "size_px": 35.4444,
+        "spike01": 0.4043,
+        "spikes": 8,
+        "jitter01": 0.266,
+        "tail01": 0.8259,
+        "seed": 12417355818697301395
+      }
+    },
+    {
+      "path": "decay_t60.wav",
+      "sha256": "cf6fa19b3238ca1689b40c2e8de91449c5ed551b2a5a2e6a39a9d875874fc9cf",
+      "error": "",
+      "duration_s": 2.0,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -16.1818,
+        "true_peak_db": -0.03,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 5596.0951,
+        "rolloff85_hz": 9353.6005,
+        "flatness": 0.4156,
+        "zcr": 0.0417,
+        "attack_s": 0.0074,
+        "tail_s": 0.505,
+        "tail_clipped": false,
+        "roughness": 0.0,
+        "warmth": 0.0107,
+        "bands": [
+          0.0015,
+          0.0034,
+          0.0073,
+          0.6249,
+          0.1142,
+          0.2488
+        ]
+      },
+      "visual": {
+        "hue_deg": 220.0,
+        "sat": 35.1271,
+        "light": 73.1561,
+        "size_px": 53.697,
+        "spike01": 0.6958,
+        "spikes": 11,
+        "jitter01": 0.4849,
+        "tail01": 0.5648,
+        "seed": 12052561739471064284
+      }
+    },
+    {
+      "path": "noise_white_1s.wav",
+      "sha256": "89aa23960d2e19c51f39d6521073b6c580e1a8009a40b0cb1a9c6930dcf568f2",
+      "error": "",
+      "duration_s": 1.0,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -13.653,
+        "true_peak_db": -7.7022,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 12021.7009,
+        "rolloff85_hz": 20433.0729,
+        "flatness": 0.5597,
+        "zcr": 0.5013,
+        "attack_s": 0.0172,
+        "tail_s": 0.714,
+        "tail_clipped": true,
+        "roughness": 0.2265,
+        "warmth": 0.0265,
+        "bands": [
+          0.0039,
+          0.0089,
+          0.0176,
+          0.0964,
+          0.2692,
+          0.6041
+        ]
+      },
+      "visual": {
+        "hue_deg": 220.0,
+        "sat": 25.0,
+        "light": 78.0,
+        "size_px": 57.9117,
+        "spike01": 0.5015,
+        "spikes": 9,
+        "jitter01": 0.9247,
+        "tail01": 0.6494,
+        "seed": 12358755550830429780
+      }
+    },
+    {
+      "path": "sine440_1s.flac",
+      "sha256": "0f1dc3cc917ca51f2559fc6eadc842a2283f679520bcf349a03673093fe67b13",
+      "error": "",
+      "duration_s": 1.0,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -9.714,
+        "true_peak_db": -6.0133,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 440.0,
+        "rolloff85_hz": 445.3125,
+        "flatness": 0.0,
+        "zcr": 0.0183,
+        "attack_s": 0.0115,
+        "tail_s": 0.8025,
+        "tail_clipped": true,
+        "roughness": 0.0001,
+        "warmth": 1.0,
+        "bands": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 20.0,
+        "sat": 85.0,
+        "light": 38.6869,
+        "size_px": 64.0,
+        "spike01": 0.5953,
+        "spikes": 10,
+        "jitter01": 0.0001,
+        "tail01": 0.6779,
+        "seed": 1615813384497296503
+      }
+    },
+    {
+      "path": "sine440_1s.mp3",
+      "sha256": "78886a447f7cd2b155a0f25a06fcb80cb3f0370a7eab90b3f4e662bedc243c35",
+      "error": "",
+      "duration_s": 1.0,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -9.978,
+        "true_peak_db": -6.2763,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 440.0,
+        "rolloff85_hz": 445.3125,
+        "flatness": 0.0,
+        "zcr": 0.0183,
+        "attack_s": 0.0115,
+        "tail_s": 0.7503,
+        "tail_clipped": true,
+        "roughness": 0.0003,
+        "warmth": 1.0,
+        "bands": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 20.0,
+        "sat": 85.0,
+        "light": 38.6869,
+        "size_px": 64.0,
+        "spike01": 0.5953,
+        "spikes": 10,
+        "jitter01": 0.0003,
+        "tail01": 0.6615,
+        "seed": 3743502299813690093
+      }
+    },
+    {
+      "path": "sine440_1s.ogg",
+      "sha256": "763069480420ab653dadc8dbd581c6be8753e573cf6208fa2ba99440674cfd61",
+      "error": "",
+      "duration_s": 1.0,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -9.6272,
+        "true_peak_db": -5.8321,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 440.0009,
+        "rolloff85_hz": 445.3125,
+        "flatness": 0.0,
+        "zcr": 0.0183,
+        "attack_s": 0.0115,
+        "tail_s": 0.7968,
+        "tail_clipped": true,
+        "roughness": 0.0042,
+        "warmth": 1.0,
+        "bands": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 20.0,
+        "sat": 85.0,
+        "light": 38.687,
+        "size_px": 64.0,
+        "spike01": 0.5944,
+        "spikes": 10,
+        "jitter01": 0.005,
+        "tail01": 0.6762,
+        "seed": 4826316744142162272
+      }
+    },
+    {
+      "path": "sine440_1s.wav",
+      "sha256": "d25f97fa91be17100e87a0d06f8e390fcd146422fa1c88434cf053ee6dccb093",
+      "error": "",
+      "duration_s": 1.0,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -9.714,
+        "true_peak_db": -6.0133,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 440.0,
+        "rolloff85_hz": 445.3125,
+        "flatness": 0.0,
+        "zcr": 0.0183,
+        "attack_s": 0.0115,
+        "tail_s": 0.715,
+        "tail_clipped": true,
+        "roughness": 0.0001,
+        "warmth": 1.0,
+        "bands": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 20.0,
+        "sat": 85.0,
+        "light": 38.6869,
+        "size_px": 64.0,
+        "spike01": 0.5953,
+        "spikes": 10,
+        "jitter01": 0.0001,
+        "tail01": 0.6497,
+        "seed": 8413795584716702285
+      }
+    },
+    {
+      "path": "sine997_cal.wav",
+      "sha256": "7d4c724c38e0f395cd4ade7ef533369625271e76f7be0f0756bf661a622feb26",
+      "error": "",
+      "duration_s": 2.0,
+      "sample_rate": 48000,
+      "channels": 1,
+      "truncated": false,
+      "loudness": {
+        "lufs_i": -23.0016,
+        "true_peak_db": -19.9858,
+        "silent": false
+      },
+      "features": {
+        "centroid_hz": 997.0,
+        "rolloff85_hz": 1007.8125,
+        "flatness": 0.0,
+        "zcr": 0.0415,
+        "attack_s": 0.0112,
+        "tail_s": 1.5989,
+        "tail_clipped": true,
+        "roughness": 0.0,
+        "warmth": 0.0,
+        "bands": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "visual": {
+        "hue_deg": 220.0,
+        "sat": 85.0,
+        "light": 49.774,
+        "size_px": 42.3307,
+        "spike01": 0.6004,
+        "spikes": 10,
+        "jitter01": 0.0,
+        "tail01": 0.8463,
+        "seed": 13226531566593821812
+      }
+    }
+  ],
+  "stats": {
+    "bright01": {
+      "mean": 0.1452,
+      "std": 0.2981,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "warm01": {
+      "mean": 0.7923,
+      "std": 0.3626,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "ton01": {
+      "mean": 0.9133,
+      "std": 0.2577,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "atk01": {
+      "mean": 0.5005,
+      "std": 0.163,
+      "min": 0.1189,
+      "max": 0.876
+    },
+    "tail01": {
+      "mean": 0.7536,
+      "std": 0.1187,
+      "min": 0.3536,
+      "max": 0.8463
+    },
+    "loud01": {
+      "mean": 0.5242,
+      "std": 0.2259,
+      "min": 0.2856,
+      "max": 1.0
+    },
+    "jitter01": {
+      "mean": 0.2462,
+      "std": 0.1849,
+      "min": 0.0,
+      "max": 0.9247
+    }
+  }
+}
