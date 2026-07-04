@@ -113,7 +113,10 @@ Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &op
     const unsigned int hw = std::thread::hardware_concurrency();
     unsigned int thread_count =
         options.threads > 0 ? static_cast<unsigned int>(options.threads) : (hw > 0 ? hw : 1);
-    thread_count = std::min<unsigned int>(thread_count, std::max<std::size_t>(targets.size(), 1));
+    const std::size_t target_cap = std::max<std::size_t>(targets.size(), 1);
+    if (static_cast<std::size_t>(thread_count) > target_cap) {
+        thread_count = static_cast<unsigned int>(target_cap);
+    }
     thread_count = std::max<unsigned int>(thread_count, 1);
 
     std::atomic<std::size_t> next_index{0};
