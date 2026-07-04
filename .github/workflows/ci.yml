@@ -9,7 +9,7 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install dependencies (PLAN.md §2)
         run: |
@@ -52,7 +52,7 @@ jobs:
         run: ./build/cli/soundpalette export-svg tests/golden/palette.json --out sheet.svg
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: palette-artifacts
           path: |
