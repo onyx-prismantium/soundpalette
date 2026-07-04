@@ -9,6 +9,7 @@
 
 #include "soundpalette/manifest.h"
 #include "soundpalette/mapping.h"
+#include "soundpalette/recipe.h"
 
 namespace spapp {
 
@@ -58,6 +59,21 @@ struct AppState {
         return dpi_scale * user_scale;
     }
 
+    // M9 harmonize (extension §6.5): optional baseline; per-entry max|z| badges; the current
+    // proposal for the selected outlier.
+    bool baseline_loaded = false;
+    std::string baseline_path;
+    std::array<sp::DimStats, 7> baseline_stats{};
+    double harmonize_threshold = 2.5;
+    std::vector<double> max_z; // parallel to manifest.files, valid when baseline_loaded
+
+    bool proposal_valid = false;
+    int proposal_for = -1; // manifest.files index the proposal belongs to
+    sp::Recipe proposal;
+    sp::Visual predicted_visual; // §6.5 predicted glyph from the solver's post-metrics
+    std::array<double, 7> proposal_dims_before{};
+    std::array<double, 7> proposal_dims_after{};
+
     bool smoke_mode = false; // suppresses NFD dialogs
     bool want_quit = false;  // set by File > Quit; main loop closes the window
 };
@@ -83,6 +99,11 @@ double playback_remaining_s(const AppState &state); // seconds left in the activ
 void draw_grid(AppState &state);      // grid.cpp
 void draw_inspector(AppState &state); // inspector.cpp
 void draw_tuner(AppState &state);     // tuner.cpp
+
+// harmonize_panel.cpp (M9, extension §6.5).
+bool load_baseline(AppState &state, const std::string &path);
+void recompute_badges(AppState &state); // fills max_z when a baseline is loaded
+void draw_harmonize(AppState &state);   // inspector section for the selected outlier
 
 // Shared helper: HSL (§7 visual attributes) -> ImGui-packed RGBA.
 unsigned int hsl_to_rgba(double hue_deg, double sat_pct, double light_pct, double alpha);

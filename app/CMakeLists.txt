@@ -42,6 +42,7 @@ add_executable(soundpalette-app
     gui/grid.cpp
     gui/inspector.cpp
     gui/tuner.cpp
+    gui/harmonize_panel.cpp
     $<TARGET_OBJECTS:sp_vendor_stb>
 )
 target_include_directories(soundpalette-app PRIVATE
@@ -49,5 +50,6 @@ target_include_directories(soundpalette-app PRIVATE
     ${CMAKE_SOURCE_DIR}/extern/miniaudio  # playback via ma_engine (implementation lives in core)
     ${CMAKE_SOURCE_DIR}/extern/stb        # stb_image_write for --smoke PNG
 )
-target_link_libraries(soundpalette-app PRIVATE soundpalette_core sp_imgui glfw OpenGL::GL nfd)
+target_link_libraries(soundpalette-app PRIVATE soundpalette_core sp_imgui glfw OpenGL::GL nfd
+                      nlohmann_json::nlohmann_json)
 sp_set_warnings(soundpalette-app)

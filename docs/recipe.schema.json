@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SoundPalette recipe (recipe_version 1)",
+  "type": "object",
+  "required": ["recipe_version", "ops"],
+  "properties": {
+    "recipe_version": { "const": 1 },
+    "source": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{0,64}$" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "baseline": { "type": "string" },
+        "mapping_version": { "type": "integer" },
+        "threshold": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "ops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["op"],
+        "oneOf": [
+          {
+            "properties": { "op": { "const": "gain_db" }, "db": { "type": "number" } },
+            "required": ["op", "db"]
+          },
+          {
+            "properties": {
+              "op": { "const": "gain_to_lufs" },
+              "target_lufs": { "type": "number" },
+              "tp_ceiling_db": { "type": "number" }
+            },
+            "required": ["op", "target_lufs"]
+          },
+          {
+            "properties": {
+              "op": { "enum": ["low_shelf", "high_shelf"] },
+              "freq_hz": { "type": "number", "exclusiveMinimum": 0 },
+              "gain_db": { "type": "number" },
+              "q": { "type": "number", "exclusiveMinimum": 0 }
+            },
+            "required": ["op", "freq_hz", "gain_db"]
+          },
+          {
+            "properties": {
+              "op": { "const": "attack_soften" },
+              "fade_ms": { "type": "number", "exclusiveMinimum": 0 }
+            },
+            "required": ["op", "fade_ms"]
+          },
+          {
+            "properties": {
+              "op": { "const": "tail_shorten" },
+              "target_tail_s": { "type": "number", "exclusiveMinimum": 0 }
+            },
+            "required": ["op", "target_tail_s"]
+          }
+        ]
+      }
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "iterations": { "type": "integer", "minimum": 0 },
+        "converged": { "type": "boolean" },
+        "limited_by_peak": { "type": "boolean" },
+        "unresolved": { "type": "array", "items": { "type": "string" } },
+        "max_z_before": { "type": "number" },
+        "max_z_after": { "type": "number" },
+        "dims_before": { "type": "object", "additionalProperties": { "type": "number" } },
+        "dims_after": { "type": "object", "additionalProperties": { "type": "number" } }
+      }
+    }
+  }
+}

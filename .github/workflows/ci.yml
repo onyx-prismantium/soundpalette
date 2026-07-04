@@ -28,9 +28,9 @@ jobs:
       - name: Build
         run: cmake --build build
 
-      - name: Generate test fixtures (deterministic, PLAN.md §11)
+      - name: Generate test fixtures (deterministic, PLAN.md §11 + extension §7)
         run: |
-          ./build/tools/genfixtures/genfixtures tests/golden/fixtures
+          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9
           bash tests/integration/make_lossy.sh tests/golden/fixtures
 
       - name: Unit tests
@@ -88,7 +88,7 @@ jobs:
       - name: Generate test fixtures
         shell: bash
         run: |
-          ./build/tools/genfixtures/genfixtures tests/golden/fixtures
+          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9
           bash tests/integration/make_lossy.sh tests/golden/fixtures
 
       - name: Unit tests

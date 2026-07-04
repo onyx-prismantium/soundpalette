@@ -202,4 +202,144 @@ server.registerTool(
   }),
 );
 
+// ---- M9 harmonize tools (extension §6.5); same root-confinement rules ----
+
+/** Resolves an output *directory* that may not exist yet: lexical containment first, then
+ *  create, then realpath-verify (a symlink swapped in between would still be caught). */
+function resolveOutputDirInRoot(root: string, p: string): string {
+  const realRoot = fs.realpathSync(root);
+  const candidate = path.resolve(realRoot, p);
+  if (candidate !== realRoot && !candidate.startsWith(realRoot + path.sep)) {
+    throw new RootEscapeError(p);
+  }
+  fs.mkdirSync(candidate, { recursive: true });
+  const real = fs.realpathSync(candidate);
+  if (real !== realRoot && !real.startsWith(realRoot + path.sep)) {
+    throw new RootEscapeError(p);
+  }
+  return real;
+}
+
+server.registerTool(
+  "propose_recipe",
+  {
+    description:
+      "Propose a deterministic tier-one correction recipe (shelf EQ, attack soften, tail " +
+      "shorten, loudness gain) pulling an off-palette sound back toward a baseline.",
+    inputSchema: {
+      path: z.string(),
+      baseline_path: z.string(),
+      threshold: z.number().default(2.5),
+    },
+  },
+  guarded(async ({ path: p, baseline_path, threshold }) => {
+    const fileAbs = resolveExistingInRoot(ROOT, p);
+    const baseAbs = resolveExistingInRoot(ROOT, baseline_path);
+    const res = await runCli(BIN, [
+      "propose", fileAbs, "--baseline", baseAbs, "--threshold", String(threshold),
+    ]);
+    if (res.code !== 0) return toolError(res.stderr.trim() || `propose exited ${res.code}`);
+    const recipe = JSON.parse(res.stdout);
+    const r = recipe.result;
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `proposed ${recipe.ops.length} op(s); max_z ${r.max_z_before} -> ${r.max_z_after}` +
+            (r.unresolved.length ? `; unresolved: ${r.unresolved.join(", ")}` : ""),
+        },
+      ],
+      structuredContent: recipe,
+    };
+  }),
+);
+
+server.registerTool(
+  "apply_recipe",
+  {
+    description:
+      "Apply a recipe to a source file (never modified) and write <stem>.harmonized.wav " +
+      "into out_dir, with a post-analysis report.",
+    inputSchema: {
+      path: z.string(),
+      recipe_path: z.string(),
+      out_dir: z.string(),
+    },
+  },
+  guarded(async ({ path: p, recipe_path, out_dir }) => {
+    const fileAbs = resolveExistingInRoot(ROOT, p);
+    const recipeAbs = resolveExistingInRoot(ROOT, recipe_path);
+    const outDirAbs = resolveOutputDirInRoot(ROOT, out_dir);
+    const stem = path.basename(fileAbs).replace(/\.[^.]+$/, "");
+    const wavOut = path.join(outDirAbs, `${stem}.harmonized.wav`);
+    const reportOut = path.join(outDirAbs, `${stem}.harmonized.report.json`);
+    const res = await runCli(BIN, [
+      "apply", fileAbs, "--recipe", recipeAbs, "--out", wavOut, "--report", reportOut,
+    ]);
+    if (res.code !== 0) return toolError(res.stderr.trim() || `apply exited ${res.code}`);
+    const report = JSON.parse(fs.readFileSync(reportOut, "utf8"));
+    return {
+      content: [{ type: "text", text: `wrote ${path.relative(ROOT, wavOut)}` }],
+      structuredContent: { output_path: path.relative(ROOT, wavOut), report },
+    };
+  }),
+);
+
+server.registerTool(
+  "harmonize",
+  {
+    description:
+      "Harmonize every off-palette file in a folder (or one file) against a baseline: " +
+      "propose + apply + sidecar recipes, sources never modified. dry_run writes recipes only.",
+    inputSchema: {
+      path_or_dir: z.string(),
+      baseline_path: z.string(),
+      out_dir: z.string().default("harmonized"),
+      threshold: z.number().default(2.5),
+      dry_run: z.boolean().default(false),
+    },
+  },
+  guarded(async ({ path_or_dir, baseline_path, out_dir, threshold, dry_run }) => {
+    const targetAbs = resolveExistingInRoot(ROOT, path_or_dir);
+    const baseAbs = resolveExistingInRoot(ROOT, baseline_path);
+    const outDirAbs = resolveOutputDirInRoot(ROOT, out_dir);
+    const args = [
+      "harmonize", targetAbs, "--baseline", baseAbs, "--out-dir", outDirAbs,
+      "--threshold", String(threshold),
+    ];
+    if (dry_run) args.push("--dry-run");
+    const res = await runCli(BIN, args);
+    if (res.code === 2) return toolError(res.stderr.trim() || "harmonize failed");
+    const results = res.stdout
+      .trim()
+      .split(/\r?\n/)
+      .filter((l) => l.length > 0)
+      .map((line) => {
+        const harmonized = line.match(/^HARMONIZED (.+) max_z ([\d.]+) -> ([\d.]+)$/);
+        if (harmonized) {
+          return {
+            path: harmonized[1],
+            status: "harmonized",
+            max_z_before: Number(harmonized[2]),
+            max_z_after: Number(harmonized[3]),
+          };
+        }
+        const unresolved = line.match(/^UNRESOLVED (.+) dims=(.*)$/);
+        if (unresolved) {
+          return {
+            path: unresolved[1],
+            status: "unresolved",
+            dims: unresolved[2] ? unresolved[2].split(",") : [],
+          };
+        }
+        return { status: "unknown", line };
+      });
+    return {
+      content: [{ type: "text", text: res.stdout.trim() || "nothing to harmonize" }],
+      structuredContent: { all_within_threshold: res.code === 0, results },
+    };
+  }),
+);
+
 await server.connect(new StdioServerTransport());

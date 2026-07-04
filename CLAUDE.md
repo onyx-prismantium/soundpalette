@@ -40,7 +40,13 @@ for s in tests/integration/*.sh; do bash "$s" || echo "FAILED: $s"; done
 ```
 
 Targeted subsets used by milestone gates: `ctest --test-dir build -R "decode|loudness"`,
-`-R features`, `-R "mapping|manifest"`, `-R lint`.
+`-R features`, `-R "mapping|manifest"`, `-R lint`, `-R describe` (M8),
+`-R "dsp|propose|recipe"` (M9).
+
+Extension milestones (SoundPalette_extension1.md, M8/M9): generate the extra fixture set with
+`./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9`. The MCP
+server gate is `bash tests/integration/mcp_smoke.sh` (needs node >= 18; runs npm ci/build/test
+in `mcp/`). The recipe-engine gates are `harmonize_demo.sh` and `provenance.sh`.
 
 ## GUI smoke test (headless)
 

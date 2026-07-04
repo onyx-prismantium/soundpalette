@@ -138,15 +138,32 @@ bool generate_perf_file(const std::filesystem::path &outdir, int i) {
 
 } // namespace
 
+// fixable_outlier.wav (extension §7): offends tier-one-fixable dims vs the darkset baseline.
+bool generate_fixable_outlier(const std::filesystem::path &outdir) {
+    // Deviation from the extension's §7 recipe (HPF 3 kHz x2): that construction saturates
+    // bright01 (centroid 14.4 kHz > the 8 kHz mapping cap), which no clamped +-12 dB shelf can
+    // undo — see NOTES.md M9. A 6 kHz one-pole low-pass puts the centroid at ~6-7 kHz:
+    // genuinely off-palette bright (z ~ +2.6 vs the v1 fixture-set baseline) yet inside the
+    // tier-one solver's reach.
+    std::vector<float> buf = white_noise(kBaseSeed, seconds_to_frames(3.0), 1.0);
+    onepole_lowpass_inplace(buf, 6000.0);
+    apply_exp_decay_inplace(buf, 0.3);
+    peak_normalize_inplace(buf, 0.8);
+    return write_wav_mono_f32(outdir / "fixable_outlier.wav", buf);
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: genfixtures <outdir> [--perf200]\n");
+        std::fprintf(stderr, "usage: genfixtures <outdir> [--perf200] [--extra <dir>]\n");
         return 2;
     }
     std::filesystem::path outdir = argv[1];
     bool perf200 = false;
+    std::string extra_dir;
     for (int i = 2; i < argc; ++i) {
-        if (std::string(argv[i]) == "--perf200") {
+        if (std::string(argv[i]) == "--extra") {
+            extra_dir = i + 1 < argc ? argv[++i] : "fixtures_m9";
+        } else if (std::string(argv[i]) == "--perf200") {
             perf200 = true;
         }
     }
@@ -211,6 +228,12 @@ int main(int argc, char **argv) {
         for (int i = 0; i < 200; ++i) {
             ok &= generate_perf_file(outdir / "perf", i);
         }
+    }
+
+    if (!extra_dir.empty()) {
+        std::filesystem::path extra(extra_dir);
+        std::filesystem::create_directories(extra, ec);
+        ok &= generate_fixable_outlier(extra);
     }
 
     if (!ok) {

@@ -21,6 +21,8 @@
 #include "soundpalette/lint.h"
 #include "soundpalette/manifest.h"
 #include "soundpalette/mapping.h"
+#include "soundpalette/propose.h"
+#include "soundpalette/recipe.h"
 #include "soundpalette/version.h"
 
 namespace {
@@ -324,6 +326,238 @@ int cmd_describe(const std::vector<std::string> &args) {
     return 0;
 }
 
+// ---- M9 recipe engine subcommands (extension §6.5) ----
+
+bool analyze_for_propose(const std::string &file, sp::NativeAudio &audio, sp::Loudness &loudness,
+                         sp::Features &features) {
+    std::string err;
+    auto decoded = sp::decode_file_native(file, err);
+    if (!decoded.has_value()) {
+        std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+        return false;
+    }
+    audio = std::move(*decoded);
+    sp::analyze_native(audio, loudness, features);
+    return true;
+}
+
+int cmd_propose(const std::vector<std::string> &args) {
+    std::string file, baseline_path, out;
+    double threshold = 2.5;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const std::string &a = args[i];
+        if (a == "--baseline" && i + 1 < args.size()) {
+            baseline_path = args[++i];
+        } else if (a == "--threshold" && i + 1 < args.size()) {
+            threshold = std::stod(args[++i]);
+        } else if (a == "--out" && i + 1 < args.size()) {
+            out = args[++i];
+        } else if (a.rfind("--", 0) != 0 && file.empty()) {
+            file = a;
+        }
+    }
+    if (file.empty() || baseline_path.empty()) {
+        std::fprintf(stderr, "usage: soundpalette propose <file> --baseline palette.json "
+                             "[--threshold 2.5] [--out recipe.json]\n");
+        return 2;
+    }
+
+    sp::Manifest baseline;
+    std::string err;
+    if (!load_baseline_stats(baseline_path, baseline, err)) {
+        std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+        return 2;
+    }
+
+    sp::NativeAudio audio;
+    sp::Loudness loudness;
+    sp::Features features;
+    if (!analyze_for_propose(file, audio, loudness, features)) {
+        return 2;
+    }
+
+    sp::Recipe recipe = sp::propose_recipe(audio, features, loudness, baseline.stats, threshold);
+    recipe.source_path = file;
+    recipe.source_sha256 = sp::file_sha256(file);
+    recipe.target_baseline = baseline_path;
+
+    return write_or_print(out, sp::recipe_to_json(recipe)) ? 0 : 2;
+}
+
+int cmd_apply(const std::vector<std::string> &args) {
+    std::string file, recipe_path, out, report_path;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const std::string &a = args[i];
+        if (a == "--recipe" && i + 1 < args.size()) {
+            recipe_path = args[++i];
+        } else if (a == "--out" && i + 1 < args.size()) {
+            out = args[++i];
+        } else if (a == "--report" && i + 1 < args.size()) {
+            report_path = args[++i];
+        } else if (a.rfind("--", 0) != 0 && file.empty()) {
+            file = a;
+        }
+    }
+    if (file.empty() || recipe_path.empty() || out.empty()) {
+        std::fprintf(stderr, "usage: soundpalette apply <file> --recipe recipe.json "
+                             "--out <file.wav> [--report report.json]\n");
+        return 2;
+    }
+
+    std::ifstream rf(recipe_path);
+    if (!rf) {
+        std::fprintf(stderr, "soundpalette: cannot open %s\n", recipe_path.c_str());
+        return 2;
+    }
+    std::ostringstream rss;
+    rss << rf.rdbuf();
+    std::string err;
+    auto recipe = sp::recipe_from_json(rss.str(), err);
+    if (!recipe.has_value()) {
+        std::fprintf(stderr, "soundpalette: %s: %s\n", recipe_path.c_str(), err.c_str());
+        return 2;
+    }
+
+    auto audio = sp::decode_file_native(file, err);
+    if (!audio.has_value()) {
+        std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+        return 2;
+    }
+
+    sp::ApplyReport apply_report;
+    sp::apply_chain(*audio, recipe->ops, apply_report);
+    if (!sp::write_wav_f32(out, *audio, err)) {
+        std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+        return 2;
+    }
+
+    if (!report_path.empty()) {
+        sp::Loudness post_loudness;
+        sp::Features post_features;
+        sp::analyze_native(*audio, post_loudness, post_features);
+        nlohmann::ordered_json j;
+        j["source"] = file;
+        j["output"] = out;
+        j["limited_by_peak"] = apply_report.limited_by_peak;
+        j["post"] = {{"lufs_i", round4(post_loudness.lufs_i)},
+                     {"true_peak_db", round4(post_loudness.true_peak_db)},
+                     {"centroid_hz", round4(post_features.centroid_hz)},
+                     {"flatness", round4(post_features.flatness)},
+                     {"attack_s", round4(post_features.attack_s)},
+                     {"tail_s", round4(post_features.tail_s)},
+                     {"warmth", round4(post_features.warmth)}};
+        if (!write_or_print(report_path, j.dump(2))) {
+            return 2;
+        }
+    }
+    return 0;
+}
+
+int cmd_harmonize(const std::vector<std::string> &args) {
+    std::string target, baseline_path, out_dir = "harmonized";
+    double threshold = 2.5;
+    int max_iter = 3;
+    bool dry_run = false;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const std::string &a = args[i];
+        if (a == "--baseline" && i + 1 < args.size()) {
+            baseline_path = args[++i];
+        } else if (a == "--out-dir" && i + 1 < args.size()) {
+            out_dir = args[++i];
+        } else if (a == "--threshold" && i + 1 < args.size()) {
+            threshold = std::stod(args[++i]);
+        } else if (a == "--max-iter" && i + 1 < args.size()) {
+            max_iter = std::stoi(args[++i]);
+        } else if (a == "--dry-run") {
+            dry_run = true;
+        } else if (a.rfind("--", 0) != 0 && target.empty()) {
+            target = a;
+        }
+    }
+    if (target.empty() || baseline_path.empty()) {
+        std::fprintf(stderr,
+                     "usage: soundpalette harmonize <dir|file> --baseline palette.json "
+                     "[--out-dir harmonized] [--threshold 2.5] [--max-iter 3] [--dry-run]\n");
+        return 2;
+    }
+
+    sp::Manifest baseline;
+    std::string err;
+    if (!load_baseline_stats(baseline_path, baseline, err)) {
+        std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+        return 2;
+    }
+
+    // Work list: every outlier of a directory, or the single file as given (§6.5).
+    std::vector<std::pair<std::string, std::string>> work; // (absolute-ish path, relpath)
+    if (std::filesystem::is_directory(target)) {
+        sp::Manifest candidate = sp::scan_directory(target, sp::ScanOptions{});
+        sp::LintReport report = sp::lint(baseline, candidate, threshold);
+        for (const sp::LintFileResult &r : report.outliers) {
+            work.emplace_back((std::filesystem::path(target) / r.path).string(), r.path);
+        }
+    } else if (std::filesystem::is_regular_file(target)) {
+        work.emplace_back(target, std::filesystem::path(target).filename().string());
+    } else {
+        std::fprintf(stderr, "soundpalette: no such file or directory: %s\n", target.c_str());
+        return 2;
+    }
+
+    bool all_within = true;
+    for (const auto &[abs_path, rel_path] : work) {
+        sp::NativeAudio audio;
+        sp::Loudness loudness;
+        sp::Features features;
+        if (!analyze_for_propose(abs_path, audio, loudness, features)) {
+            return 2;
+        }
+
+        sp::Recipe recipe =
+            sp::propose_recipe(audio, features, loudness, baseline.stats, threshold, max_iter);
+        recipe.source_path = rel_path;
+        recipe.source_sha256 = sp::file_sha256(abs_path);
+        recipe.target_baseline = baseline_path;
+
+        std::filesystem::path rel(rel_path);
+        std::filesystem::path out_base = std::filesystem::path(out_dir) / rel.parent_path();
+        std::error_code ec;
+        std::filesystem::create_directories(out_base, ec);
+        std::string stem = rel.stem().string();
+        std::filesystem::path wav_out = out_base / (stem + ".harmonized.wav");
+        std::filesystem::path recipe_out = out_base / (stem + ".harmonized.recipe.json");
+
+        {
+            std::ofstream f(recipe_out, std::ios::binary);
+            f << sp::recipe_to_json(recipe) << "\n";
+        }
+        if (!dry_run && !recipe.ops.empty()) {
+            sp::NativeAudio processed = audio;
+            sp::ApplyReport apply_report;
+            sp::apply_chain(processed, recipe.ops, apply_report);
+            if (!sp::write_wav_f32(wav_out, processed, err)) {
+                std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+                return 2;
+            }
+        }
+
+        if (recipe.result_max_z_after <= threshold) {
+            std::fprintf(stdout, "HARMONIZED %s max_z %.2f -> %.2f\n", rel_path.c_str(),
+                         recipe.result_max_z_before, recipe.result_max_z_after);
+        } else {
+            all_within = false;
+            std::string dims;
+            for (std::size_t i = 0; i < recipe.result_unresolved.size(); ++i) {
+                if (i > 0) {
+                    dims += ",";
+                }
+                dims += recipe.result_unresolved[i];
+            }
+            std::fprintf(stdout, "UNRESOLVED %s dims=%s\n", rel_path.c_str(), dims.c_str());
+        }
+    }
+    return all_within ? 0 : 1;
+}
+
 int cmd_export_svg(const std::vector<std::string> &args) {
     std::string manifest_path;
     std::string out;
@@ -561,7 +795,8 @@ int cmd_watch(const std::vector<std::string> &args) {
 int main(int argc, char **argv) {
     if (argc < 2) {
         std::fprintf(stderr,
-                     "usage: soundpalette <scan|lint|describe|export-svg|watch|print-mapping> "
+                     "usage: soundpalette "
+                     "<scan|lint|describe|propose|apply|harmonize|export-svg|watch|print-mapping> "
                      "[args...]\n");
         return 2;
     }
@@ -574,6 +809,12 @@ int main(int argc, char **argv) {
             return cmd_scan(args);
         } else if (subcommand == "print-mapping") {
             return cmd_print_mapping(args);
+        } else if (subcommand == "propose") {
+            return cmd_propose(args);
+        } else if (subcommand == "apply") {
+            return cmd_apply(args);
+        } else if (subcommand == "harmonize") {
+            return cmd_harmonize(args);
         } else if (subcommand == "describe") {
             return cmd_describe(args);
         } else if (subcommand == "lint") {

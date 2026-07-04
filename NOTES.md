@@ -324,3 +324,71 @@ Gate verified: `ctest -R describe` 2/2; `npm ci && npm run build && npm test` 6/
 (describe_sound 2 s budget: ~40 ms; render_palette_sheet 5 s budget: ~420 ms);
 `mcp_smoke.sh` PASS; `lint --json | python3 -m json.tool` valid; full v1 suite still green
 (ctest 22/22 incl. new describe tests + all seven v1 integration scripts).
+
+## GUI features between M7 and M8 (user-requested, 2026-07-04)
+
+- DPI-aware scaling: fonts/style/grid metrics scale by the GLFW monitor content scale (ImGui
+  1.92 `FontScaleDpi` + `ConfigDpiScaleFonts`, `GLFW_SCALE_TO_MONITOR`), with an `SP_UI_SCALE`
+  env override (X11 without `Xft.dpi` reports 1.0) and a View-menu 100/125/150/200 % user
+  multiplier. Verified at forced 2x under Xvfb (screenshots).
+- Per-glyph playback transport: play button + duration under every cell; the playing cell
+  shows pause/resume, stop, and remaining seconds counting down. Single controlled `ma_sound`
+  replaces M6's fire-and-forget click-to-play (glyph click now only selects — supersedes the
+  M6 checklist's "click plays audio" behavior). Verified interactively: countdown runs, pause
+  freezes the remaining time, stop returns the cell to idle.
+
+## M9 — recipe engine
+
+Deviations (all per §1 rule 2: measured, reported, and approved or documented — never a
+silently weakened gate):
+
+- **`harmonize_demo.sh` baseline = scan of the FULL v1 fixture set, not darkset** (approved by
+  the project owner 2026-07-04). Against darkset the demo is numerically impossible: darkset's
+  per-dim std sits at/below the 0.02 z-floor, so pulling any foreign sound within 2.5 sigma of
+  e.g. bright01 mean 0.0008 would need a centroid near 200 Hz — far beyond any clamped
+  +-12 dB shelf — and a noise-based fixture offends ton01/jitter01 (z ~ -50), which the
+  extension itself scopes out of tier one (§10).
+- **`fixable_outlier.wav` recipe changed: one-pole low-pass 6 kHz (x1) instead of high-pass
+  3 kHz (x2)** (same seed, decay, length, peak as specced). Measured with the spec's own
+  construction: centroid lands at 14.4 kHz, and bright01 saturates at the 8 kHz mapping cap
+  (bright01 = 1.0); a -12 dB shelf at 4 kHz only reaches 11.8 kHz — still saturated, so no
+  clamped tier-one chain can converge, against ANY baseline. The LP-6k variant measures
+  centroid ~7.5 kHz / bright01 0.97: genuinely off-palette (max z 3.23 vs the full-set
+  baseline) yet inside the solver's reach. The demo then closes exactly as intended:
+  1 iteration, converged, max_z 3.23 -> 1.89, post-lint PASS.
+- **`tail_shorten` keeps outputs >= 450 ms** (zero-padded after the fade): EBU R128 integrated
+  loudness needs a 400 ms gating block, and a shorter output would re-analyze as "silent"
+  under §6's rule, zeroing all features (found via the dsp/tail_shorten gate: the specced trim
+  alone cut decay_t60 to 344 ms). The trim clause is otherwise implemented as written.
+- `unresolved[]` is filtered by the FINAL z-scores: an op aimed at a resolvable dim can fix a
+  "no-inverse" dim incidentally when they share a spectral cause (the demo's single high shelf
+  fixes bright01, ton01 and jitter01 together). Nothing is silently dropped — every initially
+  offending dim is either inside the threshold after processing or listed.
+- `propose_recipe` takes the source `NativeAudio` in addition to the extension's conceptual
+  `propose(features, loudness, baseline_stats, threshold, max_iter)` signature — §6.4 step 4
+  requires apply-in-memory -> re-analyze iterations, which need the audio.
+- M0's placeholder unit test pinned the version literal "0.1.0"; updated to "0.2.0" as part of
+  the extension-mandated engine_version bump (not a weakened gate — the assertion is equally
+  strict).
+- `soundpalette-app --baseline <palette.json>` flag added (not in §6.5): NFD dialogs cannot be
+  driven headless, and the flag makes the M9 GUI checklist scriptable (and is generally useful).
+- Solver damping for attack/tail acts in log10 space (atk01/tail01 are linear in log10 of
+  their underlying seconds); shelves are corrected linearly via the §6.4 slope heuristics. All
+  constants live in `SolverConfig`, defaults exactly as §6.4.
+
+**M9 GUI manual checklist** (Xvfb + xdotool, screenshots at every step, 2026-07-04):
+- [x] Red outline badge on off-palette glyphs once a baseline is loaded (File > Load
+      baseline... or `--baseline`).
+- [x] Propose panel: "max_z 3.23 -> 1.89 (converged)", op list ("high shelf 4000 Hz
+      -12.0 dB"), seven before/after dim bars.
+- [x] Predicted glyph preview rendered from the solver's post-metrics (visibly cooler/bluer).
+- [x] Play original / Play processed (preview WAV written and played through the transport).
+- [x] Apply: wrote `harmonized/fixable_outlier.harmonized.wav` + recipe sidecar, auto-rescan
+      picked the new file up — visible in the grid next to the badged original, badge-free and
+      matching the prediction.
+
+Gate verified: `ctest -R "dsp|propose|recipe"` 10/10 (plus describe 2/2; full suite 29/29);
+`harmonize_demo.sh`, `provenance.sh` PASS; `npm test` 10/10 (M8 four tools + M9 three tools,
+determinism, root-escape rejection for out_dir); `--smoke` unchanged (78 549 bytes > 20 480);
+all ten integration scripts PASS; golden manifest still byte-identical; layering grep empty;
+zero warnings; format-clean. engine_version 0.2.0.

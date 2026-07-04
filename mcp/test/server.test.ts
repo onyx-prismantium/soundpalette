@@ -114,3 +114,83 @@ test("path traversal outside --root is rejected", async () => {
   assert.equal(res.isError, true);
   assert.match(res.content[0]?.text ?? "", /error/i);
 });
+
+// ---- M9 harmonize tools (extension §6.5), rooted at fixtures_m9 ----
+
+const M9_ROOT = path.join(REPO, "fixtures_m9");
+const M9_BASELINE = "m9-baseline.json";
+let m9: Client;
+
+before(async () => {
+  assert.ok(fs.existsSync(path.join(M9_ROOT, "fixable_outlier.wav")),
+    "missing fixtures_m9 (run genfixtures --extra first)");
+  await execFileP(BIN, ["scan", ROOT, "--out", path.join(M9_ROOT, M9_BASELINE), "--quiet"]);
+  m9 = new Client({ name: "mcp-smoke-m9", version: "0.0.0" });
+  await m9.connect(new StdioClientTransport({
+    command: process.execPath,
+    args: [SERVER, "--root", M9_ROOT, "--bin", BIN],
+  }));
+});
+
+after(async () => {
+  await m9?.close();
+  fs.rmSync(path.join(M9_ROOT, M9_BASELINE), { force: true });
+  fs.rmSync(path.join(M9_ROOT, "out"), { recursive: true, force: true });
+});
+
+test("propose_recipe returns a deterministic recipe with ops", async () => {
+  const call = () => m9.callTool({
+    name: "propose_recipe",
+    arguments: { path: "fixable_outlier.wav", baseline_path: M9_BASELINE },
+  }) as Promise<{ structuredContent?: { ops?: unknown[]; result?: { max_z_before: number } } }>;
+  const a = await call();
+  const b = await call();
+  assert.ok((a.structuredContent?.ops?.length ?? 0) >= 1);
+  assert.deepEqual(a.structuredContent, b.structuredContent); // §6.4: pure
+});
+
+test("harmonize closes the loop and reports per-file results", async () => {
+  const res = await m9.callTool({
+    name: "harmonize",
+    arguments: {
+      path_or_dir: "fixable_outlier.wav",
+      baseline_path: M9_BASELINE,
+      out_dir: "out",
+    },
+  }) as {
+    structuredContent?: {
+      all_within_threshold?: boolean;
+      results?: { path: string; status: string }[];
+    };
+  };
+  assert.equal(res.structuredContent?.all_within_threshold, true);
+  assert.equal(res.structuredContent?.results?.[0]?.status, "harmonized");
+  assert.ok(fs.existsSync(path.join(M9_ROOT, "out", "fixable_outlier.harmonized.wav")));
+  assert.ok(fs.existsSync(
+    path.join(M9_ROOT, "out", "fixable_outlier.harmonized.recipe.json")));
+});
+
+test("apply_recipe writes output + report inside out_dir", async () => {
+  const res = await m9.callTool({
+    name: "apply_recipe",
+    arguments: {
+      path: "fixable_outlier.wav",
+      recipe_path: "out/fixable_outlier.harmonized.recipe.json",
+      out_dir: "out/applied",
+    },
+  }) as { structuredContent?: { output_path?: string; report?: { post?: unknown } } };
+  assert.ok(res.structuredContent?.output_path?.endsWith("fixable_outlier.harmonized.wav"));
+  assert.ok(res.structuredContent?.report?.post);
+});
+
+test("harmonize out_dir cannot escape the root", async () => {
+  const res = await m9.callTool({
+    name: "harmonize",
+    arguments: {
+      path_or_dir: "fixable_outlier.wav",
+      baseline_path: M9_BASELINE,
+      out_dir: "../escape-attempt",
+    },
+  }) as { isError?: boolean };
+  assert.equal(res.isError, true);
+});

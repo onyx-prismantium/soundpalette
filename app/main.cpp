@@ -54,14 +54,18 @@ bool write_framebuffer_png(GLFWwindow *window, const std::string &out_path) {
 int main(int argc, char **argv) {
     std::string smoke_out;
     std::string initial_dir;
+    std::string initial_baseline;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--smoke") == 0 && i + 1 < argc) {
             smoke_out = argv[++i];
         } else if (std::strcmp(argv[i], "--dir") == 0 && i + 1 < argc) {
             initial_dir = argv[++i];
+        } else if (std::strcmp(argv[i], "--baseline") == 0 && i + 1 < argc) {
+            initial_baseline = argv[++i];
         } else {
-            std::fprintf(stderr, "usage: soundpalette-app [--smoke <out.png> [--dir <folder>]]\n");
+            std::fprintf(stderr, "usage: soundpalette-app [--smoke <out.png>] [--dir <folder>] "
+                                 "[--baseline <palette.json>]\n");
             return 2;
         }
     }
@@ -146,6 +150,9 @@ int main(int argc, char **argv) {
         state.last_scan_seconds =
             std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
         spapp::rebuild_visuals(state);
+    }
+    if (!initial_baseline.empty() && !spapp::load_baseline(state, initial_baseline)) {
+        std::fprintf(stderr, "soundpalette-app: invalid baseline %s\n", initial_baseline.c_str());
     }
 
     int exit_code = 0;

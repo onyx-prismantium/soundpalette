@@ -133,6 +133,14 @@ void draw_grid(AppState &state) {
                     draw->AddRect(cell_pos, ImVec2(cell_pos.x + cell, cell_pos.y + row_h),
                                   IM_COL32(255, 255, 255, 80), 4.0f);
                 }
+                // M9 badge: red outline when the file is off-palette vs the loaded baseline.
+                if (state.baseline_loaded && file_index < static_cast<int>(state.max_z.size()) &&
+                    e.error.empty() &&
+                    state.max_z[static_cast<std::size_t>(file_index)] >=
+                        state.harmonize_threshold) {
+                    draw->AddRect(cell_pos, ImVec2(cell_pos.x + cell, cell_pos.y + row_h),
+                                  IM_COL32(255, 64, 64, 200), 4.0f, 0, 2.0f);
+                }
                 if (!e.error.empty()) {
                     draw_error_mark(draw, center, cell);
                 } else {

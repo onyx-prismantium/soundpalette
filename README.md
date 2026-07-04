@@ -54,6 +54,10 @@ Then point it at a folder of sounds:
 soundpalette scan <dir> [--out palette.json] [--no-meta] [--threads N] [--quiet]
 soundpalette lint <dir> --baseline palette.json [--threshold 2.5] [--top 10]
 soundpalette export-svg <palette.json> --out sheet.svg [--columns 8]
+soundpalette describe <file> [--json]
+soundpalette propose <file> --baseline palette.json [--threshold 2.5] [--out recipe.json]
+soundpalette apply <file> --recipe recipe.json --out <file.wav> [--report report.json]
+soundpalette harmonize <dir|file> --baseline palette.json [--out-dir harmonized] [--dry-run]
 soundpalette watch <dir> [--out palette.json] [--interval-ms 500]
 soundpalette print-mapping [--out mapping.json]
 ```
@@ -99,12 +103,34 @@ Headless self-test (used by CI):
 xvfb-run -a ./build/app/soundpalette-app --smoke out.png --dir path/to/sfx
 ```
 
+## Harmonization (tier one)
+
+`propose` / `apply` / `harmonize` non-destructively pull off-palette sounds back toward a
+baseline using well-behaved offline DSP only: loudness targeting (true-peak capped), low/high
+shelf EQ, attack softening, tail shortening. Sources are **never modified**; processed audio
+goes to a separate output directory as 32-bit float WAV with a recipe sidecar recording
+provenance (source hash, ops, before/after metrics). Character-changing processing (pitch,
+tonal/noisy transformation, tail lengthening) is deliberately out of scope; offenses tier one
+cannot fix are reported as `unresolved`, never silently dropped. OGG/MP3 outputs are not
+re-encoded — output is always WAV.
+
+```bash
+soundpalette propose  laser.wav --baseline palette.json --out recipe.json
+soundpalette apply    laser.wav --recipe recipe.json --out laser.fixed.wav
+soundpalette harmonize sfx/ --baseline palette.json --out-dir harmonized
+# HARMONIZED ui/laser_zap.wav max_z 4.81 -> 1.62
+```
+
+In the GUI, load a baseline (File > Load baseline...) to badge outliers red; the inspector
+then offers Propose fix with a predicted glyph preview, A/B playback, and Apply.
+
 ## Using SoundPalette from an AI agent
 
 `mcp/` ships an MCP server (stdio transport) that exposes the analysis suite as tools:
 `scan_folder`, `lint_against_baseline`, `describe_sound` (deterministic plain-language
-description), and `render_palette_sheet` (returns the glyph grid as a PNG image). Every path
-is confined to the configured project root.
+description), `render_palette_sheet` (returns the glyph grid as a PNG image), plus the
+harmonize suite: `propose_recipe`, `apply_recipe`, `harmonize`. Every path is confined to the
+configured project root.
 
 ```bash
 cd mcp && npm ci && npm run build

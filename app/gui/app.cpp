@@ -51,6 +51,18 @@ void draw_menu_bar(AppState &state) {
                 start_rescan(state);
             }
         }
+        if (ImGui::MenuItem("Load baseline...", nullptr, false, !state.smoke_mode)) {
+            nfdu8char_t *picked = nullptr;
+            nfdu8filteritem_t filter{"Palette manifest", "json"};
+            if (NFD_OpenDialogU8(&picked, &filter, 1, nullptr) == NFD_OKAY) {
+                if (load_baseline(state, picked)) {
+                    state.status_message = std::string("baseline: ") + picked;
+                } else {
+                    state.status_message = std::string("invalid baseline: ") + picked;
+                }
+                NFD_FreePathU8(picked);
+            }
+        }
         if (ImGui::MenuItem("Rescan", nullptr, false,
                             !state.root_dir.empty() && !state.scanning.load())) {
             start_rescan(state);
@@ -207,6 +219,7 @@ void rebuild_visuals(AppState &state) {
             e.visual = sp::map_v1(e.features, e.loudness, sp::path_seed(e.path));
         }
     }
+    recompute_badges(state);
     rebuild_order(state);
 }
 
