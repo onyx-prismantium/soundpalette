@@ -53,3 +53,8 @@ target_include_directories(soundpalette-app PRIVATE
 target_link_libraries(soundpalette-app PRIVATE soundpalette_core sp_imgui glfw OpenGL::GL nfd
                       nlohmann_json::nlohmann_json)
 sp_set_warnings(soundpalette-app)
+if(MSVC)
+    # std::getenv (SP_UI_SCALE override) trips MSVC's non-standard C4996 CRT deprecation;
+    # same conventional opt-out as the unit-test target.
+    target_compile_definitions(soundpalette-app PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
