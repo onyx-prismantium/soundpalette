@@ -16,7 +16,9 @@ ffmpeg -y -loglevel error -i "$SRC" -ar 48000 -ac 1 -c:a libmp3lame -b:a 192k "$
 
 # ffmpeg/libvorbis picks a random Ogg logical-bitstream serial per encode; normalize it so the
 # .ogg fixture is byte-identical across regenerations (determinism §1 rule 5).
+# Windows Git Bash ships only a `python` shim, so fall back to it when `python3` is absent.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "${SCRIPT_DIR}/fix_ogg_serial.py" "${FIXTURES_DIR}/sine440_1s.ogg"
+PYTHON="$(command -v python3 || command -v python)"
+"$PYTHON" "${SCRIPT_DIR}/fix_ogg_serial.py" "${FIXTURES_DIR}/sine440_1s.ogg"
 
 echo "make_lossy.sh: wrote flac/ogg/mp3 next to $SRC"
