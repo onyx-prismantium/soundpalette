@@ -3,18 +3,24 @@
 #include <atomic>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
 
+#include "soundpalette/deviation.h"
 #include "soundpalette/manifest.h"
 #include "soundpalette/mapping.h"
+#include "soundpalette/profile.h"
 #include "soundpalette/recipe.h"
 
 namespace spapp {
 
-// Sidebar sort modes (§10).
-enum class SortMode { kHue = 0, kBrightness, kSize, kAttack, kTail, kName };
+// Sidebar sort modes (§10 + extension-2 §7.1 "by deviation").
+enum class SortMode { kHue = 0, kBrightness, kSize, kAttack, kTail, kName, kDeviation };
+
+// Central-view switcher (extension-2 §7.2).
+enum class ViewMode { kGrid = 0, kConstellation };
 
 struct AppState {
     // Data.
@@ -66,13 +72,27 @@ struct AppState {
         return dpi_scale * user_scale;
     }
 
-    // M9 harmonize (extension §6.5): optional baseline; per-entry max|z| badges; the current
-    // proposal for the selected outlier.
-    bool baseline_loaded = false;
-    std::string baseline_path;
-    std::array<sp::DimStats, 7> baseline_stats{};
-    double harmonize_threshold = 2.5;
-    std::vector<double> max_z; // parallel to manifest.files, valid when baseline_loaded
+    // M10/M11: loaded palette profile (a --baseline manifest is adapted into an anonymous
+    // profile) and the per-entry deviations computed from it; drives halos, sorting, the
+    // deviation inspector section, and the M9 harmonize panel's category targeting.
+    bool profile_loaded = false;
+    std::string profile_source_path;
+    sp::Profile profile;
+    std::vector<sp::Deviation> deviations; // parallel to manifest.files
+
+    // M11 view state (extension-2 §7).
+    ViewMode view_mode = ViewMode::kGrid;
+    bool show_halos = true;
+    bool show_z_labels = true;
+    bool dim_conforming = false;
+    bool outliers_only = false;
+    int constellation_axis_x = 0; // 0..6 dims, 7 = PCA1, 8 = PCA2
+    int constellation_axis_y = 1;
+    int constellation_category = -1; // -1 = all (top-level), else category index
+    std::string view_note;           // e.g. the PCA fallback message
+    bool force_view_tab = false;     // set by --view to pre-select a tab in smoke mode
+    int want_create_profile = 0;     // 1 = from folder, 2 = from selection (modal pending)
+    std::set<int> multi_selected;    // ctrl+click multi-selection for create-from-selection
 
     bool proposal_valid = false;
     int proposal_for = -1; // manifest.files index the proposal belongs to
@@ -108,9 +128,13 @@ void draw_inspector(AppState &state); // inspector.cpp
 void draw_tuner(AppState &state);     // tuner.cpp
 
 // harmonize_panel.cpp (M9, extension §6.5).
-bool load_baseline(AppState &state, const std::string &path);
-void recompute_badges(AppState &state); // fills max_z when a baseline is loaded
+bool load_baseline(AppState &state, const std::string &path); // manifest OR .sppal.json
+void recompute_badges(AppState &state); // recomputes deviations when a profile is loaded
 void draw_harmonize(AppState &state);   // inspector section for the selected outlier
+
+// constellation.cpp (M11, extension-2 §7.2).
+void draw_constellation(AppState &state);
+void draw_deviation_section(AppState &state, int file_index); // shared inspector/tooltip part
 
 // Shared helper: HSL (§7 visual attributes) -> ImGui-packed RGBA.
 unsigned int hsl_to_rgba(double hue_deg, double sat_pct, double light_pct, double alpha);

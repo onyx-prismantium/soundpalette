@@ -30,7 +30,7 @@ jobs:
 
       - name: Generate test fixtures (deterministic, PLAN.md §11 + extension §7)
         run: |
-          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9
+          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9 --profile-set fixtures_m10
           bash tests/integration/make_lossy.sh tests/golden/fixtures
 
       - name: Unit tests
@@ -47,6 +47,17 @@ jobs:
         run: |
           xvfb-run -a ./build/app/soundpalette-app --smoke smoke.png --dir tests/golden/fixtures
           test -s smoke.png
+
+      - name: Deviation-view smoke tests (M11)
+        run: |
+          ./build/cli/soundpalette profile create fixtures_m10/catfx --name catfx \
+            --category 'ui=ui/**,**/ui_*' --category 'combat=combat/**' \
+            --out /tmp/catfx.sppal.json
+          xvfb-run -a ./build/app/soundpalette-app --smoke halos.png \
+            --dir fixtures_m10/catfx --profile /tmp/catfx.sppal.json --view grid
+          xvfb-run -a ./build/app/soundpalette-app --smoke constellation.png \
+            --dir fixtures_m10/catfx --profile /tmp/catfx.sppal.json --view constellation
+          test -s halos.png && test -s constellation.png
 
       - name: Export palette sheet
         run: ./build/cli/soundpalette export-svg tests/golden/palette.json --out sheet.svg
@@ -88,7 +99,7 @@ jobs:
       - name: Generate test fixtures
         shell: bash
         run: |
-          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9
+          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9 --profile-set fixtures_m10
           bash tests/integration/make_lossy.sh tests/golden/fixtures
 
       - name: Unit tests

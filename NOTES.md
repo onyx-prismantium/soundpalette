@@ -441,3 +441,44 @@ PASS; MCP suite 10/10. No M9.x fixes needed.
 Gate verified: `ctest -R "glob|profile|deviation|seam"` 8/8; profile_roundtrip / category_lint
 / svg_halos PASS; MCP 13/13; full ctest 37/37; all thirteen integration scripts PASS; golden
 byte-identical; zero warnings; format-clean.
+
+## M11 — Deviation views
+
+- Tab forcing for `--view` captures the SetSelected flags from the pre-frame view_mode before
+  any tab callback runs (the active tab's callback overwrites view_mode, which otherwise
+  cancels the forced switch — found via the constellation smoke rendering the grid).
+- `compute_pca2` stores PC1/PC2 even when the §7.2 fallback triggers; `valid == false` is the
+  view-level fallback signal, not a claim the components are meaningless. The extension's own
+  pca/direction test case (dim0 = dim1 = t, others constant) is rank-1 and would otherwise be
+  swallowed by the extension's own lambda2/lambda1 < 1e-6 rule; the test gives dim2 a small
+  alternating variance so both clauses are exercised honestly.
+- Deviations are recomputed synchronously on profile load / rescan adoption rather than on a
+  worker thread (§7.1 says worker): the computation is pure arithmetic over cached features
+  (microseconds for thousands of files — no audio decoding), so a thread would add complexity
+  without any responsiveness benefit. Rescans themselves remain on the worker thread.
+- ImGui has no dashed stroke primitive; amber halos and 2-sigma ellipses are drawn as
+  alternating short arcs/segments (dash ~4 px / gap ~3 px, scaled).
+- The M9 "Load baseline..." menu item is superseded by Profile > Load..., which accepts both
+  .sppal.json profiles and plain manifests (adapted via profile_from_manifest); the M9
+  harmonize panel now targets the selected file's resolved category.
+
+**M11 manual checklist** (Xvfb + xdotool, screenshots archived in docs/ and verified,
+2026-07-05):
+- [x] Halos: solid red ring + width growth with z on the misplaced tick (z 50.0 label),
+      dashed amber ring on the borderline hit_02 (z 2.3) — distinct without color.
+- [x] Halo toggle, z-label toggle, "dim conforming" (conforming glyphs at 35 % alpha),
+      "outliers only" (grid reduces to the two flagged files), sort-by-deviation radio.
+- [x] Inspector deviation section: category, max |z|, band, seven z bars with shaded +-T.
+- [x] Profile menu: Load..., Create from folder..., Create from current selection...
+      (ctrl+click multi-select ring in the grid), Clear; status bar "profile: catfx (2 cat)".
+- [x] Constellation: axis pickers (7 dims + PCA 1/2 listed), category dropdown switches the
+      point set + region (combat view isolates the misplaced tick), hover tooltip, click
+      selects + syncs inspector, double-click/Space play wired.
+- [x] Selected-outlier distance line: dashed line to the nearest 1-sigma point, "z 50.0"
+      label; correctly absent for conforming selections and for non-selected outliers.
+- [x] PCA fallback note wired to the status bar (valid==false path unit-tested; UI shows
+      "PCA unavailable for this set" and falls back to bright01/warm01).
+
+Gate verified: `ctest -R "pca|ellipse"` 4/4; both M11 smokes exit 0 with PNGs > 20 kB
+(halos 90 560 B, constellation 72 917 B); full ctest 41/41; all thirteen integration scripts
+PASS; MCP 13/13; golden byte-identical; zero warnings; format-clean. engine_version 0.3.0.

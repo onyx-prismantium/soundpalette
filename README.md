@@ -127,6 +127,24 @@ Per-category linting catches what a global baseline cannot: a UI tick misfiled i
 passes global statistics easily but flags **red inside its combat family**. Deviations are
 computed once in core, so CLI, MCP, SVG halos, and the GUI always report identical numbers.
 
+## Deviation views
+
+Load a profile in the GUI (Profile > Load..., or create one from the open folder / a
+ctrl+click selection) and every off-palette sound gets a **deviation halo**: solid red ring
+for hard outliers, dashed amber for borderline — line style always pairs with color, so the
+signal survives colorblind viewing — plus an optional `z` label. Toggles: dim conforming
+(strays pop), outliers only, sort by deviation. The inspector shows the file's category and
+all seven z-scores against the shaded +-T band.
+
+![Deviation halos](docs/halos.png)
+
+The **Constellation** tab plots the loaded set against the profile's honest 1-sigma/2-sigma
+covariance ellipses, with axis pickers over the seven dimensions plus deterministic PCA, a
+per-category region selector, and a dashed distance line from the selected outlier to the
+1-sigma boundary.
+
+![Constellation](docs/constellation.png)
+
 ## Harmonization (tier one)
 
 `propose` / `apply` / `harmonize` non-destructively pull off-palette sounds back toward a

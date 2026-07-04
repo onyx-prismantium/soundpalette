@@ -55,6 +55,7 @@ int main(int argc, char **argv) {
     std::string smoke_out;
     std::string initial_dir;
     std::string initial_baseline;
+    std::string initial_view;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--smoke") == 0 && i + 1 < argc) {
@@ -63,9 +64,13 @@ int main(int argc, char **argv) {
             initial_dir = argv[++i];
         } else if (std::strcmp(argv[i], "--baseline") == 0 && i + 1 < argc) {
             initial_baseline = argv[++i];
+        } else if (std::strcmp(argv[i], "--profile") == 0 && i + 1 < argc) {
+            initial_baseline = argv[++i]; // same loader handles .sppal.json and manifests
+        } else if (std::strcmp(argv[i], "--view") == 0 && i + 1 < argc) {
+            initial_view = argv[++i];
         } else {
             std::fprintf(stderr, "usage: soundpalette-app [--smoke <out.png>] [--dir <folder>] "
-                                 "[--baseline <palette.json>]\n");
+                                 "[--profile <p.sppal.json>] [--view grid|constellation]\n");
             return 2;
         }
     }
@@ -153,6 +158,16 @@ int main(int argc, char **argv) {
     }
     if (!initial_baseline.empty() && !spapp::load_baseline(state, initial_baseline)) {
         std::fprintf(stderr, "soundpalette-app: invalid baseline %s\n", initial_baseline.c_str());
+    }
+    if (initial_view == "constellation") {
+        state.view_mode = spapp::ViewMode::kConstellation;
+        state.force_view_tab = true;
+    } else if (initial_view == "grid" || initial_view.empty()) {
+        state.view_mode = spapp::ViewMode::kGrid;
+        state.force_view_tab = !initial_view.empty();
+    } else {
+        std::fprintf(stderr, "soundpalette-app: unknown --view %s\n", initial_view.c_str());
+        return 2;
     }
 
     int exit_code = 0;

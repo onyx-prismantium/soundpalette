@@ -48,6 +48,11 @@ Extension milestones (SoundPalette_extension1.md, M8/M9): generate the extra fix
 server gate is `bash tests/integration/mcp_smoke.sh` (needs node >= 18; runs npm ci/build/test
 in `mcp/`). The recipe-engine gates are `harmonize_demo.sh` and `provenance.sh`.
 
+Extension 2 (SoundPalette_extension2.md, M10/M11): fixtures via `--profile-set fixtures_m10`;
+unit gates `-R "glob|profile|deviation|seam"` and `-R "pca|ellipse"`; scripts
+`profile_roundtrip.sh`, `category_lint.sh`, `svg_halos.sh`; GUI smokes take
+`--profile <p.sppal.json> --view grid|constellation`.
+
 ## GUI smoke test (headless)
 
 ```bash

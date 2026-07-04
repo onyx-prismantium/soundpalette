@@ -13,6 +13,7 @@ add_executable(sp_unit_tests
     test_glob.cpp
     test_profile.cpp
     test_deviation.cpp
+    test_pca.cpp
 )
 target_link_libraries(sp_unit_tests PRIVATE soundpalette_core doctest::doctest nlohmann_json::nlohmann_json)
 sp_set_warnings(sp_unit_tests)

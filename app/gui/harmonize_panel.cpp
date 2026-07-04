@@ -24,16 +24,6 @@ namespace {
 constexpr const char *kDimNames[7] = {"bright01", "warm01", "ton01",   "atk01",
                                       "tail01",   "loud01", "jitter01"};
 
-double entry_max_z(const sp::FileEntry &e, const std::array<sp::DimStats, 7> &stats) {
-    std::array<double, 7> dims = sp::mapping_dims(e.features, e.loudness);
-    double worst = 0.0;
-    for (std::size_t d = 0; d < 7; ++d) {
-        double z = (dims[d] - stats[d].mean) / std::max(stats[d].std, 0.02);
-        worst = std::max(worst, std::fabs(z));
-    }
-    return worst;
-}
-
 // Decodes the selected entry, runs the solver, and derives the predicted visual by applying
 // the proposed chain in memory and re-analyzing (the same closed loop harmonize uses).
 bool build_proposal(AppState &state, const sp::FileEntry &e) {
@@ -48,11 +38,16 @@ bool build_proposal(AppState &state, const sp::FileEntry &e) {
     sp::Features features;
     sp::analyze_native(*audio, loudness, features);
 
-    state.proposal = sp::propose_recipe(*audio, features, loudness, state.baseline_stats,
-                                        state.harmonize_threshold);
+    // Category targeting (extension-2 §6.1): pull stats from the file's resolved category.
+    const int cat = sp::resolve_category(state.profile, e.path);
+    const std::array<sp::DimStats, 7> &target_stats =
+        cat >= 0 ? state.profile.categories[static_cast<std::size_t>(cat)].stats
+                 : state.profile.stats;
+    state.proposal =
+        sp::propose_recipe(*audio, features, loudness, target_stats, state.profile.threshold);
     state.proposal.source_path = e.path;
     state.proposal.source_sha256 = sp::file_sha256(abs);
-    state.proposal.target_baseline = state.baseline_path;
+    state.proposal.target_baseline = state.profile_source_path;
     state.proposal_dims_before = sp::mapping_dims(features, loudness);
 
     sp::NativeAudio processed = *audio;
@@ -121,48 +116,56 @@ bool load_baseline(AppState &state, const std::string &path) {
     }
     std::ostringstream ss;
     ss << f.rdbuf();
-    nlohmann::json j;
-    try {
-        j = nlohmann::json::parse(ss.str());
-    } catch (const std::exception &) {
-        return false;
-    }
-    if (!j.contains("stats")) {
-        return false;
-    }
-    for (int d = 0; d < 7; ++d) {
-        if (!j["stats"].contains(kDimNames[d])) {
+    const std::string text = ss.str();
+
+    std::string err;
+    if (auto profile = sp::profile_from_json(text, err); profile.has_value()) {
+        state.profile = std::move(*profile); // native .sppal.json
+    } else {
+        // Manifest fallback: adapt the stats block into an anonymous profile (M10 §4.3).
+        nlohmann::json j;
+        try {
+            j = nlohmann::json::parse(text);
+        } catch (const std::exception &) {
             return false;
         }
-        const auto &s = j["stats"][kDimNames[d]];
-        auto &out = state.baseline_stats[static_cast<std::size_t>(d)];
-        out.mean = s.value("mean", 0.0);
-        out.std = s.value("std", 0.0);
-        out.min = s.value("min", 0.0);
-        out.max = s.value("max", 0.0);
+        if (!j.contains("stats")) {
+            return false;
+        }
+        sp::Manifest baseline;
+        for (int d = 0; d < 7; ++d) {
+            if (!j["stats"].contains(kDimNames[d])) {
+                return false;
+            }
+            const auto &sj = j["stats"][kDimNames[d]];
+            auto &out = baseline.stats[static_cast<std::size_t>(d)];
+            out.mean = sj.value("mean", 0.0);
+            out.std = sj.value("std", 0.0);
+            out.min = sj.value("min", 0.0);
+            out.max = sj.value("max", 0.0);
+        }
+        state.profile = sp::profile_from_manifest(baseline);
     }
-    state.baseline_path = path;
-    state.baseline_loaded = true;
+
+    state.profile_source_path = path;
+    state.profile_loaded = true;
     state.proposal_valid = false;
     recompute_badges(state);
     return true;
 }
 
 void recompute_badges(AppState &state) {
-    state.max_z.assign(state.manifest.files.size(), 0.0);
-    if (!state.baseline_loaded) {
+    state.deviations.assign(state.manifest.files.size(), sp::Deviation{});
+    if (!state.profile_loaded) {
         return;
     }
     for (std::size_t i = 0; i < state.manifest.files.size(); ++i) {
-        const sp::FileEntry &e = state.manifest.files[i];
-        if (e.error.empty() && !e.loudness.silent) {
-            state.max_z[i] = entry_max_z(e, state.baseline_stats);
-        }
+        state.deviations[i] = sp::compute_deviation(state.manifest.files[i], state.profile);
     }
 }
 
 void draw_harmonize(AppState &state) {
-    if (!state.baseline_loaded || state.selected < 0 ||
+    if (!state.profile_loaded || state.selected < 0 ||
         state.selected >= static_cast<int>(state.manifest.files.size())) {
         return;
     }
@@ -174,8 +177,8 @@ void draw_harmonize(AppState &state) {
     ImGui::Separator();
     ImGui::TextUnformatted("Harmonize");
 
-    const double max_z = state.max_z[static_cast<std::size_t>(state.selected)];
-    if (max_z < state.harmonize_threshold) {
+    const double max_z = state.deviations[static_cast<std::size_t>(state.selected)].max_z;
+    if (max_z < state.profile.threshold) {
         ImGui::TextDisabled("within palette (max |z| = %.2f)", max_z);
         return;
     }

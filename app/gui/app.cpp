@@ -51,18 +51,6 @@ void draw_menu_bar(AppState &state) {
                 start_rescan(state);
             }
         }
-        if (ImGui::MenuItem("Load baseline...", nullptr, false, !state.smoke_mode)) {
-            nfdu8char_t *picked = nullptr;
-            nfdu8filteritem_t filter{"Palette manifest", "json"};
-            if (NFD_OpenDialogU8(&picked, &filter, 1, nullptr) == NFD_OKAY) {
-                if (load_baseline(state, picked)) {
-                    state.status_message = std::string("baseline: ") + picked;
-                } else {
-                    state.status_message = std::string("invalid baseline: ") + picked;
-                }
-                NFD_FreePathU8(picked);
-            }
-        }
         if (ImGui::MenuItem("Rescan", nullptr, false,
                             !state.root_dir.empty() && !state.scanning.load())) {
             start_rescan(state);
@@ -79,6 +67,32 @@ void draw_menu_bar(AppState &state) {
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Ctrl+Q")) {
             state.want_quit = true;
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Profile")) {
+        if (ImGui::MenuItem("Load...", nullptr, false, !state.smoke_mode)) {
+            nfdu8char_t *picked = nullptr;
+            nfdu8filteritem_t filter{"Palette profile or manifest", "sppal.json,json"};
+            if (NFD_OpenDialogU8(&picked, &filter, 1, nullptr) == NFD_OKAY) {
+                state.status_message = load_baseline(state, picked)
+                                           ? std::string("profile: ") + picked
+                                           : std::string("invalid profile: ") + picked;
+                NFD_FreePathU8(picked);
+            }
+        }
+        if (ImGui::MenuItem("Create from folder...", nullptr, false,
+                            !state.smoke_mode && !state.manifest.files.empty())) {
+            state.want_create_profile = 1;
+        }
+        if (ImGui::MenuItem("Create from current selection...", nullptr, false,
+                            !state.smoke_mode && !state.multi_selected.empty())) {
+            state.want_create_profile = 2;
+        }
+        if (ImGui::MenuItem("Clear", nullptr, false, state.profile_loaded)) {
+            state.profile_loaded = false;
+            state.profile = sp::Profile{};
+            recompute_badges(state);
         }
         ImGui::EndMenu();
     }
@@ -99,9 +113,11 @@ void draw_menu_bar(AppState &state) {
 
 void draw_sidebar(AppState &state) {
     ImGui::TextUnformatted("Sort by");
-    static const char *kModes[] = {"hue", "brightness", "size", "attack", "tail", "name"};
+    static const char *kModes[] = {"hue",  "brightness", "size",     "attack",
+                                   "tail", "name",       "deviation"};
     int mode = static_cast<int>(state.sort_mode);
-    for (int i = 0; i < 6; ++i) {
+    const int mode_count = state.profile_loaded ? 7 : 6; // deviation needs a profile
+    for (int i = 0; i < mode_count; ++i) {
         if (ImGui::RadioButton(kModes[i], mode == i)) {
             state.sort_mode = static_cast<SortMode>(i);
             rebuild_order(state);
@@ -113,15 +129,37 @@ void draw_sidebar(AppState &state) {
     if (ImGui::InputText("##filter", state.filter_text, sizeof(state.filter_text))) {
         rebuild_order(state);
     }
+    if (state.profile_loaded) {
+        ImGui::Separator();
+        ImGui::TextUnformatted("Deviation");
+        ImGui::Checkbox("halos", &state.show_halos);
+        ImGui::Checkbox("z labels", &state.show_z_labels);
+        ImGui::Checkbox("dim conforming", &state.dim_conforming);
+        if (ImGui::Checkbox("outliers only", &state.outliers_only)) {
+            rebuild_order(state);
+        }
+    }
 }
 
 void draw_status_bar(AppState &state) {
     if (state.scanning.load()) {
         ImGui::Text("analyzed %zu/%zu", state.scan_done.load(), state.scan_total.load());
     } else {
-        ImGui::Text("%zu files | scan %.2f s | mapping v%d | %s", state.manifest.files.size(),
-                    state.last_scan_seconds, state.manifest.mapping_version,
-                    state.audio_ok ? "audio on" : "audio off");
+        if (state.profile_loaded) {
+            ImGui::Text("%zu files | scan %.2f s | mapping v%d | %s | profile: %s (%d cat)",
+                        state.manifest.files.size(), state.last_scan_seconds,
+                        state.manifest.mapping_version, state.audio_ok ? "audio on" : "audio off",
+                        state.profile.name.empty() ? "(baseline)" : state.profile.name.c_str(),
+                        static_cast<int>(state.profile.categories.size()));
+        } else {
+            ImGui::Text("%zu files | scan %.2f s | mapping v%d | %s", state.manifest.files.size(),
+                        state.last_scan_seconds, state.manifest.mapping_version,
+                        state.audio_ok ? "audio on" : "audio off");
+        }
+        if (!state.view_note.empty()) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.9f, 0.75f, 0.4f, 1.0f), "| %s", state.view_note.c_str());
+        }
     }
     if (!state.status_message.empty()) {
         ImGui::SameLine();
@@ -229,13 +267,23 @@ void rebuild_order(AppState &state) {
     state.order.reserve(files.size());
     std::string needle(state.filter_text);
     for (int i = 0; i < static_cast<int>(files.size()); ++i) {
-        if (contains_case_insensitive(files[static_cast<std::size_t>(i)].path, needle)) {
-            state.order.push_back(i);
+        if (!contains_case_insensitive(files[static_cast<std::size_t>(i)].path, needle)) {
+            continue;
         }
+        if (state.outliers_only && state.profile_loaded &&
+            i < static_cast<int>(state.deviations.size()) &&
+            state.deviations[static_cast<std::size_t>(i)].band == sp::DevBand::none) {
+            continue; // §7.1 "outliers only" grid filter
+        }
+        state.order.push_back(i);
     }
 
     SortMode mode = state.sort_mode;
-    auto sort_key_less = [&files, mode](int a, int b) {
+    if (mode == SortMode::kDeviation && !state.profile_loaded) {
+        mode = SortMode::kName;
+    }
+    const std::vector<sp::Deviation> &devs = state.deviations;
+    auto sort_key_less = [&files, &devs, mode](int a, int b) {
         const sp::FileEntry &ea = files[static_cast<std::size_t>(a)];
         const sp::FileEntry &eb = files[static_cast<std::size_t>(b)];
         switch (mode) {
@@ -249,6 +297,13 @@ void rebuild_order(AppState &state) {
             return ea.features.attack_s < eb.features.attack_s;
         case SortMode::kTail:
             return ea.features.tail_s < eb.features.tail_s;
+        case SortMode::kDeviation:
+            if (static_cast<std::size_t>(a) < devs.size() &&
+                static_cast<std::size_t>(b) < devs.size()) {
+                return devs[static_cast<std::size_t>(a)].max_z >
+                       devs[static_cast<std::size_t>(b)].max_z;
+            }
+            return ea.path < eb.path;
         case SortMode::kName:
         default:
             return ea.path < eb.path;
@@ -408,7 +463,30 @@ void draw_ui(AppState &state) {
 
     ImGui::SameLine();
     ImGui::BeginChild("grid", ImVec2(-inspector_w - 8.0f * s, -status_h), ImGuiChildFlags_Borders);
-    draw_grid(state);
+    if (ImGui::BeginTabBar("##views")) {
+        // Capture the forced-selection flags from the pre-frame view_mode BEFORE any tab
+        // callback overwrites it with the currently active tab.
+        const ImGuiTabItemFlags grid_flags =
+            state.force_view_tab && state.view_mode == ViewMode::kGrid
+                ? ImGuiTabItemFlags_SetSelected
+                : 0;
+        const ImGuiTabItemFlags con_flags =
+            state.force_view_tab && state.view_mode == ViewMode::kConstellation
+                ? ImGuiTabItemFlags_SetSelected
+                : 0;
+        state.force_view_tab = false;
+        if (ImGui::BeginTabItem("Grid", nullptr, grid_flags)) {
+            state.view_mode = ViewMode::kGrid;
+            draw_grid(state);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Constellation", nullptr, con_flags)) {
+            state.view_mode = ViewMode::kConstellation;
+            draw_constellation(state);
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
     ImGui::EndChild();
 
     ImGui::SameLine();
@@ -419,6 +497,58 @@ void draw_ui(AppState &state) {
     ImGui::EndChild();
 
     draw_status_bar(state);
+
+    // Create-profile name dialog (Profile menu, §7.1): from the whole folder or the current
+    // multi-selection; writes <name>.sppal.json under the project root via core and loads it.
+    if (state.want_create_profile != 0) {
+        ImGui::OpenPopup("Create profile");
+    }
+    if (ImGui::BeginPopupModal("Create profile", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static char name_buf[128] = "my_palette";
+        ImGui::InputText("name", name_buf, sizeof(name_buf));
+        const bool from_selection = state.want_create_profile == 2;
+        ImGui::TextDisabled(from_selection ? "from %zu selected sounds" : "from all %zu sounds",
+                            from_selection ? state.multi_selected.size()
+                                           : state.manifest.files.size());
+        if (ImGui::Button("Create") && name_buf[0] != '\0') {
+            std::vector<sp::FileEntry> entries;
+            if (from_selection) {
+                for (int idx : state.multi_selected) {
+                    if (idx >= 0 && idx < static_cast<int>(state.manifest.files.size())) {
+                        entries.push_back(state.manifest.files[static_cast<std::size_t>(idx)]);
+                    }
+                }
+            } else {
+                entries = state.manifest.files;
+            }
+            sp::Profile p = sp::profile_from_entries(entries, name_buf, "", 2.5, {});
+            p.created_from_type = from_selection ? "selection" : "folder";
+            p.created_from_root = state.root_dir;
+            std::filesystem::path out =
+                std::filesystem::path(state.root_dir) / (std::string(name_buf) + ".sppal.json");
+            std::ofstream f(out, std::ios::binary);
+            if (f) {
+                f << sp::profile_to_json(p) << "\n";
+                state.profile = std::move(p);
+                state.profile_source_path = out.string();
+                state.profile_loaded = true;
+                recompute_badges(state);
+                rebuild_order(state);
+                state.status_message = "profile written: " + out.string();
+            } else {
+                state.status_message = "cannot write " + out.string();
+            }
+            state.want_create_profile = 0;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            state.want_create_profile = 0;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
     ImGui::End();
 }
 

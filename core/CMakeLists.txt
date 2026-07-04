@@ -50,6 +50,7 @@ add_library(soundpalette_core STATIC
     src/propose.cpp
     src/profile.cpp
     src/deviation.cpp
+    src/pca.cpp
     src/lint.cpp
     $<TARGET_OBJECTS:soundpalette_vendor_audio>
     $<TARGET_OBJECTS:soundpalette_vendor_sha256>

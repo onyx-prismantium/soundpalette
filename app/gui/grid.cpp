@@ -53,6 +53,37 @@ void draw_glyph(ImDrawList *draw, const sp::FileEntry &e, ImVec2 center, float c
     }
 }
 
+// ImGui has no dashed stroke; draw a dashed circle as alternating short arcs (~dash 4 px,
+// gap 3 px at 100 % scale — extension-2 §7.1 amber style).
+void add_dashed_circle(ImDrawList *draw, ImVec2 center, float radius, unsigned int color,
+                       float thickness, float ui_scale) {
+    const float dash = 4.0f * ui_scale;
+    const float gap = 3.0f * ui_scale;
+    const float circumference = 2.0f * 3.14159265f * radius;
+    const int pairs = std::max(4, static_cast<int>(circumference / (dash + gap)));
+    const float step = 2.0f * 3.14159265f / static_cast<float>(pairs);
+    const float dash_angle = step * dash / (dash + gap);
+    for (int i = 0; i < pairs; ++i) {
+        const float a0 = static_cast<float>(i) * step;
+        draw->PathArcTo(center, radius, a0, a0 + dash_angle, 8);
+        draw->PathStroke(color, 0, thickness);
+    }
+}
+
+// Deviation halo (extension-2 §7.1): ring behind the glyph; band + line style pair so color
+// is never the only cue. Red: solid, width 2 + min(3, max_z - T). Amber: dashed, width 2.
+void draw_halo(ImDrawList *draw, const sp::Deviation &dev, double threshold, ImVec2 center,
+               float radius, float ui_scale) {
+    if (dev.band == sp::DevBand::red) {
+        const float w =
+            (2.0f + std::min(3.0f, static_cast<float>(dev.max_z - threshold))) * ui_scale;
+        draw->AddCircle(center, radius, IM_COL32(226, 75, 74, 235), 0, w);
+    } else if (dev.band == sp::DevBand::amber) {
+        add_dashed_circle(draw, center, radius, IM_COL32(239, 159, 39, 235), 2.0f * ui_scale,
+                          ui_scale);
+    }
+}
+
 void draw_error_mark(ImDrawList *draw, ImVec2 center, float cell_px) {
     const float half = cell_px * 0.18f;
     const unsigned int gray = IM_COL32(136, 136, 136, 255);
@@ -134,7 +165,15 @@ void draw_grid(AppState &state) {
 
                     bool hovered = ImGui::IsItemHovered();
                     if (ImGui::IsItemClicked()) {
-                        state.selected = file_index;
+                        if (ImGui::GetIO().KeyCtrl) {
+                            // Ctrl+click builds the multi-selection for
+                            // Profile > Create from current selection (§7.1).
+                            if (!state.multi_selected.insert(file_index).second) {
+                                state.multi_selected.erase(file_index);
+                            }
+                        } else {
+                            state.selected = file_index;
+                        }
                     }
 
                     ImDrawList *draw = ImGui::GetWindowDrawList();
@@ -144,18 +183,49 @@ void draw_grid(AppState &state) {
                         draw->AddRect(cell_pos, ImVec2(cell_pos.x + cell, cell_pos.y + row_h),
                                       IM_COL32(255, 255, 255, 80), 4.0f);
                     }
-                    // M9 badge: red outline when off-palette vs the loaded baseline.
-                    if (state.baseline_loaded &&
-                        file_index < static_cast<int>(state.max_z.size()) && e.error.empty() &&
-                        state.max_z[static_cast<std::size_t>(file_index)] >=
-                            state.harmonize_threshold) {
+                    if (state.multi_selected.count(file_index) != 0) {
                         draw->AddRect(cell_pos, ImVec2(cell_pos.x + cell, cell_pos.y + row_h),
-                                      IM_COL32(255, 64, 64, 200), 4.0f, 0, 2.0f);
+                                      IM_COL32(120, 190, 255, 160), 4.0f, 0, 2.0f);
                     }
+                    const sp::Deviation *dev =
+                        state.profile_loaded &&
+                                file_index < static_cast<int>(state.deviations.size())
+                            ? &state.deviations[static_cast<std::size_t>(file_index)]
+                            : nullptr;
+                    const bool conforming = dev == nullptr || dev->band == sp::DevBand::none;
                     if (!e.error.empty()) {
                         draw_error_mark(draw, center, cell);
                     } else {
-                        draw_glyph(draw, e, center, cell);
+                        // Halo behind the glyph (§7.1); "dim conforming" fades the rest so
+                        // strays pop.
+                        if (dev != nullptr && state.show_halos) {
+                            draw_halo(draw, *dev, state.profile.threshold, center, cell * 0.46f, s);
+                        }
+                        if (state.dim_conforming && conforming) {
+                            const sp::Visual &v = e.visual;
+                            std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
+                            std::vector<ImVec2> pts(outline.size());
+                            const float gs = glyph_scale(cell);
+                            for (std::size_t k = 0; k < outline.size(); ++k) {
+                                pts[k] = ImVec2(center.x + outline[k][0] * gs,
+                                                center.y + outline[k][1] * gs);
+                            }
+                            draw->AddConcavePolyFilled(
+                                pts.data(), static_cast<int>(pts.size()),
+                                hsl_to_rgba(v.hue_deg, v.sat, v.light, 0.35));
+                        } else {
+                            draw_glyph(draw, e, center, cell);
+                        }
+                        if (dev != nullptr && state.show_halos && state.show_z_labels &&
+                            dev->band != sp::DevBand::none) {
+                            char zbuf[16];
+                            std::snprintf(zbuf, sizeof(zbuf), "z %.1f", dev->max_z);
+                            const unsigned int zcol = dev->band == sp::DevBand::red
+                                                          ? IM_COL32(226, 75, 74, 255)
+                                                          : IM_COL32(239, 159, 39, 255);
+                            draw->AddText(ImVec2(cell_pos.x + 4.0f * s, cell_pos.y + 2.0f * s),
+                                          zcol, zbuf);
+                        }
                     }
 
                     // Filename only beneath the glyph (the folder is the section title).

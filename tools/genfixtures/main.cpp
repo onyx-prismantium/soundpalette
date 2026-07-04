@@ -160,9 +160,8 @@ bool generate_catfx(const std::filesystem::path &outdir) {
     std::filesystem::create_directories(outdir / "catfx" / "combat", ec);
     for (int i = 0; i < 8; ++i) {
         // ui_00..07: bright, instant, dry ticks.
-        std::vector<float> buf =
-            white_noise(kBaseSeed + 100 + static_cast<std::uint64_t>(i),
-                        seconds_to_frames(0.12), 1.0);
+        std::vector<float> buf = white_noise(kBaseSeed + 100 + static_cast<std::uint64_t>(i),
+                                             seconds_to_frames(0.12), 1.0);
         onepole_highpass_inplace(buf, 2500.0);
         onepole_highpass_inplace(buf, 2500.0);
         apply_exp_decay_inplace(buf, (10.0 + i) / 1000.0);
@@ -173,9 +172,8 @@ bool generate_catfx(const std::filesystem::path &outdir) {
     }
     for (int i = 0; i < 8; ++i) {
         // hit_00..07: dark, thumpy impacts.
-        std::vector<float> buf =
-            white_noise(kBaseSeed + 200 + static_cast<std::uint64_t>(i),
-                        seconds_to_frames(0.9), 1.0);
+        std::vector<float> buf = white_noise(kBaseSeed + 200 + static_cast<std::uint64_t>(i),
+                                             seconds_to_frames(0.9), 1.0);
         onepole_lowpass_inplace(buf, 250.0);
         onepole_lowpass_inplace(buf, 250.0);
         apply_exp_decay_inplace(buf, (120.0 + 10.0 * i) / 1000.0);
@@ -189,7 +187,9 @@ bool generate_catfx(const std::filesystem::path &outdir) {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: genfixtures <outdir> [--perf200] [--extra <dir>] [--profile-set <dir>]\n");
+        std::fprintf(
+            stderr,
+            "usage: genfixtures <outdir> [--perf200] [--extra <dir>] [--profile-set <dir>]\n");
         return 2;
     }
     std::filesystem::path outdir = argv[1];

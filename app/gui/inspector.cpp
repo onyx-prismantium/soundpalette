@@ -58,7 +58,8 @@ void draw_inspector(AppState &state) {
             ImVec2(3.0f * ImGui::GetFontSize(), 1.5f * ImGui::GetFontSize()));
     }
 
-    draw_harmonize(state); // M9 section, shown when a baseline is loaded (extension §6.5)
+    draw_deviation_section(state, state.selected); // M11: category, max z, seven z bars
+    draw_harmonize(state); // M9 section, shown when a profile is loaded (extension §6.5)
 }
 
 } // namespace spapp
