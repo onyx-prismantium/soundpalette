@@ -16,3 +16,4 @@ mcp/dist-test/
 
 # Generated M9 fixtures (extension §7); sibling of the v1 set so goldens stay untouched
 /fixtures_m9/
+/fixtures_m10/

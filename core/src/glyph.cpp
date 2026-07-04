@@ -1,4 +1,5 @@
 #include "soundpalette/glyph.h"
+#include "soundpalette/deviation.h"
 
 #include <algorithm>
 #include <cmath>
@@ -139,6 +140,82 @@ std::string glyph_svg(const Visual &v, double cell_px) {
     ss << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" << fmt(cell_px) << "\" height=\""
        << fmt(cell_px) << "\" viewBox=\"0 0 " << fmt(cell_px) << " " << fmt(cell_px) << "\">\n";
     ss << glyph_fragment(v, cell_px / 2.0, cell_px / 2.0);
+    ss << "</svg>\n";
+    return ss.str();
+}
+
+namespace {
+
+// Halo fragment (§6.1): ring behind the glyph plus the z label under the filename slot.
+std::string halo_fragment(const Deviation &dev, const Visual &v, double cx, double cy,
+                          double cell_x, double cell_y, double cell_px) {
+    std::ostringstream ss;
+    const double radius = std::min(cell_px * 0.46, v.size_px * 1.5 + 6.0);
+    if (dev.band == DevBand::red) {
+        ss << "<circle cx=\"" << fmt(cx) << "\" cy=\"" << fmt(cy) << "\" r=\"" << fmt(radius)
+           << "\" fill=\"none\" stroke=\"#E24B4A\" stroke-width=\"3\" data-dev=\"red\" />\n";
+    } else {
+        ss << "<circle cx=\"" << fmt(cx) << "\" cy=\"" << fmt(cy) << "\" r=\"" << fmt(radius)
+           << "\" fill=\"none\" stroke=\"#EF9F27\" stroke-width=\"2\""
+           << " stroke-dasharray=\"4,3\" data-dev=\"amber\" />\n";
+    }
+    ss << "<text x=\"" << fmt(cell_x + cell_px / 2.0) << "\" y=\"" << fmt(cell_y + cell_px - 14.0)
+       << "\" font-size=\"9\" font-family=\"sans-serif\" fill=\""
+       << (dev.band == DevBand::red ? "#E24B4A" : "#EF9F27") << "\" text-anchor=\"middle\">z "
+       << fmt(dev.max_z) << "</text>\n";
+    return ss.str();
+}
+
+} // namespace
+
+std::string sheet_svg(const Manifest &manifest, int columns, const Profile &profile) {
+    constexpr double kCellPx = 120.0;
+    constexpr double kLabelHeightPx = 11.0;
+    constexpr double kGlyphCenterYFraction = 0.42;
+
+    columns = std::max(columns, 1);
+    const int rows =
+        static_cast<int>((manifest.files.size() + static_cast<std::size_t>(columns) - 1) /
+                         static_cast<std::size_t>(columns));
+    const double width = columns * kCellPx;
+    const double height = std::max(rows, 1) * kCellPx;
+
+    std::ostringstream ss;
+    ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+    ss << "<!-- soundpalette schema_version=" << manifest.schema_version
+       << " mapping_version=" << manifest.mapping_version << " profile=\""
+       << escape_xml(profile.name) << "\" -->\n";
+    ss << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" << fmt(width) << "\" height=\""
+       << fmt(height) << "\" viewBox=\"0 0 " << fmt(width) << " " << fmt(height) << "\">\n";
+    ss << "<rect x=\"0\" y=\"0\" width=\"" << fmt(width) << "\" height=\"" << fmt(height)
+       << "\" fill=\"#1e1e1e\" />\n";
+
+    for (std::size_t i = 0; i < manifest.files.size(); ++i) {
+        const FileEntry &fe = manifest.files[i];
+        int col = static_cast<int>(i) % columns;
+        int row = static_cast<int>(i) / columns;
+        double cell_x = col * kCellPx;
+        double cell_y = row * kCellPx;
+        double cx = cell_x + kCellPx / 2.0;
+        double cy = cell_y + kCellPx * kGlyphCenterYFraction;
+
+        ss << "<g>\n";
+        if (!fe.error.empty()) {
+            ss << error_mark_fragment(cx, cy, kCellPx * 0.5);
+        } else {
+            const Deviation dev = compute_deviation(fe, profile);
+            if (dev.band != DevBand::none) {
+                ss << halo_fragment(dev, fe.visual, cx, cy, cell_x, cell_y, kCellPx);
+            }
+            ss << glyph_fragment(fe.visual, cx, cy);
+        }
+        ss << "<text x=\"" << fmt(cell_x + kCellPx / 2.0) << "\" y=\""
+           << fmt(cell_y + kCellPx - kLabelHeightPx * 0.3) << "\" font-size=\""
+           << fmt(kLabelHeightPx) << "\" font-family=\"sans-serif\" fill=\"#cccccc\""
+           << " text-anchor=\"middle\">" << escape_xml(fe.path) << "</text>\n";
+        ss << "</g>\n";
+    }
+
     ss << "</svg>\n";
     return ss.str();
 }

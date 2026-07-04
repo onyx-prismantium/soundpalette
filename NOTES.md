@@ -403,3 +403,41 @@ zero warnings; format-clean. engine_version 0.2.0.
   before the next folder — so opening a whole project folder organizes the palette by
   subfolder. Sections are sorted by path; files within a section follow the active sort mode;
   the §10 clipper guarantee is kept per section.
+
+# Extension plan 2 (SoundPalette_extension2.md): M10 + M11
+
+## Preflight (extension-2 §1, 2026-07-05)
+
+Clean tree at `561d037`; full build zero warnings; ctest 29/29; all ten integration scripts
+PASS; MCP suite 10/10. No M9.x fixes needed.
+
+## M10 — Profiles, deviations, gating seam
+
+- **`measure_loudness` now zero-pads sub-400 ms audio to 400 ms for the EBU R128 integrated
+  measurement.** The extension's own catfx fixtures (0.12 s UI ticks — realistic game ticks)
+  read -inf LUFS under the bare gating-block requirement and were misclassified as "silent",
+  excluding them from every profile and deviation (the M9 tail-trim issue surfacing at
+  analysis time). Zero-padding does not bias the gated integration; every input >= 0.4 s is
+  bit-identical (golden manifest verified byte-for-byte after the change). §6's silent rule
+  text ("silent if integrated is -inf") still holds — audible short files simply no longer
+  measure as -inf.
+- Profile JSON validation of the cov diagonal uses 1e-9 in memory (unit-tested) but allows
+  6-decimal serialization rounding noise when parsing files — cov and std are rounded
+  independently in the file format, so exact 1e-9 equality cannot survive a round-trip.
+- `lint`/`propose`/`harmonize` now consume `Profile` internally everywhere; `--baseline`
+  remains a full compatibility alias via `profile_from_manifest` (M4/M9 gates re-verified
+  unchanged). Text output prints `cat=` only for `--profile` runs, matching the extension's
+  sample lines while leaving the --baseline output format exactly as the v1 gates pin it.
+- `profile_from_manifest` synthesizes a diagonal-only covariance (manifest stats carry no
+  cross-terms); deviation only needs per-dim stats, and the ellipse view is a profile-file
+  feature, so nothing consumes the missing off-diagonals.
+- MCP: the C++ `capability()` gates the CLI paths; `mcp/src/server.ts` carries a documented
+  TS mirror (`mcpCapability`) called at the §6.3 "mcp.write" sites, since the TypeScript
+  server cannot call into the C++ seam directly.
+- The misplaced-tick MCP test creates the profile with the tick already inside combat/ (9
+  files) and it still flags red — slightly stronger than the extension's scripted scenario,
+  where the profile is clean.
+
+Gate verified: `ctest -R "glob|profile|deviation|seam"` 8/8; profile_roundtrip / category_lint
+/ svg_halos PASS; MCP 13/13; full ctest 37/37; all thirteen integration scripts PASS; golden
+byte-identical; zero warnings; format-clean.

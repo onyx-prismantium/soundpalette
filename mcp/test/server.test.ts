@@ -194,3 +194,82 @@ test("harmonize out_dir cannot escape the root", async () => {
   }) as { isError?: boolean };
   assert.equal(res.isError, true);
 });
+
+// ---- M10 profile tools (extension-2 §6.2), rooted at fixtures_m10 ----
+
+const M10_ROOT = path.join(REPO, "fixtures_m10");
+let m10: Client;
+
+before(async () => {
+  assert.ok(fs.existsSync(path.join(M10_ROOT, "catfx", "ui", "ui_00.wav")),
+    "missing fixtures_m10 (run genfixtures --profile-set first)");
+  m10 = new Client({ name: "mcp-smoke-m10", version: "0.0.0" });
+  await m10.connect(new StdioClientTransport({
+    command: process.execPath,
+    args: [SERVER, "--root", M10_ROOT, "--bin", BIN],
+  }));
+  // A misplaced ui tick inside combat/ for the deviation-table tests.
+  fs.copyFileSync(path.join(M10_ROOT, "catfx", "ui", "ui_00.wav"),
+    path.join(M10_ROOT, "catfx", "combat", "misplaced.wav"));
+});
+
+after(async () => {
+  await m10?.close();
+  fs.rmSync(path.join(M10_ROOT, "catfx", "combat", "misplaced.wav"), { force: true });
+  fs.rmSync(path.join(M10_ROOT, "catfx.sppal.json"), { force: true });
+});
+
+test("create_profile roundtrips against profile show", async () => {
+  const res = await m10.callTool({
+    name: "create_profile",
+    arguments: {
+      dir: "catfx",
+      name: "catfx",
+      categories: { ui: ["ui/**", "**/ui_*"], combat: ["combat/**"] },
+      out_path: "catfx.sppal.json",
+    },
+  }) as {
+    structuredContent?: {
+      name?: string; categories?: { name: string; file_count: number }[];
+    };
+  };
+  assert.equal(res.structuredContent?.name, "catfx");
+  const cats = res.structuredContent?.categories ?? [];
+  assert.equal(cats.find((c) => c.name === "ui")?.file_count, 8);
+  // combat now holds the misplaced tick too (9 files) — count comes from the profile itself.
+  assert.ok((cats.find((c) => c.name === "combat")?.file_count ?? 0) >= 8);
+
+  const show = await execFileP(BIN, ["profile", "show",
+    path.join(M10_ROOT, "catfx.sppal.json")]);
+  assert.match(show.stdout, /profile catfx/);
+});
+
+test("get_deviations returns the full 17-entry table with the misplaced tick red", async () => {
+  const res = await m10.callTool({
+    name: "get_deviations",
+    arguments: { dir: "catfx", profile_path: "catfx.sppal.json" },
+  }) as {
+    structuredContent?: {
+      files?: { path: string; band: string; category: string; max_z: number }[];
+    };
+  };
+  const files = res.structuredContent?.files ?? [];
+  assert.equal(files.length, 17);
+  const misplaced = files.find((f) => f.path === "combat/misplaced.wav");
+  assert.ok(misplaced, "misplaced.wav missing from the table");
+  assert.equal(misplaced?.category, "combat");
+  // The profile was created with the misplaced tick already inside combat (9 files); one
+  // foreign tick cannot drag the 8 genuine hits' stats far enough to hide itself.
+  assert.equal(misplaced?.band, "red");
+});
+
+test("render_palette_sheet with profile_path returns an image", async () => {
+  const res = await m10.callTool({
+    name: "render_palette_sheet",
+    arguments: { dir: "catfx", columns: 6, profile_path: "catfx.sppal.json" },
+  }) as { isError?: boolean; content: { type: string; mimeType?: string; data?: string }[] };
+  assert.notEqual(res.isError, true);
+  const image = res.content.find((c) => c.type === "image");
+  assert.equal(image?.mimeType, "image/png");
+  assert.ok((image?.data ?? "").length > 10000);
+});

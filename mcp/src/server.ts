@@ -110,16 +110,21 @@ server.registerTool(
       "stats (z-score over the seven mapping dimensions).",
     inputSchema: {
       dir: z.string(),
-      baseline_path: z.string(),
+      baseline_path: z.string().optional(),
+      profile_path: z.string().optional().describe("mutually exclusive with baseline_path"),
       threshold: z.number().default(2.5),
       top: z.number().int().default(10),
     },
   },
-  guarded(async ({ dir, baseline_path, threshold, top }) => {
+  guarded(async ({ dir, baseline_path, profile_path, threshold, top }) => {
+    if ((baseline_path === undefined) === (profile_path === undefined)) {
+      return toolError("provide exactly one of baseline_path or profile_path");
+    }
     const dirAbs = resolveExistingInRoot(ROOT, dir);
-    const baseAbs = resolveExistingInRoot(ROOT, baseline_path);
+    const refFlag = profile_path !== undefined ? "--profile" : "--baseline";
+    const refAbs = resolveExistingInRoot(ROOT, (profile_path ?? baseline_path) as string);
     const res = await runCli(BIN, [
-      "lint", dirAbs, "--baseline", baseAbs,
+      "lint", dirAbs, refFlag, refAbs,
       "--threshold", String(threshold), "--top", String(top), "--json",
     ]);
     if (res.code === 2) return toolError(res.stderr.trim() || "lint failed");
@@ -127,8 +132,10 @@ server.registerTool(
     const lines: string[] = report.pass
       ? [`PASS: all files within the palette at threshold ${threshold}`]
       : report.outliers.map(
-          (o: { path: string; worst_dim: string; max_z: number; dims_over: string[] }) =>
-            `OUTLIER ${o.path} worst=${o.worst_dim} z=${o.max_z.toFixed(2)} dims=${o.dims_over.join(",")}`,
+          (o: { path: string; category?: string; worst_dim: string; max_z: number;
+                dims_over: string[] }) =>
+            `OUTLIER ${o.path}${o.category ? ` cat=${o.category}` : ""} ` +
+            `worst=${o.worst_dim} z=${o.max_z.toFixed(2)} dims=${o.dims_over.join(",")}`,
         );
     return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: report };
   }),
@@ -164,9 +171,10 @@ server.registerTool(
       dir: z.string().optional(),
       manifest_path: z.string().optional(),
       columns: z.number().int().min(1).max(64).default(8),
+      profile_path: z.string().optional().describe("draw deviation halos from this profile"),
     },
   },
-  guarded(async ({ dir, manifest_path, columns }) => {
+  guarded(async ({ dir, manifest_path, columns, profile_path }) => {
     if ((dir === undefined) === (manifest_path === undefined)) {
       return toolError("provide exactly one of dir or manifest_path");
     }
@@ -185,9 +193,11 @@ server.registerTool(
       }
       fileCount = JSON.parse(fs.readFileSync(manifestAbs, "utf8")).file_count;
       const svgAbs = path.join(tmp, "sheet.svg");
-      const svg = await runCli(BIN, [
-        "export-svg", manifestAbs, "--out", svgAbs, "--columns", String(columns),
-      ]);
+      const svgArgs = ["export-svg", manifestAbs, "--out", svgAbs, "--columns", String(columns)];
+      if (profile_path !== undefined) {
+        svgArgs.push("--profile", resolveExistingInRoot(ROOT, profile_path));
+      }
+      const svg = await runCli(BIN, svgArgs);
       if (svg.code !== 0) return toolError(svg.stderr.trim() || `export-svg exited ${svg.code}`);
       const png = new Resvg(fs.readFileSync(svgAbs, "utf8")).render().asPng();
       return {
@@ -199,6 +209,110 @@ server.registerTool(
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
+  }),
+);
+
+// ---- M10 profile tools (extension-2 §6.2); same root-confinement rules ----
+
+// TS mirror of core's gating seam (extension-2 §6.3): the C++ capability() gates the CLI
+// paths these tools shell into; this mirror marks the MCP-side seam sites. v3: fail-open.
+function mcpCapability(feature: string): boolean {
+  void feature;
+  return true;
+}
+
+server.registerTool(
+  "create_profile",
+  {
+    description:
+      "Create a palette profile (.sppal.json) from a folder, optionally split into " +
+      "per-category sub-profiles matched by path globs, or restricted to a curated selection.",
+    inputSchema: {
+      dir: z.string(),
+      name: z.string(),
+      categories: z.record(z.string(), z.array(z.string())).optional()
+        .describe("category name -> glob patterns"),
+      select_paths: z.array(z.string()).optional(),
+      out_path: z.string(),
+      threshold: z.number().default(2.5),
+    },
+  },
+  guarded(async ({ dir, name, categories, select_paths, out_path, threshold }) => {
+    if (!mcpCapability("mcp.write")) return toolError("mcp.write is not available");
+    const dirAbs = resolveExistingInRoot(ROOT, dir);
+    const outAbs = resolveOutputInRoot(ROOT, out_path);
+    const args = ["profile", "create", dirAbs, "--name", name,
+                  "--threshold", String(threshold), "--out", outAbs];
+    for (const [catName, patterns] of Object.entries(categories ?? {})) {
+      args.push("--category", `${catName}=${patterns.join(",")}`);
+    }
+    let selectFile: string | undefined;
+    if (select_paths !== undefined) {
+      selectFile = path.join(ROOT, `.sp-mcp-select-${process.pid}.txt`);
+      fs.writeFileSync(selectFile, select_paths.join("\n") + "\n");
+      args.push("--select", selectFile);
+    }
+    try {
+      const res = await runCli(BIN, args);
+      if (res.code !== 0) return toolError(res.stderr.trim() || `profile create exited ${res.code}`);
+      const profile = JSON.parse(fs.readFileSync(outAbs, "utf8"));
+      return {
+        content: [
+          {
+            type: "text",
+            text: `profile '${profile.name}': ${profile.created_from.file_count} files, ` +
+              `${profile.categories.length} categories -> ${out_path}`,
+          },
+        ],
+        structuredContent: {
+          name: profile.name,
+          file_count: profile.created_from.file_count,
+          threshold: profile.threshold,
+          categories: profile.categories.map(
+            (c: { name: string; file_count: number }) => ({
+              name: c.name, file_count: c.file_count,
+            })),
+          out_path,
+        },
+      };
+    } finally {
+      if (selectFile !== undefined) fs.rmSync(selectFile, { force: true });
+    }
+  }),
+);
+
+server.registerTool(
+  "get_deviations",
+  {
+    description:
+      "Full per-file deviation table for a folder against a profile: category, band, max_z " +
+      "and the seven z-scores for every non-silent file.",
+    inputSchema: {
+      dir: z.string(),
+      profile_path: z.string(),
+      threshold: z.number().optional(),
+    },
+  },
+  guarded(async ({ dir, profile_path, threshold }) => {
+    const dirAbs = resolveExistingInRoot(ROOT, dir);
+    const profAbs = resolveExistingInRoot(ROOT, profile_path);
+    const args = ["lint", dirAbs, "--profile", profAbs, "--json", "--all", "--top", "10000"];
+    if (threshold !== undefined) args.push("--threshold", String(threshold));
+    const res = await runCli(BIN, args);
+    if (res.code === 2) return toolError(res.stderr.trim() || "lint failed");
+    const report = JSON.parse(res.stdout);
+    const flagged = report.files.filter(
+      (f: { band: string }) => f.band !== "none").length;
+    return {
+      content: [
+        {
+          type: "text",
+          text: `${report.files.length} files, ${flagged} flagged ` +
+            `(threshold ${report.threshold})`,
+        },
+      ],
+      structuredContent: report,
+    };
   }),
 );
 
@@ -233,6 +347,7 @@ server.registerTool(
     },
   },
   guarded(async ({ path: p, baseline_path, threshold }) => {
+    if (!mcpCapability("mcp.write")) return toolError("mcp.write is not available");
     const fileAbs = resolveExistingInRoot(ROOT, p);
     const baseAbs = resolveExistingInRoot(ROOT, baseline_path);
     const res = await runCli(BIN, [
@@ -268,6 +383,7 @@ server.registerTool(
     },
   },
   guarded(async ({ path: p, recipe_path, out_dir }) => {
+    if (!mcpCapability("mcp.write")) return toolError("mcp.write is not available");
     const fileAbs = resolveExistingInRoot(ROOT, p);
     const recipeAbs = resolveExistingInRoot(ROOT, recipe_path);
     const outDirAbs = resolveOutputDirInRoot(ROOT, out_dir);
@@ -301,6 +417,7 @@ server.registerTool(
     },
   },
   guarded(async ({ path_or_dir, baseline_path, out_dir, threshold, dry_run }) => {
+    if (!dry_run && !mcpCapability("mcp.write")) return toolError("mcp.write is not available");
     const targetAbs = resolveExistingInRoot(ROOT, path_or_dir);
     const baseAbs = resolveExistingInRoot(ROOT, baseline_path);
     const outDirAbs = resolveOutputDirInRoot(ROOT, out_dir);

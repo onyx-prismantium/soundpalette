@@ -6,6 +6,7 @@
 
 #include "soundpalette/manifest.h"
 #include "soundpalette/mapping.h"
+#include "soundpalette/profile.h"
 
 namespace sp {
 
@@ -20,5 +21,10 @@ std::string glyph_svg(const Visual &visual, double cell_px);
 // filename label beneath, mapping/schema versions in an XML comment. Deterministic bytes for a
 // given manifest.
 std::string sheet_svg(const Manifest &manifest, int columns);
+
+// Sheet with deviation halos (extension-2 §6.1): flagged glyphs get a ring behind them —
+// red band solid #E24B4A, amber dashed #EF9F27 — carrying data-dev="red|amber" and a small
+// "z x.x" label beneath. Entries need features+loudness populated for deviation computation.
+std::string sheet_svg(const Manifest &manifest, int columns, const Profile &profile);
 
 } // namespace sp

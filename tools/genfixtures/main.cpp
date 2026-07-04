@@ -152,17 +152,55 @@ bool generate_fixable_outlier(const std::filesystem::path &outdir) {
     return write_wav_mono_f32(outdir / "fixable_outlier.wav", buf);
 }
 
+// catfx profile-set fixtures (extension-2 §8): two clearly separated categories.
+bool generate_catfx(const std::filesystem::path &outdir) {
+    bool ok = true;
+    std::error_code ec;
+    std::filesystem::create_directories(outdir / "catfx" / "ui", ec);
+    std::filesystem::create_directories(outdir / "catfx" / "combat", ec);
+    for (int i = 0; i < 8; ++i) {
+        // ui_00..07: bright, instant, dry ticks.
+        std::vector<float> buf =
+            white_noise(kBaseSeed + 100 + static_cast<std::uint64_t>(i),
+                        seconds_to_frames(0.12), 1.0);
+        onepole_highpass_inplace(buf, 2500.0);
+        onepole_highpass_inplace(buf, 2500.0);
+        apply_exp_decay_inplace(buf, (10.0 + i) / 1000.0);
+        peak_normalize_inplace(buf, 0.5);
+        char name[32];
+        std::snprintf(name, sizeof(name), "ui_%02d.wav", i);
+        ok &= write_wav_mono_f32(outdir / "catfx" / "ui" / name, buf);
+    }
+    for (int i = 0; i < 8; ++i) {
+        // hit_00..07: dark, thumpy impacts.
+        std::vector<float> buf =
+            white_noise(kBaseSeed + 200 + static_cast<std::uint64_t>(i),
+                        seconds_to_frames(0.9), 1.0);
+        onepole_lowpass_inplace(buf, 250.0);
+        onepole_lowpass_inplace(buf, 250.0);
+        apply_exp_decay_inplace(buf, (120.0 + 10.0 * i) / 1000.0);
+        peak_normalize_inplace(buf, 0.6);
+        char name[32];
+        std::snprintf(name, sizeof(name), "hit_%02d.wav", i);
+        ok &= write_wav_mono_f32(outdir / "catfx" / "combat" / name, buf);
+    }
+    return ok;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: genfixtures <outdir> [--perf200] [--extra <dir>]\n");
+        std::fprintf(stderr, "usage: genfixtures <outdir> [--perf200] [--extra <dir>] [--profile-set <dir>]\n");
         return 2;
     }
     std::filesystem::path outdir = argv[1];
     bool perf200 = false;
     std::string extra_dir;
+    std::string profile_set_dir;
     for (int i = 2; i < argc; ++i) {
         if (std::string(argv[i]) == "--extra") {
             extra_dir = i + 1 < argc ? argv[++i] : "fixtures_m9";
+        } else if (std::string(argv[i]) == "--profile-set") {
+            profile_set_dir = i + 1 < argc ? argv[++i] : "fixtures_m10";
         } else if (std::string(argv[i]) == "--perf200") {
             perf200 = true;
         }
@@ -228,6 +266,12 @@ int main(int argc, char **argv) {
         for (int i = 0; i < 200; ++i) {
             ok &= generate_perf_file(outdir / "perf", i);
         }
+    }
+
+    if (!profile_set_dir.empty()) {
+        std::filesystem::path pdir(profile_set_dir);
+        std::filesystem::create_directories(pdir, ec);
+        ok &= generate_catfx(pdir);
     }
 
     if (!extra_dir.empty()) {

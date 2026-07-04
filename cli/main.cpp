@@ -16,11 +16,14 @@
 
 #include <nlohmann/json.hpp>
 
+#include "soundpalette/capability.h"
 #include "soundpalette/describe.h"
+#include "soundpalette/deviation.h"
 #include "soundpalette/glyph.h"
 #include "soundpalette/lint.h"
 #include "soundpalette/manifest.h"
 #include "soundpalette/mapping.h"
+#include "soundpalette/profile.h"
 #include "soundpalette/propose.h"
 #include "soundpalette/recipe.h"
 #include "soundpalette/version.h"
@@ -154,31 +157,64 @@ bool load_baseline_stats(const std::string &path, sp::Manifest &baseline, std::s
     return true;
 }
 
+// Loads a Profile from either --profile (.sppal.json) or --baseline (manifest json, adapted
+// via profile_from_manifest so every code path consumes Profile only — extension-2 §4.3).
+bool load_profile_arg(const std::string &baseline_path, const std::string &profile_path,
+                      sp::Profile &out, std::string &err) {
+    if (!profile_path.empty()) {
+        std::ifstream f(profile_path);
+        if (!f) {
+            err = "cannot open " + profile_path;
+            return false;
+        }
+        std::ostringstream ss;
+        ss << f.rdbuf();
+        auto p = sp::profile_from_json(ss.str(), err);
+        if (!p.has_value()) {
+            err = profile_path + ": " + err;
+            return false;
+        }
+        out = std::move(*p);
+        return true;
+    }
+    sp::Manifest baseline;
+    if (!load_baseline_stats(baseline_path, baseline, err)) {
+        return false;
+    }
+    out = sp::profile_from_manifest(baseline);
+    return true;
+}
+
 int cmd_lint(const std::vector<std::string> &args) {
     std::string dir;
     std::string baseline_path;
-    double threshold = 2.5;
+    std::string profile_path;
+    double threshold = -1.0; // <0 = use the profile's own threshold
     int top = 10;
     bool json_out = false;
-
+    bool json_all = false;
     for (std::size_t i = 0; i < args.size(); ++i) {
         const std::string &a = args[i];
         if (a == "--baseline" && i + 1 < args.size()) {
             baseline_path = args[++i];
+        } else if (a == "--profile" && i + 1 < args.size()) {
+            profile_path = args[++i];
         } else if (a == "--threshold" && i + 1 < args.size()) {
             threshold = std::stod(args[++i]);
         } else if (a == "--top" && i + 1 < args.size()) {
             top = std::stoi(args[++i]);
         } else if (a == "--json") {
             json_out = true;
+        } else if (a == "--all") {
+            json_all = true;
         } else if (a.rfind("--", 0) != 0 && dir.empty()) {
             dir = a;
         }
     }
 
-    if (dir.empty() || baseline_path.empty()) {
-        std::fprintf(stderr, "usage: soundpalette lint <dir> --baseline palette.json "
-                             "[--threshold 2.5] [--top 10]\n");
+    if (dir.empty() || (baseline_path.empty() && profile_path.empty())) {
+        std::fprintf(stderr, "usage: soundpalette lint <dir> (--baseline m.json | --profile "
+                             "p.sppal.json) [--threshold X] [--top N] [--json [--all]]\n");
         return 2;
     }
     if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
@@ -186,60 +222,122 @@ int cmd_lint(const std::vector<std::string> &args) {
         return 2;
     }
 
-    sp::Manifest baseline;
+    sp::Profile profile;
     std::string err;
-    if (!load_baseline_stats(baseline_path, baseline, err)) {
+    if (!load_profile_arg(baseline_path, profile_path, profile, err)) {
         std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
         return 2;
     }
+    if (threshold > 0.0) {
+        profile.threshold = threshold; // CLI override (extension-2 §5)
+    } else if (!baseline_path.empty()) {
+        profile.threshold = 2.5; // --baseline compatibility default
+    }
+    const bool with_categories = !profile_path.empty();
+
+    static const char *kDims[7] = {"bright01", "warm01", "ton01",   "atk01",
+                                   "tail01",   "loud01", "jitter01"};
 
     sp::Manifest candidate = sp::scan_directory(dir, sp::ScanOptions{});
-    sp::LintReport report = sp::lint(baseline, candidate, threshold);
+    struct Row {
+        const sp::FileEntry *entry;
+        sp::Deviation dev;
+    };
+    std::vector<Row> rows;
+    rows.reserve(candidate.files.size());
+    for (const sp::FileEntry &e : candidate.files) {
+        if (e.error.empty() && !e.loudness.silent) {
+            rows.push_back({&e, sp::compute_deviation(e, profile)});
+        }
+    }
+    std::vector<const Row *> outliers;
+    for (const Row &r : rows) {
+        if (r.dev.max_z >= profile.threshold) {
+            outliers.push_back(&r);
+        }
+    }
+    std::sort(outliers.begin(), outliers.end(),
+              [](const Row *a, const Row *b) { return a->dev.max_z > b->dev.max_z; });
+
+    auto dims_over_of = [&](const Row &r) {
+        std::vector<std::string> dims;
+        for (int d = 0; d < 7; ++d) {
+            if (std::fabs(r.dev.z[static_cast<std::size_t>(d)]) >= profile.threshold) {
+                dims.emplace_back(kDims[d]);
+            }
+        }
+        return dims;
+    };
 
     if (json_out) {
-        // Canonical JSON per PLAN.md §8 rules: fixed key order, 4-decimal rounding,
-        // no timestamps (extension §5.2).
+        // Canonical JSON per PLAN.md §8 rules: fixed key order, 4-decimal rounding.
         nlohmann::ordered_json j;
-        j["pass"] = report.outliers.empty();
-        j["threshold"] = round4(threshold);
+        j["pass"] = outliers.empty();
+        j["threshold"] = round4(profile.threshold);
         j["outliers"] = nlohmann::ordered_json::array();
         int listed = 0;
-        for (const sp::LintFileResult &r : report.outliers) {
+        for (const Row *r : outliers) {
             if (listed >= top) {
                 break;
             }
             nlohmann::ordered_json o;
-            o["path"] = r.path;
-            o["max_z"] = round4(std::fabs(r.worst_z));
-            o["worst_dim"] = r.worst_dim;
-            o["dims_over"] = r.offending_dims;
+            o["path"] = r->entry->path;
+            o["category"] = r->dev.category;
+            o["max_z"] = round4(r->dev.max_z);
+            o["worst_dim"] = kDims[r->dev.worst_dim];
+            o["dims_over"] = dims_over_of(*r);
             j["outliers"].push_back(std::move(o));
             ++listed;
         }
+        if (json_all) {
+            // --all: every non-error, non-silent file with its full z vector (§6.1).
+            j["files"] = nlohmann::ordered_json::array();
+            for (const Row &r : rows) {
+                nlohmann::ordered_json o;
+                o["path"] = r.entry->path;
+                o["category"] = r.dev.category;
+                o["max_z"] = round4(r.dev.max_z);
+                o["worst_dim"] = kDims[r.dev.worst_dim];
+                o["band"] = sp::dev_band_name(r.dev.band);
+                nlohmann::ordered_json z;
+                for (int d = 0; d < 7; ++d) {
+                    z[kDims[d]] = round4(r.dev.z[static_cast<std::size_t>(d)]);
+                }
+                o["z"] = std::move(z);
+                j["files"].push_back(std::move(o));
+            }
+        }
         std::fputs(j.dump(2).c_str(), stdout);
         std::fputc('\n', stdout);
-        return report.outliers.empty() ? 0 : 1;
+        return outliers.empty() ? 0 : 1;
     }
 
-    if (report.outliers.empty()) {
-        std::fprintf(stdout, "PASS %d files within palette\n", report.considered_files);
+    if (outliers.empty()) {
+        std::fprintf(stdout, "PASS %d files within palette\n", static_cast<int>(rows.size()));
         return 0;
     }
 
     int shown = 0;
-    for (const sp::LintFileResult &r : report.outliers) {
+    for (const Row *r : outliers) {
         if (shown >= top) {
             break;
         }
         std::string dims;
-        for (std::size_t i = 0; i < r.offending_dims.size(); ++i) {
-            if (i > 0) {
+        for (const std::string &d : dims_over_of(*r)) {
+            if (!dims.empty()) {
                 dims += ",";
             }
-            dims += r.offending_dims[i];
+            dims += d;
         }
-        std::fprintf(stdout, "OUTLIER %s worst=%s z=%+.2f dims=%s\n", r.path.c_str(),
-                     r.worst_dim.c_str(), r.worst_z, dims.c_str());
+        const double worst_z = r->dev.z[static_cast<std::size_t>(r->dev.worst_dim)];
+        if (with_categories) {
+            std::fprintf(stdout, "OUTLIER %s cat=%s worst=%s z=%+.2f dims=%s\n",
+                         r->entry->path.c_str(), r->dev.category.c_str(), kDims[r->dev.worst_dim],
+                         worst_z, dims.c_str());
+        } else {
+            std::fprintf(stdout, "OUTLIER %s worst=%s z=%+.2f dims=%s\n", r->entry->path.c_str(),
+                         kDims[r->dev.worst_dim], worst_z, dims.c_str());
+        }
         ++shown;
     }
     return 1;
@@ -326,6 +424,196 @@ int cmd_describe(const std::vector<std::string> &args) {
     return 0;
 }
 
+// ---- M10 profile subcommands (extension-2 §4.3) ----
+
+int cmd_profile(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        std::fprintf(stderr, "usage: soundpalette profile <create|show> ...\n");
+        return 2;
+    }
+    const std::string &verb = args[0];
+
+    if (verb == "show") {
+        if (args.size() < 2) {
+            std::fprintf(stderr, "usage: soundpalette profile show <file.sppal.json>\n");
+            return 2;
+        }
+        sp::Profile p;
+        std::string err;
+        if (!load_profile_arg("", args[1], p, err)) {
+            std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+            return 2;
+        }
+        std::fprintf(stdout, "profile %s (v%d, mapping v%d)\n", p.name.c_str(), p.profile_version,
+                     p.mapping_version);
+        if (!p.description.empty()) {
+            std::fprintf(stdout, "  %s\n", p.description.c_str());
+        }
+        std::fprintf(stdout, "  threshold %.2f, from %s '%s', %d files\n", p.threshold,
+                     p.created_from_type.c_str(), p.created_from_root.c_str(),
+                     p.created_from_file_count);
+        for (const sp::CategoryProfile &c : p.categories) {
+            std::string patterns;
+            for (std::size_t i = 0; i < c.match.size(); ++i) {
+                patterns += (i ? "," : "") + c.match[i];
+            }
+            std::fprintf(stdout, "  category %s: %d files (%s)%s\n", c.name.c_str(), c.file_count,
+                         patterns.c_str(),
+                         c.file_count < 5 ? "  [warning: fewer than 5 files]" : "");
+        }
+        return 0;
+    }
+
+    if (verb != "create") {
+        std::fprintf(stderr, "soundpalette: unknown profile verb '%s'\n", verb.c_str());
+        return 2;
+    }
+    if (!sp::capability("profile.create")) {
+        std::fprintf(stderr, "soundpalette: profile.create is not available\n");
+        return 2;
+    }
+
+    std::string dir, name, out, from_manifest, select_file, description;
+    double threshold = 2.5;
+    std::vector<std::pair<std::string, std::vector<std::string>>> categories;
+    for (std::size_t i = 1; i < args.size(); ++i) {
+        const std::string &a = args[i];
+        if (a == "--name" && i + 1 < args.size()) {
+            name = args[++i];
+        } else if (a == "--out" && i + 1 < args.size()) {
+            out = args[++i];
+        } else if (a == "--from-manifest" && i + 1 < args.size()) {
+            from_manifest = args[++i];
+        } else if (a == "--select" && i + 1 < args.size()) {
+            select_file = args[++i];
+        } else if (a == "--threshold" && i + 1 < args.size()) {
+            threshold = std::stod(args[++i]);
+        } else if (a == "--description" && i + 1 < args.size()) {
+            description = args[++i];
+        } else if (a == "--category" && i + 1 < args.size()) {
+            // --category name="pat1,pat2"
+            std::string spec = args[++i];
+            std::size_t eq = spec.find('=');
+            if (eq == std::string::npos) {
+                std::fprintf(stderr, "soundpalette: bad --category (want name=\"globs\")\n");
+                return 2;
+            }
+            std::string cat_name = spec.substr(0, eq);
+            std::vector<std::string> patterns;
+            std::string rest = spec.substr(eq + 1);
+            std::size_t pos = 0;
+            while (pos <= rest.size()) {
+                std::size_t comma = rest.find(',', pos);
+                std::string pat =
+                    rest.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
+                if (!pat.empty()) {
+                    patterns.push_back(pat);
+                }
+                if (comma == std::string::npos) {
+                    break;
+                }
+                pos = comma + 1;
+            }
+            categories.emplace_back(cat_name, std::move(patterns));
+        } else if (a.rfind("--", 0) != 0 && dir.empty()) {
+            dir = a;
+        }
+    }
+    if (name.empty() || (dir.empty() && from_manifest.empty())) {
+        std::fprintf(stderr,
+                     "usage: soundpalette profile create <dir> --name X [--out X.sppal.json]\n"
+                     "         [--category ui=\"ui/**,**/ui_*\"] [--from-manifest m.json]\n"
+                     "         [--select files.txt] [--threshold 2.5] [--description ...]\n");
+        return 2;
+    }
+
+    std::vector<sp::FileEntry> entries;
+    std::string root;
+    if (!from_manifest.empty()) {
+        // Reuse an existing scan instead of re-analyzing (§4.3).
+        std::ifstream f(from_manifest);
+        if (!f) {
+            std::fprintf(stderr, "soundpalette: cannot open %s\n", from_manifest.c_str());
+            return 2;
+        }
+        std::ostringstream ss;
+        ss << f.rdbuf();
+        nlohmann::json j;
+        try {
+            j = nlohmann::json::parse(ss.str());
+        } catch (const std::exception &e) {
+            std::fprintf(stderr, "soundpalette: %s: %s\n", from_manifest.c_str(), e.what());
+            return 2;
+        }
+        root = j.value("root", "");
+        for (const auto &fj : j.at("files")) {
+            sp::FileEntry e;
+            e.path = fj.value("path", "");
+            e.error = fj.value("error", "");
+            if (!e.error.empty()) {
+                continue;
+            }
+            const auto &lj = fj.at("loudness");
+            e.loudness.lufs_i = lj.value("lufs_i", 0.0);
+            e.loudness.silent = lj.value("silent", false);
+            const auto &tj = fj.at("features");
+            e.features.centroid_hz = tj.value("centroid_hz", 0.0);
+            e.features.flatness = tj.value("flatness", 0.0);
+            e.features.attack_s = tj.value("attack_s", 0.0);
+            e.features.tail_s = tj.value("tail_s", 0.0);
+            e.features.roughness = tj.value("roughness", 0.0);
+            e.features.warmth = tj.value("warmth", 0.0);
+            entries.push_back(std::move(e));
+        }
+    } else {
+        sp::Manifest m = sp::scan_directory(dir, sp::ScanOptions{});
+        entries = std::move(m.files);
+        root = dir;
+    }
+
+    std::string created_type = from_manifest.empty() ? "folder" : "manifest";
+    if (!select_file.empty()) {
+        // Curated selection (§4.3): keep only the listed manifest-relative paths.
+        std::ifstream f(select_file);
+        if (!f) {
+            std::fprintf(stderr, "soundpalette: cannot open %s\n", select_file.c_str());
+            return 2;
+        }
+        std::vector<std::string> wanted;
+        std::string line;
+        while (std::getline(f, line)) {
+            while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) {
+                line.pop_back();
+            }
+            if (!line.empty()) {
+                wanted.push_back(line);
+            }
+        }
+        std::vector<sp::FileEntry> selected;
+        for (sp::FileEntry &e : entries) {
+            if (std::find(wanted.begin(), wanted.end(), e.path) != wanted.end()) {
+                selected.push_back(std::move(e));
+            }
+        }
+        entries = std::move(selected);
+        created_type = "selection";
+    }
+
+    sp::Profile profile =
+        sp::profile_from_entries(entries, name, description, threshold, categories);
+    profile.created_from_type = created_type;
+    profile.created_from_root = root;
+
+    for (const sp::CategoryProfile &c : profile.categories) {
+        if (c.file_count < 5) {
+            std::fprintf(stderr, "warning: category '%s' has fewer than 5 files (%d)\n",
+                         c.name.c_str(), c.file_count);
+        }
+    }
+
+    return write_or_print(out, sp::profile_to_json(profile)) ? 0 : 2;
+}
+
 // ---- M9 recipe engine subcommands (extension §6.5) ----
 
 bool analyze_for_propose(const std::string &file, sp::NativeAudio &audio, sp::Loudness &loudness,
@@ -342,12 +630,14 @@ bool analyze_for_propose(const std::string &file, sp::NativeAudio &audio, sp::Lo
 }
 
 int cmd_propose(const std::vector<std::string> &args) {
-    std::string file, baseline_path, out;
-    double threshold = 2.5;
+    std::string file, baseline_path, profile_path, out;
+    double threshold = -1.0;
     for (std::size_t i = 0; i < args.size(); ++i) {
         const std::string &a = args[i];
         if (a == "--baseline" && i + 1 < args.size()) {
             baseline_path = args[++i];
+        } else if (a == "--profile" && i + 1 < args.size()) {
+            profile_path = args[++i];
         } else if (a == "--threshold" && i + 1 < args.size()) {
             threshold = std::stod(args[++i]);
         } else if (a == "--out" && i + 1 < args.size()) {
@@ -356,17 +646,22 @@ int cmd_propose(const std::vector<std::string> &args) {
             file = a;
         }
     }
-    if (file.empty() || baseline_path.empty()) {
-        std::fprintf(stderr, "usage: soundpalette propose <file> --baseline palette.json "
-                             "[--threshold 2.5] [--out recipe.json]\n");
+    if (file.empty() || (baseline_path.empty() && profile_path.empty())) {
+        std::fprintf(stderr, "usage: soundpalette propose <file> (--baseline m.json | --profile "
+                             "p.sppal.json) [--threshold 2.5] [--out recipe.json]\n");
         return 2;
     }
 
-    sp::Manifest baseline;
+    sp::Profile profile;
     std::string err;
-    if (!load_baseline_stats(baseline_path, baseline, err)) {
+    if (!load_profile_arg(baseline_path, profile_path, profile, err)) {
         std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
         return 2;
+    }
+    if (threshold > 0.0) {
+        profile.threshold = threshold;
+    } else if (!baseline_path.empty()) {
+        profile.threshold = 2.5;
     }
 
     sp::NativeAudio audio;
@@ -376,10 +671,18 @@ int cmd_propose(const std::vector<std::string> &args) {
         return 2;
     }
 
-    sp::Recipe recipe = sp::propose_recipe(audio, features, loudness, baseline.stats, threshold);
+    // Category targeting (extension-2 §6.1): pull target stats from the file's resolved
+    // category so a misfiled sound harmonizes toward the family it sits in.
+    const std::string rel = std::filesystem::path(file).filename().string();
+    const int cat = sp::resolve_category(profile, rel);
+    const std::array<sp::DimStats, 7> &target_stats =
+        cat >= 0 ? profile.categories[static_cast<std::size_t>(cat)].stats : profile.stats;
+
+    sp::Recipe recipe =
+        sp::propose_recipe(audio, features, loudness, target_stats, profile.threshold);
     recipe.source_path = file;
     recipe.source_sha256 = sp::file_sha256(file);
-    recipe.target_baseline = baseline_path;
+    recipe.target_baseline = profile_path.empty() ? baseline_path : profile_path;
 
     return write_or_print(out, sp::recipe_to_json(recipe)) ? 0 : 2;
 }
@@ -401,6 +704,11 @@ int cmd_apply(const std::vector<std::string> &args) {
     if (file.empty() || recipe_path.empty() || out.empty()) {
         std::fprintf(stderr, "usage: soundpalette apply <file> --recipe recipe.json "
                              "--out <file.wav> [--report report.json]\n");
+        return 2;
+    }
+
+    if (!sp::capability("harmonize.apply")) {
+        std::fprintf(stderr, "soundpalette: harmonize.apply is not available\n");
         return 2;
     }
 
@@ -454,14 +762,16 @@ int cmd_apply(const std::vector<std::string> &args) {
 }
 
 int cmd_harmonize(const std::vector<std::string> &args) {
-    std::string target, baseline_path, out_dir = "harmonized";
-    double threshold = 2.5;
+    std::string target, baseline_path, profile_path, out_dir = "harmonized";
+    double threshold = -1.0;
     int max_iter = 3;
     bool dry_run = false;
     for (std::size_t i = 0; i < args.size(); ++i) {
         const std::string &a = args[i];
         if (a == "--baseline" && i + 1 < args.size()) {
             baseline_path = args[++i];
+        } else if (a == "--profile" && i + 1 < args.size()) {
+            profile_path = args[++i];
         } else if (a == "--out-dir" && i + 1 < args.size()) {
             out_dir = args[++i];
         } else if (a == "--threshold" && i + 1 < args.size()) {
@@ -474,27 +784,54 @@ int cmd_harmonize(const std::vector<std::string> &args) {
             target = a;
         }
     }
-    if (target.empty() || baseline_path.empty()) {
+    if (target.empty() || (baseline_path.empty() && profile_path.empty())) {
         std::fprintf(stderr,
-                     "usage: soundpalette harmonize <dir|file> --baseline palette.json "
-                     "[--out-dir harmonized] [--threshold 2.5] [--max-iter 3] [--dry-run]\n");
+                     "usage: soundpalette harmonize <dir|file> (--baseline m.json | --profile "
+                     "p.sppal.json) [--out-dir harmonized] [--threshold 2.5] [--max-iter 3] "
+                     "[--dry-run]\n");
+        return 2;
+    }
+    if (!dry_run && !sp::capability("harmonize.apply")) {
+        std::fprintf(stderr, "soundpalette: harmonize.apply is not available\n");
         return 2;
     }
 
-    sp::Manifest baseline;
+    sp::Profile profile;
     std::string err;
-    if (!load_baseline_stats(baseline_path, baseline, err)) {
+    if (!load_profile_arg(baseline_path, profile_path, profile, err)) {
         std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
         return 2;
     }
+    if (threshold > 0.0) {
+        profile.threshold = threshold;
+    } else if (!baseline_path.empty()) {
+        profile.threshold = 2.5;
+    }
+    threshold = profile.threshold;
 
-    // Work list: every outlier of a directory, or the single file as given (§6.5).
+    // Work list: every outlier of a directory, or the single file as given (§6.5). Outliers
+    // are found with the same compute_deviation every other surface uses.
     std::vector<std::pair<std::string, std::string>> work; // (absolute-ish path, relpath)
     if (std::filesystem::is_directory(target)) {
         sp::Manifest candidate = sp::scan_directory(target, sp::ScanOptions{});
-        sp::LintReport report = sp::lint(baseline, candidate, threshold);
-        for (const sp::LintFileResult &r : report.outliers) {
-            work.emplace_back((std::filesystem::path(target) / r.path).string(), r.path);
+        struct Flagged {
+            std::string path;
+            double max_z;
+        };
+        std::vector<Flagged> flagged;
+        for (const sp::FileEntry &e : candidate.files) {
+            if (!e.error.empty() || e.loudness.silent) {
+                continue;
+            }
+            sp::Deviation dev = sp::compute_deviation(e, profile);
+            if (dev.max_z >= threshold) {
+                flagged.push_back({e.path, dev.max_z});
+            }
+        }
+        std::sort(flagged.begin(), flagged.end(),
+                  [](const Flagged &a, const Flagged &b) { return a.max_z > b.max_z; });
+        for (const Flagged &f : flagged) {
+            work.emplace_back((std::filesystem::path(target) / f.path).string(), f.path);
         }
     } else if (std::filesystem::is_regular_file(target)) {
         work.emplace_back(target, std::filesystem::path(target).filename().string());
@@ -512,11 +849,14 @@ int cmd_harmonize(const std::vector<std::string> &args) {
             return 2;
         }
 
+        const int cat = sp::resolve_category(profile, rel_path);
+        const std::array<sp::DimStats, 7> &target_stats =
+            cat >= 0 ? profile.categories[static_cast<std::size_t>(cat)].stats : profile.stats;
         sp::Recipe recipe =
-            sp::propose_recipe(audio, features, loudness, baseline.stats, threshold, max_iter);
+            sp::propose_recipe(audio, features, loudness, target_stats, threshold, max_iter);
         recipe.source_path = rel_path;
         recipe.source_sha256 = sp::file_sha256(abs_path);
-        recipe.target_baseline = baseline_path;
+        recipe.target_baseline = profile_path.empty() ? baseline_path : profile_path;
 
         std::filesystem::path rel(rel_path);
         std::filesystem::path out_base = std::filesystem::path(out_dir) / rel.parent_path();
@@ -561,6 +901,7 @@ int cmd_harmonize(const std::vector<std::string> &args) {
 int cmd_export_svg(const std::vector<std::string> &args) {
     std::string manifest_path;
     std::string out;
+    std::string profile_path;
     int columns = 8;
 
     for (std::size_t i = 0; i < args.size(); ++i) {
@@ -569,9 +910,17 @@ int cmd_export_svg(const std::vector<std::string> &args) {
             out = args[++i];
         } else if (a == "--columns" && i + 1 < args.size()) {
             columns = std::stoi(args[++i]);
+        } else if (a == "--profile" && i + 1 < args.size()) {
+            profile_path = args[++i];
         } else if (a.rfind("--", 0) != 0 && manifest_path.empty()) {
             manifest_path = a;
         }
+    }
+    // Gating seam site (extension-2 §6.3): a clean sheet (no made-with mark; the mark is not
+    // implemented yet) requires this capability. v3: always granted.
+    if (!sp::capability("export.clean_sheet")) {
+        std::fprintf(stderr, "soundpalette: export.clean_sheet is not available\n");
+        return 2;
     }
 
     if (manifest_path.empty() || out.empty()) {
@@ -604,6 +953,19 @@ int cmd_export_svg(const std::vector<std::string> &args) {
         sp::FileEntry fe;
         fe.path = fj.value("path", "");
         fe.error = fj.value("error", "");
+        if (fe.error.empty() && fj.contains("loudness") && fj.contains("features")) {
+            const auto &lj = fj["loudness"];
+            fe.loudness.lufs_i = lj.value("lufs_i", 0.0);
+            fe.loudness.true_peak_db = lj.value("true_peak_db", 0.0);
+            fe.loudness.silent = lj.value("silent", false);
+            const auto &tj = fj["features"];
+            fe.features.centroid_hz = tj.value("centroid_hz", 0.0);
+            fe.features.flatness = tj.value("flatness", 0.0);
+            fe.features.attack_s = tj.value("attack_s", 0.0);
+            fe.features.tail_s = tj.value("tail_s", 0.0);
+            fe.features.roughness = tj.value("roughness", 0.0);
+            fe.features.warmth = tj.value("warmth", 0.0);
+        }
         if (fe.error.empty() && fj.contains("visual")) {
             const auto &vj = fj["visual"];
             fe.visual.hue_deg = vj.value("hue_deg", 0.0);
@@ -619,7 +981,18 @@ int cmd_export_svg(const std::vector<std::string> &args) {
         manifest.files.push_back(std::move(fe));
     }
 
-    std::string svg = sp::sheet_svg(manifest, columns);
+    std::string svg;
+    if (!profile_path.empty()) {
+        sp::Profile profile;
+        std::string perr;
+        if (!load_profile_arg("", profile_path, profile, perr)) {
+            std::fprintf(stderr, "soundpalette: %s\n", perr.c_str());
+            return 2;
+        }
+        svg = sp::sheet_svg(manifest, columns, profile);
+    } else {
+        svg = sp::sheet_svg(manifest, columns);
+    }
     std::ofstream out_f(out, std::ios::binary);
     if (!out_f) {
         std::fprintf(stderr, "soundpalette: cannot write %s\n", out.c_str());
@@ -794,10 +1167,11 @@ int cmd_watch(const std::vector<std::string> &args) {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::fprintf(stderr,
-                     "usage: soundpalette "
-                     "<scan|lint|describe|propose|apply|harmonize|export-svg|watch|print-mapping> "
-                     "[args...]\n");
+        std::fprintf(
+            stderr,
+            "usage: soundpalette "
+            "<scan|lint|describe|profile|propose|apply|harmonize|export-svg|watch|print-mapping> "
+            "[args...]\n");
         return 2;
     }
 
@@ -809,6 +1183,8 @@ int main(int argc, char **argv) {
             return cmd_scan(args);
         } else if (subcommand == "print-mapping") {
             return cmd_print_mapping(args);
+        } else if (subcommand == "profile") {
+            return cmd_profile(args);
         } else if (subcommand == "propose") {
             return cmd_propose(args);
         } else if (subcommand == "apply") {

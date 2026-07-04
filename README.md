@@ -103,6 +103,30 @@ Headless self-test (used by CI):
 xvfb-run -a ./build/app/soundpalette-app --smoke out.png --dir path/to/sfx
 ```
 
+## Profiles
+
+A **palette profile** (`.sppal.json`) is your sound identity as a portable file: per-dimension
+statistics plus the full 7x7 covariance, optionally split into per-category sub-profiles
+(ui / combat / ambience ...) matched by path globs (`ui/**`, `**/ui_*`). Create one from a
+folder, an existing manifest, or a curated selection:
+
+```bash
+soundpalette profile create sfx/ --name dungeon_v2 \
+    --category 'ui=ui/**,**/ui_*' --category 'combat=combat/**' \
+    --out dungeon.sppal.json
+soundpalette profile show dungeon.sppal.json
+
+# Everything that took --baseline also takes --profile, with per-category context:
+soundpalette lint sfx/ --profile dungeon.sppal.json          # OUTLIER ... cat=combat ...
+soundpalette lint sfx/ --profile dungeon.sppal.json --json --all   # full deviation table
+soundpalette harmonize sfx/ --profile dungeon.sppal.json     # targets the file's category
+soundpalette export-svg palette.json --out sheet.svg --profile dungeon.sppal.json  # halos
+```
+
+Per-category linting catches what a global baseline cannot: a UI tick misfiled into `combat/`
+passes global statistics easily but flags **red inside its combat family**. Deviations are
+computed once in core, so CLI, MCP, SVG halos, and the GUI always report identical numbers.
+
 ## Harmonization (tier one)
 
 `propose` / `apply` / `harmonize` non-destructively pull off-palette sounds back toward a

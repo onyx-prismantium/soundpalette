@@ -106,8 +106,19 @@ Loudness measure_loudness(const AudioBuffer &buffer) {
     double true_peak_linear = 0.0;
     if (state != nullptr) {
         if (!buffer.samples48k_mono.empty()) {
-            ebur128_add_frames_float(state, buffer.samples48k_mono.data(),
-                                     buffer.samples48k_mono.size());
+            // EBU R128 integrated loudness needs one full 400 ms gating block; shorter files
+            // (real UI ticks are ~100 ms) would read -inf and be misclassified as silent.
+            // Zero-padding the measurement input to 400 ms fixes that without biasing the
+            // gated integration; every input >= 0.4 s is byte-for-byte unaffected.
+            constexpr std::size_t kMinFrames = kTargetSampleRate * 2 / 5; // 400 ms
+            if (buffer.samples48k_mono.size() < kMinFrames) {
+                std::vector<float> padded(buffer.samples48k_mono);
+                padded.resize(kMinFrames, 0.0f);
+                ebur128_add_frames_float(state, padded.data(), padded.size());
+            } else {
+                ebur128_add_frames_float(state, buffer.samples48k_mono.data(),
+                                         buffer.samples48k_mono.size());
+            }
         }
         ebur128_loudness_global(state, &lufs_i);
         ebur128_true_peak(state, 0, &true_peak_linear);
