@@ -287,3 +287,40 @@ layering grep over core/ empty; zero warnings; format-clean.
 Gate verified: `ctest --test-dir build --output-on-failure` 18/18 + all seven
 `tests/integration/*.sh` (including `make_lossy.sh` regeneration mid-loop) exit 0 end-to-end;
 actionlint clean.
+
+# Extension plan (SoundPalette_extension1.md): M8 + M9
+
+## Preflight (extension §1, 2026-07-04)
+
+Clean tree at `3d2f17e` (after the two user-requested GUI features: DPI scaling + playback
+transport). Full build zero warnings; ctest 20/20; all seven v1 integration scripts PASS;
+`v0.1.0` tag present; node v20.20.2 / npm 11.14.1 / python3 3.12.3 available. No M7.x fixes
+needed.
+
+Note on the extension's own framing: it references the original PLAN.md state and does not
+account for post-plan changes. Differences that matter here: `lint_outlier.sh` runs at
+threshold 4.0 (approved M4 deviation); the GUI grid gained playback transport and DPI scaling;
+CI has a Windows (MSVC) job that must stay green through M8/M9.
+
+## M8 — describe, JSON flags, MCP server
+
+- `describe_dim_words` added alongside the normative `describe_words` (internal addition, §5
+  "adjust internals freely" carried over): CLI `--json` and the MCP tool need the per-dim words
+  individually, not just the assembled sentence.
+- `lint --json` emits `max_z` as |worst z| (the extension's field name and its §6.3 example
+  values are magnitudes; the signed value remains available in the text output).
+- MCP server pins (extension §4 known-good ranges): @modelcontextprotocol/sdk 1.29.0, zod
+  3.25.76 (SDK schema peer, not in the extension's table — recorded per §1 rule 7),
+  @resvg/resvg-js 2.6.2, typescript 5.9.3, @types/node 20.19.9. Locked in package-lock.json.
+- Root confinement implemented with realpath-before-check on both input paths (must exist) and
+  output paths (parent must exist inside root); `render_palette_sheet` temp files live under
+  `<root>/.sp-mcp-*` and are removed in a finally block, honoring "no tool ever writes outside
+  --root" literally.
+- The traversal test uses a deep `../../..` chain rather than the extension's literal
+  `"../etc/passwd"` (the fixture root is several levels below /; the shallow form would resolve
+  inside the repo and not exercise the guard).
+
+Gate verified: `ctest -R describe` 2/2; `npm ci && npm run build && npm test` 6/6 pass
+(describe_sound 2 s budget: ~40 ms; render_palette_sheet 5 s budget: ~420 ms);
+`mcp_smoke.sh` PASS; `lint --json | python3 -m json.tool` valid; full v1 suite still green
+(ctest 22/22 incl. new describe tests + all seven v1 integration scripts).

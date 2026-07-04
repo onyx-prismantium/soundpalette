@@ -44,6 +44,7 @@ add_library(soundpalette_core STATIC
     src/mapping.cpp
     src/manifest.cpp
     src/glyph.cpp
+    src/describe.cpp
     src/lint.cpp
     $<TARGET_OBJECTS:soundpalette_vendor_audio>
     $<TARGET_OBJECTS:soundpalette_vendor_sha256>

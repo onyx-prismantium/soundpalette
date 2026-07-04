@@ -7,6 +7,7 @@ add_executable(sp_unit_tests
     test_mapping.cpp
     test_manifest.cpp
     test_lint.cpp
+    test_describe.cpp
 )
 target_link_libraries(sp_unit_tests PRIVATE soundpalette_core doctest::doctest nlohmann_json::nlohmann_json)
 sp_set_warnings(sp_unit_tests)

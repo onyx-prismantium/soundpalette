@@ -8,3 +8,8 @@ compile_commands.json
 # Generated test audio (deterministic; regenerate with genfixtures + make_lossy.sh).
 # Only the golden manifest/SVG under tests/golden/ are committed (§3).
 /tests/golden/fixtures/
+
+# MCP server (extension M8)
+mcp/node_modules/
+mcp/dist/
+mcp/dist-test/

@@ -21,3 +21,13 @@ See `cmake/Dependencies.cmake` for the FetchContent declarations (fetched ones) 
 PLAN.md §4 names libraries and known-good version numbers but not GitHub org/repo paths; those
 were resolved by web search at M0 setup time and are recorded above (see NOTES.md for the
 verification trail).
+
+## npm (mcp/, pinned at M8 — extension §4; exact versions also locked in mcp/package-lock.json)
+
+| Package | Pin | License | Purpose |
+|---|---|---|---|
+| @modelcontextprotocol/sdk | 1.29.0 | MIT | MCP server + test client, stdio transport |
+| zod | 3.25.76 | MIT | Tool input schemas (peer requirement of the SDK) |
+| @resvg/resvg-js | 2.6.2 | MPL-2.0 | Rasterize the SVG sheet to PNG for MCP image results |
+| typescript | 5.9.3 (dev) | Apache-2.0 | Build mcp/src -> mcp/dist |
+| @types/node | 20.19.9 (dev) | MIT | Type definitions for the Node 20 baseline |

@@ -99,6 +99,29 @@ Headless self-test (used by CI):
 xvfb-run -a ./build/app/soundpalette-app --smoke out.png --dir path/to/sfx
 ```
 
+## Using SoundPalette from an AI agent
+
+`mcp/` ships an MCP server (stdio transport) that exposes the analysis suite as tools:
+`scan_folder`, `lint_against_baseline`, `describe_sound` (deterministic plain-language
+description), and `render_palette_sheet` (returns the glyph grid as a PNG image). Every path
+is confined to the configured project root.
+
+```bash
+cd mcp && npm ci && npm run build
+```
+
+Then register it with any MCP client (see https://modelcontextprotocol.io for your client's
+registration format):
+
+```json
+{
+  "command": "node",
+  "args": ["<repo>/mcp/dist/server.js", "--root", "<your-sound-project>"]
+}
+```
+
+Add `--bin <path-to-soundpalette>` if the CLI is not at `<repo>/build/cli/soundpalette`.
+
 ## Development
 
 - `PLAN.md` — normative spec: DSP formulas (§6), mapping constants (§7), manifest schema (§8),
