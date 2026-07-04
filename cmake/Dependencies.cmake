@@ -6,6 +6,13 @@
 
 include(FetchContent)
 
+# libebur128 v1.2.6 (a deliberate pin, PLAN.md §4) declares a cmake_minimum_required below
+# 3.5; CMake >= 4.0 removed compatibility with that and hard-errors at configure time unless
+# this escape hatch is set. Harmless on older CMake, applies to all fetched subprojects.
+if(NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
+
 FetchContent_Declare(
     libebur128
     GIT_REPOSITORY https://github.com/jiixyj/libebur128.git
