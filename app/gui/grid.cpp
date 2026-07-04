@@ -14,21 +14,21 @@ namespace spapp {
 
 namespace {
 
-constexpr float kCellPx = 132.0f; // glyph area; §9's 120 px SVG cell plus breathing room
-constexpr float kLabelPx = 16.0f; // filename line beneath the glyph
+constexpr float kCellPx = 132.0f; // glyph area at 100 % scale; §9's 120 px SVG cell + margin
+constexpr float kLabelPx = 16.0f; // filename line beneath the glyph, at 100 % scale
 constexpr int kTailCircles = 5;   // §7 decay tail
 
 const char *kDimNames[7] = {"bright01", "warm01", "ton01", "atk01", "tail01", "loud01", "jitter01"};
 
 // Glyphs are authored at size_px up to 64 (radius) with spikes up to +45 %; scale so the
 // largest possible glyph plus its tail fits the cell.
-float glyph_scale() {
-    return (kCellPx * 0.5f - 6.0f) / (64.0f * 1.45f);
+float glyph_scale(float cell_px) {
+    return (cell_px * 0.5f - 6.0f) / (64.0f * 1.45f);
 }
 
-void draw_glyph(ImDrawList *draw, const sp::FileEntry &e, ImVec2 center) {
+void draw_glyph(ImDrawList *draw, const sp::FileEntry &e, ImVec2 center, float cell_px) {
     const sp::Visual &v = e.visual;
-    const float scale = glyph_scale();
+    const float scale = glyph_scale(cell_px);
 
     std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
     std::vector<ImVec2> pts(outline.size());
@@ -53,8 +53,8 @@ void draw_glyph(ImDrawList *draw, const sp::FileEntry &e, ImVec2 center) {
     }
 }
 
-void draw_error_mark(ImDrawList *draw, ImVec2 center) {
-    const float half = kCellPx * 0.18f;
+void draw_error_mark(ImDrawList *draw, ImVec2 center, float cell_px) {
+    const float half = cell_px * 0.18f;
     const unsigned int gray = IM_COL32(136, 136, 136, 255);
     draw->AddLine(ImVec2(center.x - half, center.y - half),
                   ImVec2(center.x + half, center.y + half), gray, 3.0f);
@@ -91,10 +91,15 @@ void draw_grid(AppState &state) {
         return;
     }
 
+    const float s = state.ui_scale();
+    const float cell = kCellPx * s;
+    const float label_h = kLabelPx * s;
+    const float controls_h = ImGui::GetFrameHeightWithSpacing();
+
     const float avail_w = ImGui::GetContentRegionAvail().x;
-    const int columns = std::max(1, static_cast<int>(avail_w / kCellPx));
+    const int columns = std::max(1, static_cast<int>(avail_w / cell));
     const int rows = (static_cast<int>(state.order.size()) + columns - 1) / columns;
-    const float row_h = kCellPx + kLabelPx;
+    const float row_h = cell + label_h + controls_h;
 
     // Only visible rows are drawn (§10).
     ImGuiListClipper clipper;
@@ -111,42 +116,70 @@ void draw_grid(AppState &state) {
                 const sp::FileEntry &e = files[static_cast<std::size_t>(file_index)];
 
                 ImGui::PushID(slot);
-                ImVec2 cell_pos(row_base.x + col * kCellPx, row_base.y);
+                ImVec2 cell_pos(row_base.x + col * cell, row_base.y);
                 ImGui::SetCursorScreenPos(cell_pos);
-                ImGui::InvisibleButton("cell", ImVec2(kCellPx, row_h));
+                // Glyph + label area only; the transport row below has its own widgets.
+                ImGui::InvisibleButton("cell", ImVec2(cell, cell + label_h));
 
                 bool hovered = ImGui::IsItemHovered();
                 if (ImGui::IsItemClicked()) {
                     state.selected = file_index;
-                    play_entry(state, e);
                 }
 
                 ImDrawList *draw = ImGui::GetWindowDrawList();
-                ImVec2 center(cell_pos.x + kCellPx * 0.5f, cell_pos.y + kCellPx * 0.5f);
+                ImVec2 center(cell_pos.x + cell * 0.5f, cell_pos.y + cell * 0.5f);
 
                 if (state.selected == file_index) {
-                    draw->AddRect(cell_pos, ImVec2(cell_pos.x + kCellPx, cell_pos.y + row_h),
+                    draw->AddRect(cell_pos, ImVec2(cell_pos.x + cell, cell_pos.y + row_h),
                                   IM_COL32(255, 255, 255, 80), 4.0f);
                 }
                 if (!e.error.empty()) {
-                    draw_error_mark(draw, center);
+                    draw_error_mark(draw, center, cell);
                 } else {
-                    draw_glyph(draw, e, center);
+                    draw_glyph(draw, e, center, cell);
                 }
 
                 // Filename beneath, clipped to the cell.
                 std::string label = e.path;
                 ImVec2 text_size = ImGui::CalcTextSize(label.c_str());
-                while (text_size.x > kCellPx - 8.0f && label.size() > 4) {
+                while (text_size.x > cell - 8.0f && label.size() > 4) {
                     label = label.substr(0, label.size() - 4) + "..."; // default font has no U+2026
                     text_size = ImGui::CalcTextSize(label.c_str());
                 }
-                draw->AddText(
-                    ImVec2(cell_pos.x + (kCellPx - text_size.x) * 0.5f, cell_pos.y + kCellPx),
-                    IM_COL32(204, 204, 204, 255), label.c_str());
+                draw->AddText(ImVec2(cell_pos.x + (cell - text_size.x) * 0.5f, cell_pos.y + cell),
+                              IM_COL32(204, 204, 204, 255), label.c_str());
 
                 if (hovered) {
                     draw_tooltip(e);
+                }
+
+                // Transport row: play/pause/stop + seconds (remaining while playing).
+                ImGui::SetCursorScreenPos(
+                    ImVec2(cell_pos.x + 4.0f * s, cell_pos.y + cell + label_h));
+                if (e.error.empty()) {
+                    const bool is_playing = state.playing_index == file_index;
+                    ImGui::BeginDisabled(!state.audio_ok);
+                    if (is_playing) {
+                        if (ImGui::SmallButton(state.paused ? ">" : "||")) {
+                            playback_toggle_pause(state);
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("stop")) {
+                            playback_stop(state);
+                        }
+                        ImGui::SameLine();
+                        ImGui::Text("%.1fs", playback_remaining_s(state));
+                    } else {
+                        if (ImGui::SmallButton(">")) {
+                            state.selected = file_index;
+                            playback_start(state, file_index);
+                        }
+                        ImGui::SameLine();
+                        ImGui::Text("%.1fs", e.duration_s);
+                    }
+                    ImGui::EndDisabled();
+                } else {
+                    ImGui::TextDisabled("--");
                 }
 
                 ImGui::PopID();

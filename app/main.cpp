@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <string>
@@ -75,6 +76,9 @@ int main(int argc, char **argv) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    // Size the window (and content) by the monitor's DPI scale on Windows/X11, so the app is
+    // readable on high-density displays without manual zooming.
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
     GLFWwindow *window = glfwCreateWindow(1280, 800, "SoundPalette", nullptr, nullptr);
     if (window == nullptr) {
         std::fprintf(stderr, "soundpalette-app: glfwCreateWindow failed\n");
@@ -104,6 +108,28 @@ int main(int argc, char **argv) {
 
     spapp::AppState state;
     state.smoke_mode = smoke;
+
+    // DPI-aware UI: scale fonts (ImGui 1.92 dynamic font system) and style metrics by the
+    // monitor content scale; the grid multiplies its cell metrics by the same factor. The
+    // View menu adds a user multiplier on top via style.FontScaleMain. SP_UI_SCALE overrides
+    // detection for environments that misreport it (e.g. X11 without Xft.dpi configured).
+    {
+        float xscale = 1.0f, yscale = 1.0f;
+        glfwGetWindowContentScale(window, &xscale, &yscale);
+        state.dpi_scale = xscale > yscale ? xscale : yscale;
+        if (const char *env = std::getenv("SP_UI_SCALE")) {
+            float forced = std::strtof(env, nullptr);
+            if (forced >= 0.5f && forced <= 8.0f) {
+                state.dpi_scale = forced;
+            }
+        }
+        if (state.dpi_scale < 1.0f) {
+            state.dpi_scale = 1.0f;
+        }
+        ImGui::GetStyle().ScaleAllSizes(state.dpi_scale);
+        ImGui::GetStyle().FontScaleDpi = state.dpi_scale;
+        io.ConfigDpiScaleFonts = true; // keep font scale in sync when moving across monitors
+    }
 
     // Playback engine (§10): one ma_engine; absent sound device (headless) is not an error.
     ma_engine engine;
@@ -158,6 +184,7 @@ int main(int argc, char **argv) {
     }
 
     spapp::shutdown_scan_thread(state);
+    spapp::playback_stop(state); // frees the active ma_sound before the engine goes away
     if (state.audio_ok) {
         ma_engine_uninit(&engine);
     }

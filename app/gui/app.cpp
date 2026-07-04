@@ -70,6 +70,18 @@ void draw_menu_bar(AppState &state) {
         }
         ImGui::EndMenu();
     }
+    if (ImGui::BeginMenu("View")) {
+        static const float kScales[] = {1.0f, 1.25f, 1.5f, 2.0f};
+        static const char *kLabels[] = {"UI scale 100%", "UI scale 125%", "UI scale 150%",
+                                        "UI scale 200%"};
+        for (int i = 0; i < 4; ++i) {
+            if (ImGui::MenuItem(kLabels[i], nullptr, state.user_scale == kScales[i])) {
+                state.user_scale = kScales[i];
+                ImGui::GetStyle().FontScaleMain = state.user_scale;
+            }
+        }
+        ImGui::EndMenu();
+    }
     ImGui::EndMainMenuBar();
 }
 
@@ -237,16 +249,92 @@ void shutdown_scan_thread(AppState &state) {
     }
 }
 
-void play_entry(AppState &state, const sp::FileEntry &entry) {
+void playback_stop(AppState &state) {
+    if (state.active_sound != nullptr) {
+        ma_sound *sound = static_cast<ma_sound *>(state.active_sound);
+        ma_sound_uninit(sound);
+        delete sound;
+        state.active_sound = nullptr;
+    }
+    state.playing_index = -1;
+    state.paused = false;
+}
+
+void playback_start_path(AppState &state, const std::string &abs_path, int ui_index) {
     // Plays the original file, not the analysis buffer (§10). Skips gracefully headless.
-    if (!state.audio_ok || state.engine == nullptr || !entry.error.empty()) {
+    if (!state.audio_ok || state.engine == nullptr) {
         return;
     }
-    std::filesystem::path abs = std::filesystem::path(state.root_dir) / entry.path;
+    playback_stop(state);
+
     ma_engine *engine = static_cast<ma_engine *>(state.engine);
-    if (ma_engine_play_sound(engine, abs.string().c_str(), nullptr) != MA_SUCCESS) {
-        state.status_message = "playback failed: " + entry.path;
+    ma_sound *sound = new ma_sound;
+    if (ma_sound_init_from_file(engine, abs_path.c_str(), 0, nullptr, nullptr, sound) !=
+        MA_SUCCESS) {
+        delete sound;
+        state.status_message = "playback failed: " + abs_path;
+        return;
     }
+    if (ma_sound_start(sound) != MA_SUCCESS) {
+        ma_sound_uninit(sound);
+        delete sound;
+        state.status_message = "playback failed: " + abs_path;
+        return;
+    }
+    state.active_sound = sound;
+    state.playing_index = ui_index;
+    state.paused = false;
+}
+
+void playback_start(AppState &state, int file_index) {
+    if (file_index < 0 || file_index >= static_cast<int>(state.manifest.files.size())) {
+        return;
+    }
+    const sp::FileEntry &e = state.manifest.files[static_cast<std::size_t>(file_index)];
+    if (!e.error.empty()) {
+        return;
+    }
+    std::filesystem::path abs = std::filesystem::path(state.root_dir) / e.path;
+    playback_start_path(state, abs.string(), file_index);
+}
+
+void playback_toggle_pause(AppState &state) {
+    if (state.active_sound == nullptr) {
+        return;
+    }
+    ma_sound *sound = static_cast<ma_sound *>(state.active_sound);
+    if (state.paused) {
+        ma_sound_start(sound);
+        state.paused = false;
+    } else {
+        ma_sound_stop(sound); // ma_sound_stop pauses; the cursor is kept
+        state.paused = true;
+    }
+}
+
+void playback_update(AppState &state) {
+    if (state.active_sound == nullptr) {
+        return;
+    }
+    ma_sound *sound = static_cast<ma_sound *>(state.active_sound);
+    if (ma_sound_at_end(sound)) {
+        playback_stop(state);
+    }
+}
+
+double playback_remaining_s(const AppState &state) {
+    if (state.active_sound == nullptr) {
+        return 0.0;
+    }
+    ma_sound *sound = static_cast<ma_sound *>(state.active_sound);
+    float length = 0.0f;
+    float cursor = 0.0f;
+    if (ma_sound_get_length_in_seconds(sound, &length) != MA_SUCCESS ||
+        ma_sound_get_cursor_in_seconds(sound, &cursor) != MA_SUCCESS) {
+        return 0.0;
+    }
+    double remaining = static_cast<double>(length) - static_cast<double>(cursor);
+    return remaining > 0.0 ? remaining : 0.0;
 }
 
 bool export_svg_to(AppState &state, const std::string &path) {
@@ -262,6 +350,7 @@ bool export_svg_to(AppState &state, const std::string &path) {
 
 void draw_ui(AppState &state) {
     poll_rescan(state);
+    playback_update(state);
     draw_menu_bar(state);
 
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
