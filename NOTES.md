@@ -267,3 +267,23 @@ input; screenshots verified at each step:
 Gate verified: `xvfb-run -a soundpalette-app --smoke /tmp/smoke.png --dir tests/golden/fixtures`
 exits 0, PNG 84 498 bytes (> 20 480); full suite 18/18 green; all six integration scripts PASS;
 layering grep over core/ empty; zero warnings; format-clean.
+
+## M7 — CI, docs, release hygiene
+
+- `ci.yml` validated with `actionlint` v1.7.7 (downloaded binary; not packaged for Ubuntu):
+  clean, no findings. The workflow mirrors the local gate exactly: §2 packages → configure →
+  build → genfixtures + make_lossy → ctest → every integration script → xvfb smoke →
+  `sheet.svg` + `smoke.png` uploaded as artifacts.
+- README quickstart verified on a fresh `git clone` into a clean directory with a cold build
+  tree (all FetchContent deps re-downloaded): zero-warning build, `scan`/`export-svg` work,
+  `ctest` 18/18, and `golden_scan.sh` byte-identical — which also re-confirms determinism is
+  independent of the checkout path. (A literally clean OS container wasn't available in this
+  environment; the §2 apt packages were installed per the same command the README gives.)
+- `docs/screenshot.png` is the Xvfb capture from the M6 manual checklist (inspector populated,
+  tooltip visible).
+- LICENSES.md generated from DEPENDENCIES.md; SoundPalette's own code declared MIT in README.
+- Tagged `v0.1.0`.
+
+Gate verified: `ctest --test-dir build --output-on-failure` 18/18 + all seven
+`tests/integration/*.sh` (including `make_lossy.sh` regeneration mid-loop) exit 0 end-to-end;
+actionlint clean.
