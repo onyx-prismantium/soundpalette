@@ -34,8 +34,15 @@ struct AppState {
     // UI.
     SortMode sort_mode = SortMode::kName;
     char filter_text[256] = {0};
-    int selected = -1;          // index into manifest.files, -1 = none
-    std::vector<int> order;     // display order (indices into manifest.files) after sort+filter
+    int selected = -1;      // index into manifest.files, -1 = none
+    std::vector<int> order; // display order (indices into manifest.files) after sort+filter
+    // Folder sections: each subfolder of the scan root becomes a titled area in the grid
+    // (full folder path above, divider below); files inside are sorted by sort_mode.
+    struct GridGroup {
+        std::string folder; // scan-root-relative, "/" for root-level files
+        std::vector<int> indices;
+    };
+    std::vector<GridGroup> groups;
     std::string status_message; // transient one-line feedback (exports, errors)
 
     // Mapping tuner (§10): runtime copy of the config; edits re-derive all visuals live.

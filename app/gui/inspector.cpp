@@ -54,7 +54,8 @@ void draw_inspector(AppState &state) {
         ImGui::SameLine();
         ImGui::ColorButton(
             "##swatch", ImGui::ColorConvertU32ToFloat4(hsl_to_rgba(v.hue_deg, v.sat, v.light, 1.0)),
-            ImGuiColorEditFlags_NoTooltip, ImVec2(40, 20));
+            ImGuiColorEditFlags_NoTooltip,
+            ImVec2(3.0f * ImGui::GetFontSize(), 1.5f * ImGui::GetFontSize()));
     }
 
     draw_harmonize(state); // M9 section, shown when a baseline is loaded (extension §6.5)

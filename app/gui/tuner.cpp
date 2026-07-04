@@ -24,7 +24,7 @@ bool slider(const char *label, double *value, double v1_default) {
             std::swap(lo, hi); // negative defaults (e.g. LUFS bounds)
         }
     }
-    ImGui::SetNextItemWidth(-130.0f);
+    ImGui::SetNextItemWidth(-10.0f * ImGui::GetFontSize()); // ~130 px at the 13 px base font
     return ImGui::SliderScalar(label, ImGuiDataType_Double, value, &lo, &hi, "%.4g");
 }
 

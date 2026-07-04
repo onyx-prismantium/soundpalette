@@ -226,12 +226,13 @@ void draw_harmonize(AppState &state) {
     // Before/after mini bars for the seven dims.
     for (int d = 0; d < 7; ++d) {
         ImGui::Text("%-9s", kDimNames[d]);
-        ImGui::SameLine(90.0f);
+        const float fs = ImGui::GetFontSize();
+        ImGui::SameLine(7.0f * fs);
         ImGui::ProgressBar(static_cast<float>(state.proposal_dims_before[d]),
-                           ImVec2(70.0f, ImGui::GetTextLineHeight()), "");
+                           ImVec2(5.5f * fs, ImGui::GetTextLineHeight()), "");
         ImGui::SameLine();
         ImGui::ProgressBar(static_cast<float>(state.proposal_dims_after[d]),
-                           ImVec2(70.0f, ImGui::GetTextLineHeight()), "");
+                           ImVec2(5.5f * fs, ImGui::GetTextLineHeight()), "");
     }
 
     ImGui::TextUnformatted("predicted:");

@@ -392,3 +392,14 @@ Gate verified: `ctest -R "dsp|propose|recipe"` 10/10 (plus describe 2/2; full su
 determinism, root-escape rejection for out_dir); `--smoke` unchanged (78 549 bytes > 20 480);
 all ten integration scripts PASS; golden manifest still byte-identical; layering grep empty;
 zero warnings; format-clean. engine_version 0.2.0.
+
+## Post-v0.2.0 GUI refinements (user-requested, 2026-07-04)
+
+- All fixed panel/widget widths now scale with the UI factor (sidebar, inspector, tuner slider
+  widths, tooltip and harmonize bars — previously hardcoded px, so at 200 % on 4K the fonts
+  grew but the panels did not).
+- The grid is grouped into folder sections: each scan-root-relative subfolder renders its full
+  path as a section title, its files beneath (labels are now the filename only), and a divider
+  before the next folder — so opening a whole project folder organizes the palette by
+  subfolder. Sections are sorted by path; files within a section follow the active sort mode;
+  the §10 clipper guarantee is kept per section.

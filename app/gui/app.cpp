@@ -235,7 +235,7 @@ void rebuild_order(AppState &state) {
     }
 
     SortMode mode = state.sort_mode;
-    std::stable_sort(state.order.begin(), state.order.end(), [&files, mode](int a, int b) {
+    auto sort_key_less = [&files, mode](int a, int b) {
         const sp::FileEntry &ea = files[static_cast<std::size_t>(a)];
         const sp::FileEntry &eb = files[static_cast<std::size_t>(b)];
         switch (mode) {
@@ -253,7 +253,30 @@ void rebuild_order(AppState &state) {
         default:
             return ea.path < eb.path;
         }
-    });
+    };
+    std::stable_sort(state.order.begin(), state.order.end(), sort_key_less);
+
+    // Folder sections: group by the scan-root-relative parent folder; sections sorted by
+    // path, files inside each section by the active sort mode (already sorted above, and
+    // the grouping below is order-preserving).
+    state.groups.clear();
+    for (int i : state.order) {
+        const std::string &path = files[static_cast<std::size_t>(i)].path;
+        std::size_t slash = path.find_last_of('/');
+        std::string folder = slash == std::string::npos ? "/" : "/" + path.substr(0, slash);
+        auto it =
+            std::find_if(state.groups.begin(), state.groups.end(),
+                         [&folder](const AppState::GridGroup &g) { return g.folder == folder; });
+        if (it == state.groups.end()) {
+            state.groups.push_back({folder, {}});
+            it = std::prev(state.groups.end());
+        }
+        it->indices.push_back(i);
+    }
+    std::stable_sort(state.groups.begin(), state.groups.end(),
+                     [](const AppState::GridGroup &a, const AppState::GridGroup &b) {
+                         return a.folder < b.folder;
+                     });
 }
 
 void shutdown_scan_thread(AppState &state) {
@@ -375,15 +398,16 @@ void draw_ui(AppState &state) {
     ImGui::Begin("##main", nullptr, flags);
 
     const float status_h = ImGui::GetFrameHeightWithSpacing();
-    const float sidebar_w = 170.0f;
-    const float inspector_w = 340.0f;
+    const float s = state.ui_scale();
+    const float sidebar_w = 170.0f * s; // panels track the UI scale, not just the fonts
+    const float inspector_w = 340.0f * s;
 
     ImGui::BeginChild("sidebar", ImVec2(sidebar_w, -status_h), ImGuiChildFlags_Borders);
     draw_sidebar(state);
     ImGui::EndChild();
 
     ImGui::SameLine();
-    ImGui::BeginChild("grid", ImVec2(-inspector_w - 8.0f, -status_h), ImGuiChildFlags_Borders);
+    ImGui::BeginChild("grid", ImVec2(-inspector_w - 8.0f * s, -status_h), ImGuiChildFlags_Borders);
     draw_grid(state);
     ImGui::EndChild();
 
