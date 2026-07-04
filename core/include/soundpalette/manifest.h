@@ -53,6 +53,16 @@ struct ScanOptions {
 // order), so output never depends on scheduling (§5).
 Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &options);
 
+// True if the path has one of the supported audio extensions (case-insensitive).
+bool has_supported_audio_extension(const std::filesystem::path &path);
+
+// Analyzes a single file (decode -> loudness -> features -> visual), path stored relative to
+// root with forward slashes. Used by the watch subcommand to re-scan changed files only (§9).
+FileEntry analyze_file(const std::filesystem::path &root, const std::filesystem::path &abs_path);
+
+// Recomputes the §8 stats block from manifest.files (non-error, non-silent entries).
+void recompute_stats(Manifest &manifest);
+
 // Canonical serialization (§8): UTF-8, LF, 2-space indent, fixed key order, files sorted by
 // path, floats rounded to 4 decimal places, no timestamps or absolute paths.
 std::string manifest_to_json(const Manifest &manifest);

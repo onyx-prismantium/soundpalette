@@ -194,3 +194,25 @@ rebuild zero warnings; full `ctest` suite (13 tests) green.
 
 Gate verified: `ctest -R lint` → 5/5 pass; `lint_outlier.sh`, `svg_valid.sh` PASS; full suite
 18/18 green; all five integration scripts PASS; zero warnings; format-clean.
+
+## M5 — watch
+
+- Added two public core functions beyond §5's API list (internal additions in the §5 "adjust
+  internals freely" sense, mirroring M3's `mapping_dims`): `analyze_file` (single-file
+  decode→features→visual, so watch re-scans changed files only, §9) and `recompute_stats`
+  (extracted from `scan_directory`, reused after incremental updates), plus
+  `has_supported_audio_extension` so the watcher's polling snapshot uses the exact same
+  extension filter as `scan_directory`.
+- Watch defaults `--out` to `palette.json` (§9 gives no explicit default; the flag's own
+  example value is the sensible one — streaming successive rewrites to stdout would contradict
+  "rewrites the manifest atomically").
+- Changed-file detection is mtime + file-set diff per §9; a file whose mtime is unreadable
+  mid-poll (vanished between listing and stat) is skipped that round and picked up next
+  interval. Atomic rewrite = write `<out>.tmp`, flush, `std::filesystem::rename`.
+- SIGINT/SIGTERM set a `volatile sig_atomic_t` flag; the loop exits and returns 0 (clean
+  shutdown, verified by `watch_update.sh` via SIGTERM + wait). `watch_update.sh` also asserts
+  no leftover `.tmp` file after shutdown.
+
+Gate verified: `watch_update.sh` PASS (newcomer picked up in < 3 s at `--interval-ms 100`,
+clean exit 0 on SIGTERM); full suite 18/18 green; all six integration scripts PASS; zero
+warnings; format-clean.

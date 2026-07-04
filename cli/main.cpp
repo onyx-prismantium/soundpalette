@@ -1,12 +1,15 @@
 #include <algorithm>
 #include <chrono>
+#include <csignal>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -275,9 +278,165 @@ int cmd_export_svg(const std::vector<std::string> &args) {
     return 0;
 }
 
-int cmd_not_implemented(const char *name) {
-    std::fprintf(stderr, "soundpalette %s: not implemented yet\n", name);
-    return 2;
+volatile std::sig_atomic_t g_watch_stop = 0;
+
+void watch_signal_handler(int) {
+    g_watch_stop = 1;
+}
+
+// Atomic manifest rewrite (§9 watch): write to a temp file next to the target, then rename.
+bool write_atomic(const std::string &out_path, const std::string &content) {
+    std::string tmp_path = out_path + ".tmp";
+    {
+        std::ofstream f(tmp_path, std::ios::binary | std::ios::trunc);
+        if (!f) {
+            std::fprintf(stderr, "soundpalette: cannot write %s\n", tmp_path.c_str());
+            return false;
+        }
+        f << content << "\n";
+        if (!f.flush()) {
+            std::fprintf(stderr, "soundpalette: write failed for %s\n", tmp_path.c_str());
+            return false;
+        }
+    }
+    std::error_code ec;
+    std::filesystem::rename(tmp_path, out_path, ec);
+    if (ec) {
+        std::fprintf(stderr, "soundpalette: rename %s -> %s failed: %s\n", tmp_path.c_str(),
+                     out_path.c_str(), ec.message().c_str());
+        return false;
+    }
+    return true;
+}
+
+// Relative forward-slash path -> (absolute path, mtime) for every supported audio file under
+// root. The polling watcher diffs consecutive snapshots (mtime + file set, §9).
+std::map<std::string, std::pair<std::filesystem::path, std::filesystem::file_time_type>>
+watch_snapshot(const std::filesystem::path &root) {
+    std::map<std::string, std::pair<std::filesystem::path, std::filesystem::file_time_type>> snap;
+    std::error_code ec;
+    for (std::filesystem::recursive_directory_iterator it(root, ec), end; !ec && it != end;
+         it.increment(ec)) {
+        if (!it->is_regular_file(ec) || !sp::has_supported_audio_extension(it->path())) {
+            continue;
+        }
+        std::filesystem::file_time_type mtime = std::filesystem::last_write_time(it->path(), ec);
+        if (ec) {
+            ec.clear();
+            continue; // file vanished mid-poll; the next interval picks it up
+        }
+        std::string rel = std::filesystem::relative(it->path(), root).generic_string();
+        snap.emplace(std::move(rel), std::make_pair(it->path(), mtime));
+    }
+    return snap;
+}
+
+int cmd_watch(const std::vector<std::string> &args) {
+    std::string dir;
+    std::string out = "palette.json";
+    int interval_ms = 500;
+    bool quiet = false;
+
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const std::string &a = args[i];
+        if (a == "--out" && i + 1 < args.size()) {
+            out = args[++i];
+        } else if (a == "--interval-ms" && i + 1 < args.size()) {
+            interval_ms = std::stoi(args[++i]);
+        } else if (a == "--quiet") {
+            quiet = true;
+        } else if (a.rfind("--", 0) != 0 && dir.empty()) {
+            dir = a;
+        }
+    }
+
+    if (dir.empty()) {
+        std::fprintf(stderr,
+                     "usage: soundpalette watch <dir> [--out palette.json] [--interval-ms 500]\n");
+        return 2;
+    }
+    if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
+        std::fprintf(stderr, "soundpalette: not a directory: %s\n", dir.c_str());
+        return 2;
+    }
+    interval_ms = std::max(interval_ms, 10);
+
+    std::signal(SIGINT, watch_signal_handler);
+    std::signal(SIGTERM, watch_signal_handler);
+
+    sp::Manifest manifest = sp::scan_directory(dir, sp::ScanOptions{});
+    if (!write_atomic(out, sp::manifest_to_json(manifest))) {
+        return 2;
+    }
+    if (!quiet) {
+        std::fprintf(stderr, "watch: initial scan, %zu files -> %s\n", manifest.files.size(),
+                     out.c_str());
+    }
+
+    auto prev = watch_snapshot(dir);
+
+    while (!g_watch_stop) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
+        if (g_watch_stop) {
+            break;
+        }
+
+        auto cur = watch_snapshot(dir);
+
+        std::vector<std::string> removed;
+        std::vector<std::string> changed; // added or mtime-changed: re-analyze these only
+        for (const auto &[rel, info] : prev) {
+            if (cur.find(rel) == cur.end()) {
+                removed.push_back(rel);
+            }
+        }
+        for (const auto &[rel, info] : cur) {
+            auto it = prev.find(rel);
+            if (it == prev.end() || it->second.second != info.second) {
+                changed.push_back(rel);
+            }
+        }
+
+        if (removed.empty() && changed.empty()) {
+            prev = std::move(cur);
+            continue;
+        }
+
+        for (const std::string &rel : removed) {
+            auto it = std::find_if(manifest.files.begin(), manifest.files.end(),
+                                   [&](const sp::FileEntry &e) { return e.path == rel; });
+            if (it != manifest.files.end()) {
+                manifest.files.erase(it);
+            }
+        }
+        for (const std::string &rel : changed) {
+            sp::FileEntry entry = sp::analyze_file(dir, cur.at(rel).first);
+            auto it = std::find_if(manifest.files.begin(), manifest.files.end(),
+                                   [&](const sp::FileEntry &e) { return e.path == entry.path; });
+            if (it != manifest.files.end()) {
+                *it = std::move(entry);
+            } else {
+                manifest.files.push_back(std::move(entry));
+            }
+        }
+        std::sort(manifest.files.begin(), manifest.files.end(),
+                  [](const sp::FileEntry &a, const sp::FileEntry &b) { return a.path < b.path; });
+        sp::recompute_stats(manifest);
+
+        if (!write_atomic(out, sp::manifest_to_json(manifest))) {
+            return 2;
+        }
+        if (!quiet) {
+            std::fprintf(stderr, "watch: %zu changed, %zu removed -> %s (%zu files)\n",
+                         changed.size(), removed.size(), out.c_str(), manifest.files.size());
+        }
+        prev = std::move(cur);
+    }
+
+    if (!quiet) {
+        std::fprintf(stderr, "watch: stopped\n");
+    }
+    return 0;
 }
 
 } // namespace
@@ -302,7 +461,7 @@ int main(int argc, char **argv) {
         } else if (subcommand == "export-svg") {
             return cmd_export_svg(args);
         } else if (subcommand == "watch") {
-            return cmd_not_implemented("watch");
+            return cmd_watch(args);
         } else {
             std::fprintf(stderr, "soundpalette: unknown subcommand '%s'\n", subcommand.c_str());
             return 2;

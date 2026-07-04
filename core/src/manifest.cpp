@@ -148,6 +148,20 @@ Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &op
     std::sort(manifest.files.begin(), manifest.files.end(),
               [](const FileEntry &a, const FileEntry &b) { return a.path < b.path; });
 
+    recompute_stats(manifest);
+
+    return manifest;
+}
+
+bool has_supported_audio_extension(const std::filesystem::path &path) {
+    return has_supported_extension(path);
+}
+
+FileEntry analyze_file(const std::filesystem::path &root, const std::filesystem::path &abs_path) {
+    return process_one(root, abs_path);
+}
+
+void recompute_stats(Manifest &manifest) {
     // Stats over the seven lint dimensions, non-error + non-silent files only (§8).
     std::array<std::vector<double>, 7> dim_values;
     for (const FileEntry &e : manifest.files) {
@@ -181,8 +195,6 @@ Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &op
         }
         manifest.stats[static_cast<std::size_t>(d)] = s;
     }
-
-    return manifest;
 }
 
 std::string manifest_to_json(const Manifest &manifest) {
