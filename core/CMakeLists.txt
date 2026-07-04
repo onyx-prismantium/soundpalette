@@ -1,4 +1,5 @@
-# libsoundpalette: headless core. Must never include/link GLFW, OpenGL, ImGui, or NFD (§1 rule 6).
+# libsoundpalette: headless core. Must never include or link any windowing, graphics, or UI
+# library (§1 rule 6) — the §13.6 layering grep over core/ must come back empty.
 
 # libebur128 is only needed here (audio.cpp); force static (project-wide goal is a single
 # static binary per platform) and skip its test suite (needs libsndfile, off by default anyway).
@@ -42,6 +43,8 @@ add_library(soundpalette_core STATIC
     src/features.cpp
     src/mapping.cpp
     src/manifest.cpp
+    src/glyph.cpp
+    src/lint.cpp
     $<TARGET_OBJECTS:soundpalette_vendor_audio>
     $<TARGET_OBJECTS:soundpalette_vendor_sha256>
 )

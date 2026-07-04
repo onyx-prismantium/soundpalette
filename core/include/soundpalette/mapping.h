@@ -91,8 +91,8 @@ struct MappingConfig {
 
 // The project's one sanctioned global mutable state (§15): the app's active runtime mapping
 // config. Defaults to the v1 spec; the GUI tuner mutates it, print-mapping and scan read it.
-const MappingConfig& active_mapping_config();
-void set_active_mapping_config(const MappingConfig& config);
+const MappingConfig &active_mapping_config();
+void set_active_mapping_config(const MappingConfig &config);
 void reset_active_mapping_config(); // back to v1 defaults
 
 // FNV-1a 64-bit hash of a manifest-relative path, used to seed glyph jitter deterministically.
@@ -100,14 +100,14 @@ std::uint64_t path_seed(std::string_view relative_path);
 
 // Maps Features+Loudness to a Visual using the currently active MappingConfig (§7). Silent
 // loudness short-circuits to the fixed silent visual.
-Visual map_v1(const Features& features, const Loudness& loudness, std::uint64_t seed);
+Visual map_v1(const Features &features, const Loudness &loudness, std::uint64_t seed);
 
 // The seven normalized dimensions lint (§9) and manifest stats (§8) operate over, in a fixed
 // order: [bright01, warm01, ton01, atk01, tail01, loud01, jitter01].
-std::array<double, 7> mapping_dims(const Features& features, const Loudness& loudness);
+std::array<double, 7> mapping_dims(const Features &features, const Loudness &loudness);
 
 // Canonical JSON dump of a MappingConfig (used by `print-mapping` and the GUI tuner's
 // "Export mapping.json"; matches assets/mapping_v1.json for the v1 defaults).
-std::string mapping_config_to_json(const MappingConfig& config);
+std::string mapping_config_to_json(const MappingConfig &config);
 
 } // namespace sp

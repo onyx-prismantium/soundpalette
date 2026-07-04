@@ -156,3 +156,41 @@ green.
 Gate verified: `ctest -R "mapping|manifest"` → 3/3 pass; `golden_scan.sh`, `determinism.sh`,
 `perf.sh` (0.34s for 200 files @ 4 threads, well under the 10s budget) all PASS; full clean
 rebuild zero warnings; full `ctest` suite (13 tests) green.
+
+## M4 — lint and export-svg
+
+- **Approved deviation — `lint_outlier.sh` runs with `--threshold 4.0`, not the CLI default
+  2.5.** With the exact §6/§7/§9 math and the exact §11 fixtures, darkset self-lint at 2.5
+  produces four outliers (verified by hand, not an implementation bug): max is `dark_00.wav`
+  tail01 z = −3.73. Root causes are structural in the fixture spec: (a) T60 for τ = 0.15+0.02·i
+  is 1.04–3.66 s but the files are 1.5 s long, so most tails clip at EOF (near-identical
+  `tail_s` ≈ 1.5 s → tiny std) while the shortest-τ files fully decay and land far below the
+  mean; (b) the attack time of a low-passed noise burst is inherently high-variance
+  (`attack_s` 0.003–0.090 s across the 20 seeds → atk01 spread 0.12–0.88); warm01/loud01
+  extremes also brush past 2.5. The gate's exit-code requirements are unchanged and the CLI
+  default stays 2.5; §11 leaves the script's threshold open and `--threshold` is a documented
+  §9 knob. At 4.0: self-lint PASS, and `bright_outlier.wav` is still flagged at z = +49.96
+  (13× the worst darkset member — the separation the demo exists to show). Deviation approved
+  by the project owner on 2026-07-04 (options presented: script threshold 4.0 / change
+  fixtures / change CLI default / stop; chose script threshold).
+- `sheet_svg` glyph center sits at 42 % of cell height (not 50 %) so the biggest glyphs
+  (radius up to 64 px × spike factor in a 120 px cell) stay clear of the 11 px filename label
+  at the cell bottom; §9 only fixes cell size, label size, and the version comment.
+- Committed `tests/golden/sheet.svg` (per §3's "committed golden manifest + golden SVG");
+  `svg_valid.sh` checks the §11 requirements (xmllint well-formedness + equal sha256 across two
+  exports) and additionally byte-compares against the committed golden — a strictly stronger
+  check, mirroring `golden_scan.sh`.
+- Extended the M3 `mapping/determinism` unit test with the §11-required `glyph_outline`
+  half: identical output across two calls for the same `Visual` (RNG re-seeded per call from
+  `Visual.seed`), different output for a different seed.
+- Installed `clang-format` (was missing from the environment; §2 does not list it but §13.6
+  requires format-clean sources) and ran it over all first-party sources — prior milestones
+  were authored without it, so this commit includes whitespace-only reformatting of M0–M3
+  files. Verified zero behavior change: full ctest + all integration gates green after
+  reformat, golden files byte-identical.
+- The §13.6 layering grep (`grep -rE "imgui|GLFW|GL/" core/` must return nothing) was tripped
+  by a *comment* in `core/CMakeLists.txt` naming the forbidden libraries; reworded the comment.
+  No code hit — core still has zero UI/GL includes.
+
+Gate verified: `ctest -R lint` → 5/5 pass; `lint_outlier.sh`, `svg_valid.sh` PASS; full suite
+18/18 green; all five integration scripts PASS; zero warnings; format-clean.

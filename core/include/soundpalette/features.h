@@ -22,6 +22,6 @@ struct Features {
 
 // STFT N=2048, hop=512, Hann window (§6). loudness must have been measured on `buffer` first.
 // Silent buffers (loudness.silent) return default-constructed (all-zero) Features.
-Features extract_features(const AudioBuffer& buffer, const Loudness& loudness);
+Features extract_features(const AudioBuffer &buffer, const Loudness &loudness);
 
 } // namespace sp

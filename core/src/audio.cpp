@@ -21,8 +21,8 @@ constexpr ma_uint64 kReadChunkFrames = 4096;
 // stb_vorbis's push-mode backend can't report stream length (miniaudio's own docs on
 // ma_decoder_get_length_in_pcm_frames), so source metadata is queried with a throwaway
 // decoder configured to pass the internal format straight through (§6 decode step).
-bool query_source_format(const std::filesystem::path& path, int& src_channels, int& src_rate,
-                          std::string& err) {
+bool query_source_format(const std::filesystem::path &path, int &src_channels, int &src_rate,
+                         std::string &err) {
     ma_decoder_config cfg = ma_decoder_config_init_default();
     ma_decoder decoder;
     ma_result result = ma_decoder_init_file(path.string().c_str(), &cfg, &decoder);
@@ -44,7 +44,7 @@ bool query_source_format(const std::filesystem::path& path, int& src_channels, i
 
 } // namespace
 
-std::optional<AudioBuffer> decode_file(const std::filesystem::path& path, std::string& err) {
+std::optional<AudioBuffer> decode_file(const std::filesystem::path &path, std::string &err) {
     int src_channels = 0;
     int src_rate = 0;
     if (!query_source_format(path, src_channels, src_rate, err)) {
@@ -78,10 +78,10 @@ std::optional<AudioBuffer> decode_file(const std::filesystem::path& path, std::s
     AudioBuffer buffer;
     buffer.src_rate = src_rate;
     buffer.src_channels = src_channels;
-    buffer.duration_s = static_cast<double>(samples.size()) / static_cast<double>(kTargetSampleRate);
+    buffer.duration_s =
+        static_cast<double>(samples.size()) / static_cast<double>(kTargetSampleRate);
 
-    const std::size_t maxFrames =
-        static_cast<std::size_t>(kMaxAnalysisSeconds * kTargetSampleRate);
+    const std::size_t maxFrames = static_cast<std::size_t>(kMaxAnalysisSeconds * kTargetSampleRate);
     if (samples.size() > maxFrames) {
         buffer.truncated = true;
         samples.resize(maxFrames);
@@ -91,10 +91,10 @@ std::optional<AudioBuffer> decode_file(const std::filesystem::path& path, std::s
     return buffer;
 }
 
-Loudness measure_loudness(const AudioBuffer& buffer) {
+Loudness measure_loudness(const AudioBuffer &buffer) {
     Loudness loudness;
 
-    ebur128_state* state =
+    ebur128_state *state =
         ebur128_init(kTargetChannels, kTargetSampleRate, EBUR128_MODE_I | EBUR128_MODE_TRUE_PEAK);
 
     double abs_peak = 0.0;
@@ -107,7 +107,7 @@ Loudness measure_loudness(const AudioBuffer& buffer) {
     if (state != nullptr) {
         if (!buffer.samples48k_mono.empty()) {
             ebur128_add_frames_float(state, buffer.samples48k_mono.data(),
-                                      buffer.samples48k_mono.size());
+                                     buffer.samples48k_mono.size());
         }
         ebur128_loudness_global(state, &lufs_i);
         ebur128_true_peak(state, 0, &true_peak_linear);

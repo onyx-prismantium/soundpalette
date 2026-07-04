@@ -21,9 +21,12 @@ constexpr double kFrameSkipPower = 1e-9;
 constexpr double kPi = 3.14159265358979323846;
 
 // [lo_hz, hi_hz) band edges, matching §6's six perceptual bands.
-constexpr std::array<std::pair<double, double>, 6> kBandEdges{{
-    {20.0, 80.0}, {80.0, 250.0}, {250.0, 600.0}, {600.0, 2500.0}, {2500.0, 8000.0}, {8000.0, 20000.0}
-}};
+constexpr std::array<std::pair<double, double>, 6> kBandEdges{{{20.0, 80.0},
+                                                               {80.0, 250.0},
+                                                               {250.0, 600.0},
+                                                               {600.0, 2500.0},
+                                                               {2500.0, 8000.0},
+                                                               {8000.0, 20000.0}}};
 
 double bin_freq(int k) {
     return static_cast<double>(k) * kSampleRate / kFftSize;
@@ -41,7 +44,7 @@ double gain_for_target_lufs(double lufs_i, double target_lufs) {
     return std::pow(10.0, (target_lufs - lufs_i) / 20.0);
 }
 
-std::vector<float> normalize_copy(const AudioBuffer& buffer, const Loudness& loudness) {
+std::vector<float> normalize_copy(const AudioBuffer &buffer, const Loudness &loudness) {
     const double gain = gain_for_target_lufs(loudness.lufs_i, -23.0);
     std::vector<float> out(buffer.samples48k_mono.size());
     for (std::size_t i = 0; i < out.size(); ++i) {
@@ -51,7 +54,7 @@ std::vector<float> normalize_copy(const AudioBuffer& buffer, const Loudness& lou
 }
 
 struct FrameSpectrum {
-    std::vector<double> power; // size kNumBins, floored at kPowerFloor
+    std::vector<double> power;       // size kNumBins, floored at kPowerFloor
     double total_power_full = 0.0;   // sum over all bins 0..N/2
     double total_power_20_20k = 0.0; // sum over bins with f[k] in [20, 20000] Hz
 };
@@ -67,8 +70,8 @@ struct SpectralAccum {
     int valid_frames = 0;
 };
 
-FrameSpectrum compute_frame_spectrum(kiss_fftr_cfg cfg, const std::vector<double>& window,
-                                      const float* frame_start) {
+FrameSpectrum compute_frame_spectrum(kiss_fftr_cfg cfg, const std::vector<double> &window,
+                                     const float *frame_start) {
     std::vector<kiss_fft_scalar> in(kFftSize);
     for (int i = 0; i < kFftSize; ++i) {
         in[i] = static_cast<kiss_fft_scalar>(frame_start[i] * window[i]);
@@ -79,7 +82,8 @@ FrameSpectrum compute_frame_spectrum(kiss_fftr_cfg cfg, const std::vector<double
     FrameSpectrum spec;
     spec.power.resize(kNumBins);
     for (int k = 0; k < kNumBins; ++k) {
-        double p = static_cast<double>(out[k].r) * out[k].r + static_cast<double>(out[k].i) * out[k].i;
+        double p =
+            static_cast<double>(out[k].r) * out[k].r + static_cast<double>(out[k].i) * out[k].i;
         p = std::max(p, kPowerFloor);
         spec.power[k] = p;
         spec.total_power_full += p;
@@ -91,7 +95,7 @@ FrameSpectrum compute_frame_spectrum(kiss_fftr_cfg cfg, const std::vector<double
     return spec;
 }
 
-void accumulate_frame(const FrameSpectrum& spec, SpectralAccum& acc) {
+void accumulate_frame(const FrameSpectrum &spec, SpectralAccum &acc) {
     // centroid_hz, rolloff85_hz averaged over the full 0..Nyquist spectrum (§6 gives no band
     // restriction for these two; the 20 Hz-20 kHz restriction is explicit only for flatness).
     double weighted_freq = 0.0;
@@ -150,7 +154,7 @@ void accumulate_frame(const FrameSpectrum& spec, SpectralAccum& acc) {
     ++acc.valid_frames;
 }
 
-void accumulate_roughness(const FrameSpectrum& prev, const FrameSpectrum& cur, SpectralAccum& acc) {
+void accumulate_roughness(const FrameSpectrum &prev, const FrameSpectrum &cur, SpectralAccum &acc) {
     double flux_sum = 0.0;
     double norm_sum = 0.0;
     for (int k = 0; k < kNumBins; ++k) {
@@ -165,7 +169,7 @@ void accumulate_roughness(const FrameSpectrum& prev, const FrameSpectrum& cur, S
     }
 }
 
-double compute_zcr(const std::vector<float>& samples) {
+double compute_zcr(const std::vector<float> &samples) {
     if (samples.size() < 2) {
         return 0.0;
     }
@@ -180,7 +184,7 @@ double compute_zcr(const std::vector<float>& samples) {
     return static_cast<double>(crossings) / static_cast<double>(samples.size());
 }
 
-std::vector<double> envelope_follower(const std::vector<float>& samples, double time_constant_s) {
+std::vector<double> envelope_follower(const std::vector<float> &samples, double time_constant_s) {
     std::vector<double> env(samples.size());
     const double alpha = std::exp(-1.0 / (kSampleRate * time_constant_s));
     double prev = 0.0;
@@ -192,8 +196,8 @@ std::vector<double> envelope_follower(const std::vector<float>& samples, double 
     return env;
 }
 
-void compute_attack_tail(const std::vector<double>& env, double& attack_s, double& tail_s,
-                          bool& tail_clipped) {
+void compute_attack_tail(const std::vector<double> &env, double &attack_s, double &tail_s,
+                         bool &tail_clipped) {
     attack_s = 0.0005;
     tail_s = 0.0;
     tail_clipped = false;
@@ -253,7 +257,7 @@ void compute_attack_tail(const std::vector<double>& env, double& attack_s, doubl
 
 } // namespace
 
-Features extract_features(const AudioBuffer& buffer, const Loudness& loudness) {
+Features extract_features(const AudioBuffer &buffer, const Loudness &loudness) {
     Features features;
     if (loudness.silent || buffer.samples48k_mono.empty()) {
         return features;
@@ -284,7 +288,7 @@ Features extract_features(const AudioBuffer& buffer, const Loudness& loudness) {
     bool have_prev = false;
     FrameSpectrum prev_spec;
     for (int f = 0; f < num_frames; ++f) {
-        const float* frame_start = padded.data() + static_cast<std::size_t>(f) * kHop;
+        const float *frame_start = padded.data() + static_cast<std::size_t>(f) * kHop;
         FrameSpectrum spec = compute_frame_spectrum(cfg, window, frame_start);
 
         if (spec.total_power_full >= kFrameSkipPower) {

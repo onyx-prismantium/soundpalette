@@ -1,3 +1,3 @@
 add_executable(soundpalette main.cpp)
-target_link_libraries(soundpalette PRIVATE soundpalette_core)
+target_link_libraries(soundpalette PRIVATE soundpalette_core nlohmann_json::nlohmann_json)
 sp_set_warnings(soundpalette)

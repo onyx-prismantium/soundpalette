@@ -18,24 +18,24 @@ double log01(double x, double lo, double hi) {
     return lin01(std::log10(x), std::log10(lo), std::log10(hi));
 }
 
-MappingConfig& mutable_active_config() {
+MappingConfig &mutable_active_config() {
     static MappingConfig config;
     return config;
 }
 
-std::mutex& active_config_mutex() {
+std::mutex &active_config_mutex() {
     static std::mutex m;
     return m;
 }
 
 } // namespace
 
-const MappingConfig& active_mapping_config() {
+const MappingConfig &active_mapping_config() {
     std::lock_guard<std::mutex> lock(active_config_mutex());
     return mutable_active_config();
 }
 
-void set_active_mapping_config(const MappingConfig& config) {
+void set_active_mapping_config(const MappingConfig &config) {
     std::lock_guard<std::mutex> lock(active_config_mutex());
     mutable_active_config() = config;
 }
@@ -56,7 +56,7 @@ std::uint64_t path_seed(std::string_view relative_path) {
     return hash;
 }
 
-std::array<double, 7> mapping_dims(const Features& f, const Loudness& loudness) {
+std::array<double, 7> mapping_dims(const Features &f, const Loudness &loudness) {
     // Copy the active config once so config changes are not observed mid-computation.
     MappingConfig c;
     {
@@ -77,7 +77,7 @@ std::array<double, 7> mapping_dims(const Features& f, const Loudness& loudness) 
     return {bright01, warm01, ton01, atk01, tail01, loud01, jitter01};
 }
 
-Visual map_v1(const Features& features, const Loudness& loudness, std::uint64_t seed) {
+Visual map_v1(const Features &features, const Loudness &loudness, std::uint64_t seed) {
     MappingConfig c;
     {
         std::lock_guard<std::mutex> lock(active_config_mutex());
@@ -119,10 +119,10 @@ Visual map_v1(const Features& features, const Loudness& loudness, std::uint64_t 
     v.jitter01 = jitter01;
     v.tail01 = tail01;
 
-      return v;
+    return v;
 }
 
-std::string mapping_config_to_json(const MappingConfig& c) {
+std::string mapping_config_to_json(const MappingConfig &c) {
     using json = nlohmann::ordered_json;
     json root = json::object();
     root["mapping_version"] = c.mapping_version;

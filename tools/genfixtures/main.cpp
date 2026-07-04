@@ -17,7 +17,7 @@ constexpr std::uint64_t kBaseSeed = 0xDEADBEEFCAFEF00DULL;
 constexpr double kPi = 3.14159265358979323846;
 constexpr ma_uint32 kSampleRate = 48000;
 
-std::uint64_t xorshift64star(std::uint64_t& state) {
+std::uint64_t xorshift64star(std::uint64_t &state) {
     state ^= state >> 12;
     state ^= state << 25;
     state ^= state >> 27;
@@ -25,8 +25,8 @@ std::uint64_t xorshift64star(std::uint64_t& state) {
 }
 
 // Uniform in [-1, 1).
-double next_uniform(std::uint64_t& state) {
-    std::uint64_t bits = xorshift64star(state) >> 11; // top 53 bits
+double next_uniform(std::uint64_t &state) {
+    std::uint64_t bits = xorshift64star(state) >> 11;                    // top 53 bits
     double u01 = static_cast<double>(bits) * (1.0 / 9007199254740992.0); // / 2^53
     return 2.0 * u01 - 1.0;
 }
@@ -40,21 +40,22 @@ std::vector<float> white_noise(std::uint64_t seed, std::size_t n, double amplitu
 }
 
 // One-pole low-pass: y[n] = a*y[n-1] + (1-a)*x[n], a = exp(-2*pi*fc/fs).
-void onepole_lowpass_inplace(std::vector<float>& buf, double fc) {
+void onepole_lowpass_inplace(std::vector<float> &buf, double fc) {
     const double a = std::exp(-2.0 * kPi * fc / kSampleRate);
     float y_prev = 0.0f;
-    for (float& x : buf) {
+    for (float &x : buf) {
         y_prev = static_cast<float>(a * y_prev + (1.0 - a) * x);
         x = y_prev;
     }
 }
 
-// One-pole high-pass (leaky differentiator): y[n] = a*(y[n-1] + x[n] - x[n-1]), a = exp(-2*pi*fc/fs).
-void onepole_highpass_inplace(std::vector<float>& buf, double fc) {
+// One-pole high-pass (leaky differentiator): y[n] = a*(y[n-1] + x[n] - x[n-1]), a =
+// exp(-2*pi*fc/fs).
+void onepole_highpass_inplace(std::vector<float> &buf, double fc) {
     const double a = std::exp(-2.0 * kPi * fc / kSampleRate);
     float y_prev = 0.0f;
     float x_prev = 0.0f;
-    for (float& x : buf) {
+    for (float &x : buf) {
         float x_cur = x;
         y_prev = static_cast<float>(a * (y_prev + x_cur - x_prev));
         x_prev = x_cur;
@@ -62,14 +63,14 @@ void onepole_highpass_inplace(std::vector<float>& buf, double fc) {
     }
 }
 
-void apply_exp_decay_inplace(std::vector<float>& buf, double tau_s) {
+void apply_exp_decay_inplace(std::vector<float> &buf, double tau_s) {
     for (std::size_t i = 0; i < buf.size(); ++i) {
         double t = static_cast<double>(i) / kSampleRate;
         buf[i] = static_cast<float>(buf[i] * std::exp(-t / tau_s));
     }
 }
 
-void peak_normalize_inplace(std::vector<float>& buf, double target_peak) {
+void peak_normalize_inplace(std::vector<float> &buf, double target_peak) {
     float peak = 0.0f;
     for (float x : buf) {
         peak = std::max(peak, std::fabs(x));
@@ -78,7 +79,7 @@ void peak_normalize_inplace(std::vector<float>& buf, double target_peak) {
         return;
     }
     const float scale = static_cast<float>(target_peak) / peak;
-    for (float& x : buf) {
+    for (float &x : buf) {
         x *= scale;
     }
 }
@@ -92,15 +93,17 @@ std::vector<float> sine(double freq_hz, double amplitude, std::size_t n) {
     return out;
 }
 
-bool write_wav_mono_f32(const std::filesystem::path& path, const std::vector<float>& samples) {
-    ma_encoder_config cfg = ma_encoder_config_init(ma_encoding_format_wav, ma_format_f32, 1, kSampleRate);
+bool write_wav_mono_f32(const std::filesystem::path &path, const std::vector<float> &samples) {
+    ma_encoder_config cfg =
+        ma_encoder_config_init(ma_encoding_format_wav, ma_format_f32, 1, kSampleRate);
     ma_encoder encoder;
     if (ma_encoder_init_file(path.string().c_str(), &cfg, &encoder) != MA_SUCCESS) {
         std::fprintf(stderr, "genfixtures: failed to open %s for writing\n", path.string().c_str());
         return false;
     }
     ma_uint64 framesWritten = 0;
-    ma_result result = ma_encoder_write_pcm_frames(&encoder, samples.data(), samples.size(), &framesWritten);
+    ma_result result =
+        ma_encoder_write_pcm_frames(&encoder, samples.data(), samples.size(), &framesWritten);
     ma_encoder_uninit(&encoder);
     if (result != MA_SUCCESS || framesWritten != samples.size()) {
         std::fprintf(stderr, "genfixtures: failed to write %s\n", path.string().c_str());
@@ -113,7 +116,7 @@ std::size_t seconds_to_frames(double seconds) {
     return static_cast<std::size_t>(std::llround(seconds * kSampleRate));
 }
 
-bool generate_dark_file(const std::filesystem::path& outdir, int i) {
+bool generate_dark_file(const std::filesystem::path &outdir, int i) {
     const std::size_t n = seconds_to_frames(1.5);
     std::vector<float> buf = white_noise(kBaseSeed + static_cast<std::uint64_t>(i), n, 1.0);
     onepole_lowpass_inplace(buf, 300.0);
@@ -125,7 +128,7 @@ bool generate_dark_file(const std::filesystem::path& outdir, int i) {
     return write_wav_mono_f32(outdir / name, buf);
 }
 
-bool generate_perf_file(const std::filesystem::path& outdir, int i) {
+bool generate_perf_file(const std::filesystem::path &outdir, int i) {
     const std::size_t n = seconds_to_frames(1.0);
     std::vector<float> buf = white_noise(kBaseSeed + static_cast<std::uint64_t>(i), n, 0.25);
     char name[32];
@@ -135,7 +138,7 @@ bool generate_perf_file(const std::filesystem::path& outdir, int i) {
 
 } // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     if (argc < 2) {
         std::fprintf(stderr, "usage: genfixtures <outdir> [--perf200]\n");
         return 2;
@@ -158,11 +161,12 @@ int main(int argc, char** argv) {
     ok &= write_wav_mono_f32(outdir / "sine440_1s.wav", sine(440.0, 0.5, seconds_to_frames(1.0)));
 
     // sine997_cal.wav: 997 Hz sine, peak amplitude 0.1001 (~ -23 dBFS RMS), 2 s
-    ok &= write_wav_mono_f32(outdir / "sine997_cal.wav", sine(997.0, 0.1001, seconds_to_frames(2.0)));
+    ok &=
+        write_wav_mono_f32(outdir / "sine997_cal.wav", sine(997.0, 0.1001, seconds_to_frames(2.0)));
 
     // noise_white_1s.wav: white noise, amplitude 0.25, 1 s
     ok &= write_wav_mono_f32(outdir / "noise_white_1s.wav",
-                              white_noise(kBaseSeed, seconds_to_frames(1.0), 0.25));
+                             white_noise(kBaseSeed, seconds_to_frames(1.0), 0.25));
 
     // click.wav: 10 ms silence, 0.9 constant for 5 ms, exponential decay tau = 30 ms, total 0.5 s
     {

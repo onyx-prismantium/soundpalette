@@ -51,10 +51,10 @@ struct ScanOptions {
 // Recursively scans root for .wav/.flac/.ogg/.mp3 (case-insensitive). Files are processed by a
 // fixed thread pool but the returned Manifest.files is always sorted ascending by path (byte
 // order), so output never depends on scheduling (§5).
-Manifest scan_directory(const std::filesystem::path& root, const ScanOptions& options);
+Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &options);
 
 // Canonical serialization (§8): UTF-8, LF, 2-space indent, fixed key order, files sorted by
 // path, floats rounded to 4 decimal places, no timestamps or absolute paths.
-std::string manifest_to_json(const Manifest& manifest);
+std::string manifest_to_json(const Manifest &manifest);
 
 } // namespace sp

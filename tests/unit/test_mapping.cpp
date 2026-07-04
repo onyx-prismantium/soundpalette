@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include "soundpalette/glyph.h"
 #include "soundpalette/mapping.h"
 
 namespace {
@@ -111,4 +112,38 @@ TEST_CASE("mapping/monotonic") {
 TEST_CASE("mapping/determinism") {
     CHECK(sp::path_seed("impact/impact_flesh.wav") == sp::path_seed("impact/impact_flesh.wav"));
     CHECK(sp::path_seed("a.wav") != sp::path_seed("b.wav"));
+
+    // glyph_outline identical across two calls for the same Visual (§11): the jitter RNG must
+    // be re-seeded from Visual.seed per call, not carried across calls.
+    sp::Visual v;
+    v.hue_deg = 120.0;
+    v.sat = 60.0;
+    v.light = 50.0;
+    v.size_px = 40.0;
+    v.spike01 = 0.7;
+    v.spikes = 9;
+    v.jitter01 = 0.5;
+    v.tail01 = 0.3;
+    v.seed = sp::path_seed("impact/impact_flesh.wav");
+
+    auto a = sp::glyph_outline(v);
+    auto b = sp::glyph_outline(v);
+    REQUIRE(a.size() == 24);
+    REQUIRE(a.size() == b.size());
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        CHECK(a[i][0] == b[i][0]);
+        CHECK(a[i][1] == b[i][1]);
+    }
+
+    // A different seed must change the jittered outline.
+    sp::Visual v2 = v;
+    v2.seed = sp::path_seed("other/file.wav");
+    auto c = sp::glyph_outline(v2);
+    bool any_diff = false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (a[i][0] != c[i][0] || a[i][1] != c[i][1]) {
+            any_diff = true;
+        }
+    }
+    CHECK(any_diff);
 }

@@ -26,9 +26,9 @@ struct Loudness {
 
 // Decodes path (.wav/.flac/.ogg/.mp3) to mono float32 @ 48 kHz, capped at 30 s of analysis audio.
 // Returns std::nullopt and fills err on failure.
-std::optional<AudioBuffer> decode_file(const std::filesystem::path& path, std::string& err);
+std::optional<AudioBuffer> decode_file(const std::filesystem::path &path, std::string &err);
 
 // EBUR128_MODE_I | EBUR128_MODE_TRUE_PEAK over buffer.samples48k_mono (§6).
-Loudness measure_loudness(const AudioBuffer& buffer);
+Loudness measure_loudness(const AudioBuffer &buffer);
 
 } // namespace sp

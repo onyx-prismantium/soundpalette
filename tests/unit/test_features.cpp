@@ -10,8 +10,9 @@
 namespace {
 
 std::filesystem::path fixtures_dir() {
-    const char* env = std::getenv("SP_FIXTURES_DIR");
-    return env != nullptr ? std::filesystem::path(env) : std::filesystem::path("tests/golden/fixtures");
+    const char *env = std::getenv("SP_FIXTURES_DIR");
+    return env != nullptr ? std::filesystem::path(env)
+                          : std::filesystem::path("tests/golden/fixtures");
 }
 
 struct Analyzed {
@@ -20,7 +21,7 @@ struct Analyzed {
     sp::Features features;
 };
 
-Analyzed analyze(const char* name) {
+Analyzed analyze(const char *name) {
     std::string err;
     auto buf = sp::decode_file(fixtures_dir() / name, err);
     REQUIRE_MESSAGE(buf.has_value(), name << ": " << err);

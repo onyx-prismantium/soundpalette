@@ -9,11 +9,12 @@
 namespace {
 
 std::filesystem::path fixtures_dir() {
-    const char* env = std::getenv("SP_FIXTURES_DIR");
-    return env != nullptr ? std::filesystem::path(env) : std::filesystem::path("tests/golden/fixtures");
+    const char *env = std::getenv("SP_FIXTURES_DIR");
+    return env != nullptr ? std::filesystem::path(env)
+                          : std::filesystem::path("tests/golden/fixtures");
 }
 
-double rms(const std::vector<float>& samples) {
+double rms(const std::vector<float> &samples) {
     if (samples.empty()) {
         return 0.0;
     }
@@ -42,7 +43,7 @@ TEST_CASE("decode/lossy") {
     REQUIRE_MESSAGE(wav.has_value(), wav_err);
     const double wav_rms_db = 20.0 * std::log10(std::max(rms(wav->samples48k_mono), 1e-12));
 
-    for (const char* name : {"sine440_1s.flac", "sine440_1s.ogg", "sine440_1s.mp3"}) {
+    for (const char *name : {"sine440_1s.flac", "sine440_1s.ogg", "sine440_1s.mp3"}) {
         std::string err;
         auto lossy = sp::decode_file(fixtures_dir() / name, err);
         INFO(name, ": ", err);

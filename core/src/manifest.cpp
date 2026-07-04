@@ -21,20 +21,20 @@ namespace sp {
 
 namespace {
 
-bool has_supported_extension(const std::filesystem::path& p) {
+bool has_supported_extension(const std::filesystem::path &p) {
     std::string ext = p.extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return ext == ".wav" || ext == ".flac" || ext == ".ogg" || ext == ".mp3";
 }
 
-std::string to_forward_slashes(const std::filesystem::path& p) {
+std::string to_forward_slashes(const std::filesystem::path &p) {
     std::string s = p.generic_string();
     return s;
 }
 
-std::string hex_lower(const unsigned char* bytes, std::size_t n) {
-    static const char* kHex = "0123456789abcdef";
+std::string hex_lower(const unsigned char *bytes, std::size_t n) {
+    static const char *kHex = "0123456789abcdef";
     std::string out(n * 2, '0');
     for (std::size_t i = 0; i < n; ++i) {
         out[2 * i] = kHex[(bytes[i] >> 4) & 0xF];
@@ -43,14 +43,15 @@ std::string hex_lower(const unsigned char* bytes, std::size_t n) {
     return out;
 }
 
-std::string sha256_of_file(const std::filesystem::path& path) {
+std::string sha256_of_file(const std::filesystem::path &path) {
     std::ifstream in(path, std::ios::binary);
     SHA256_CTX ctx;
     sha256_init(&ctx);
     if (in) {
         std::vector<unsigned char> chunk(1 << 16);
         while (in) {
-            in.read(reinterpret_cast<char*>(chunk.data()), static_cast<std::streamsize>(chunk.size()));
+            in.read(reinterpret_cast<char *>(chunk.data()),
+                    static_cast<std::streamsize>(chunk.size()));
             std::streamsize got = in.gcount();
             if (got > 0) {
                 sha256_update(&ctx, chunk.data(), static_cast<size_t>(got));
@@ -62,7 +63,7 @@ std::string sha256_of_file(const std::filesystem::path& path) {
     return hex_lower(digest, SHA256_BLOCK_SIZE);
 }
 
-FileEntry process_one(const std::filesystem::path& root, const std::filesystem::path& abs_path) {
+FileEntry process_one(const std::filesystem::path &root, const std::filesystem::path &abs_path) {
     FileEntry entry;
     entry.path = to_forward_slashes(std::filesystem::relative(abs_path, root));
     entry.sha256 = sha256_of_file(abs_path);
@@ -90,11 +91,11 @@ double round4(double x) {
     return std::round(x * 10000.0) / 10000.0;
 }
 
-const char* kDimNames[7] = {"bright01", "warm01", "ton01", "atk01", "tail01", "loud01", "jitter01"};
+const char *kDimNames[7] = {"bright01", "warm01", "ton01", "atk01", "tail01", "loud01", "jitter01"};
 
 } // namespace
 
-Manifest scan_directory(const std::filesystem::path& root, const ScanOptions& options) {
+Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &options) {
     Manifest manifest;
     manifest.root = root.generic_string();
     manifest.include_meta = options.include_meta;
@@ -102,7 +103,7 @@ Manifest scan_directory(const std::filesystem::path& root, const ScanOptions& op
 
     std::vector<std::filesystem::path> targets;
     if (std::filesystem::exists(root) && std::filesystem::is_directory(root)) {
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
+        for (const auto &entry : std::filesystem::recursive_directory_iterator(root)) {
             if (entry.is_regular_file() && has_supported_extension(entry.path())) {
                 targets.push_back(entry.path());
             }
@@ -119,7 +120,7 @@ Manifest scan_directory(const std::filesystem::path& root, const ScanOptions& op
     std::vector<std::vector<FileEntry>> per_thread(thread_count);
 
     auto worker = [&](unsigned int worker_id) {
-        std::vector<FileEntry>& out = per_thread[worker_id];
+        std::vector<FileEntry> &out = per_thread[worker_id];
         for (;;) {
             std::size_t i = next_index.fetch_add(1);
             if (i >= targets.size()) {
@@ -134,22 +135,22 @@ Manifest scan_directory(const std::filesystem::path& root, const ScanOptions& op
     for (unsigned int t = 0; t < thread_count; ++t) {
         workers.emplace_back(worker, t);
     }
-    for (auto& th : workers) {
+    for (auto &th : workers) {
         th.join();
     }
 
-    for (auto& bucket : per_thread) {
-        for (auto& e : bucket) {
+    for (auto &bucket : per_thread) {
+        for (auto &e : bucket) {
             manifest.files.push_back(std::move(e));
         }
     }
 
     std::sort(manifest.files.begin(), manifest.files.end(),
-              [](const FileEntry& a, const FileEntry& b) { return a.path < b.path; });
+              [](const FileEntry &a, const FileEntry &b) { return a.path < b.path; });
 
     // Stats over the seven lint dimensions, non-error + non-silent files only (§8).
     std::array<std::vector<double>, 7> dim_values;
-    for (const FileEntry& e : manifest.files) {
+    for (const FileEntry &e : manifest.files) {
         if (!e.error.empty() || e.loudness.silent) {
             continue;
         }
@@ -159,7 +160,7 @@ Manifest scan_directory(const std::filesystem::path& root, const ScanOptions& op
         }
     }
     for (int d = 0; d < 7; ++d) {
-        const std::vector<double>& v = dim_values[d];
+        const std::vector<double> &v = dim_values[d];
         DimStats s;
         if (!v.empty()) {
             double sum = 0.0;
@@ -184,7 +185,7 @@ Manifest scan_directory(const std::filesystem::path& root, const ScanOptions& op
     return manifest;
 }
 
-std::string manifest_to_json(const Manifest& manifest) {
+std::string manifest_to_json(const Manifest &manifest) {
     using json = nlohmann::ordered_json;
 
     json root_obj = json::object();
@@ -197,7 +198,7 @@ std::string manifest_to_json(const Manifest& manifest) {
     root_obj["file_count"] = manifest.files.size();
 
     json files_arr = json::array();
-    for (const FileEntry& e : manifest.files) {
+    for (const FileEntry &e : manifest.files) {
         json fe = json::object();
         fe["path"] = e.path;
         fe["sha256"] = e.sha256;
@@ -248,7 +249,7 @@ std::string manifest_to_json(const Manifest& manifest) {
 
     json stats_obj = json::object();
     for (int d = 0; d < 7; ++d) {
-        const DimStats& s = manifest.stats[static_cast<std::size_t>(d)];
+        const DimStats &s = manifest.stats[static_cast<std::size_t>(d)];
         json dim = json::object();
         dim["mean"] = round4(s.mean);
         dim["std"] = round4(s.std);
