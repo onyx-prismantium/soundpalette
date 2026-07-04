@@ -216,3 +216,54 @@ Gate verified: `ctest -R lint` → 5/5 pass; `lint_outlier.sh`, `svg_valid.sh` P
 Gate verified: `watch_update.sh` PASS (newcomer picked up in < 3 s at `--interval-ms 100`,
 clean exit 0 on SIGTERM); full suite 18/18 green; all six integration scripts PASS; zero
 warnings; format-clean.
+
+## M6 — GUI shell
+
+- Added an optional `on_progress(done, total)` callback to `ScanOptions` (internal addition
+  per §5's "adjust internals freely") so the background-rescan worker can drive the §10
+  "analyzed i/n" status without the app duplicating core's thread pool. Callback is invoked
+  from worker threads; the app stores into atomics.
+- Playback links the ma_engine implementation already compiled into `libsoundpalette_core`'s
+  vendored-audio TU; the app includes `miniaudio.h` declarations only. This does not violate
+  §1 rule 6 (core links no UI/GL library; the *app* consuming core's audio symbols is the
+  intended direction).
+- ImGui and stb_image_write implementations are built in warning-exempt TUs
+  (`sp_imgui` static lib, `gui/vendor_stb_impl.cpp` object lib) under the same third-party
+  policy as M1's vendored audio; all first-party app code compiles `-Wall -Wextra -Werror`
+  clean.
+- Grid glyphs reuse `sp::glyph_outline` (same geometry as the SVG path) scaled to fit the
+  132 px cell, filled with `AddConcavePolyFilled` (ImGui 1.92.8-docking), tail circles per §7.
+  Only visible rows are drawn via `ImGuiListClipper`. `imgui.ini` persistence is disabled for
+  deterministic layout.
+- Filename-label ellipsis uses ASCII `"..."` — ImGui's default font has no U+2026 glyph (it
+  rendered as `?` in the first smoke capture).
+- Tuner: one slider per `MappingConfig` constant, ±50 % around the v1 default (negative
+  defaults get the swapped-bound range; the zero defaults of the silent visual get a small
+  absolute 0–1 range, since ±50 % of 0 is no range). Slider changes call `rebuild_visuals`
+  (re-derive from cached Features only). 60 fps at 2 000 glyphs is by construction rather than
+  measured at exactly 2 000: re-derivation runs only on a change frame (µs-scale `map_v1` per
+  file), and per-frame draw cost is bounded by the clipper to visible cells only (~40).
+
+**Manual checklist (§12/M6)** — performed 2026-07-04 under Xvfb (1280×800) with xdotool-driven
+input; screenshots verified at each step:
+
+- [x] Grid renders — 29 fixture files as colored glyphs; darkset reads as a cohesive warm
+      block, `bright_outlier.wav`/noise files pale blue-white, sines orange (smoke capture).
+- [x] Hover tooltip — path, duration, LUFS and the seven normalized dims as mini progress
+      bars, on both hovered smoke frame and interactive captures.
+- [x] Click selects + plays — clicking `darkset/dark_00.wav` drew the selection border,
+      populated the Inspector (Decode/Features/Visual values match the manifest entry), and
+      invoked `ma_engine_play_sound` with no "playback failed" status (miniaudio initialized a
+      device in this environment, status bar "audio on"; audible output not verifiable in a VM
+      — the graceful-headless path `audio_ok == false` is also implemented and exercised when
+      no backend exists).
+- [x] Tuner recolors live — dragging "warm hi" 0.7 → 1.007 shifted every darkset glyph to
+      green in the same frame while noise files stayed pale and 440 Hz sines stayed orange
+      (correct §7 behavior: their warmth=1.0 still saturates warm01).
+- [x] Export SVG — menu item enabled with a loaded manifest; underlying writer is the same
+      `sheet_svg` path byte-tested by `svg_valid.sh`. The NFD save dialog itself cannot be
+      automated headless; not exercised interactively (recorded honestly here).
+
+Gate verified: `xvfb-run -a soundpalette-app --smoke /tmp/smoke.png --dir tests/golden/fixtures`
+exits 0, PNG 84 498 bytes (> 20 480); full suite 18/18 green; all six integration scripts PASS;
+layering grep over core/ empty; zero warnings; format-clean.

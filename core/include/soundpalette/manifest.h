@@ -2,6 +2,7 @@
 
 #include <array>
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -46,6 +47,9 @@ struct Manifest {
 struct ScanOptions {
     int threads = 0; // 0 => std::thread::hardware_concurrency()
     bool include_meta = true;
+    // Optional per-file progress hook (done, total). Called concurrently from worker threads;
+    // the callback must be thread-safe. Used by the GUI's "analyzed i/n" status (§10).
+    std::function<void(std::size_t, std::size_t)> on_progress;
 };
 
 // Recursively scans root for .wav/.flac/.ogg/.mp3 (case-insensitive). Files are processed by a

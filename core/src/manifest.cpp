@@ -117,6 +117,7 @@ Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &op
     thread_count = std::max<unsigned int>(thread_count, 1);
 
     std::atomic<std::size_t> next_index{0};
+    std::atomic<std::size_t> done_count{0};
     std::vector<std::vector<FileEntry>> per_thread(thread_count);
 
     auto worker = [&](unsigned int worker_id) {
@@ -127,6 +128,9 @@ Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &op
                 break;
             }
             out.push_back(process_one(root, targets[i]));
+            if (options.on_progress) {
+                options.on_progress(done_count.fetch_add(1) + 1, targets.size());
+            }
         }
     };
 
