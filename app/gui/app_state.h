@@ -63,6 +63,7 @@ struct AppState {
     void *active_sound = nullptr; // ma_sound*, heap-owned
     int playing_index = -1;       // manifest.files index of the playing entry, -1 = none
     bool paused = false;
+    double playing_length_s = 0.0; // cached at start; never queried while playing (MP3 race)
 
     // UI scaling: dpi_scale from the monitor content scale at startup (4K readability),
     // user_scale from the View menu. Grid metrics multiply by ui_scale().

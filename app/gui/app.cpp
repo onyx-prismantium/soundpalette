@@ -360,12 +360,22 @@ void playback_start_path(AppState &state, const std::string &abs_path, int ui_in
 
     ma_engine *engine = static_cast<ma_engine *>(state.engine);
     ma_sound *sound = new ma_sound;
-    if (ma_sound_init_from_file(engine, abs_path.c_str(), 0, nullptr, nullptr, sound) !=
-        MA_SUCCESS) {
+    // MA_SOUND_FLAG_DECODE: decode fully into memory up front. Streaming would share one
+    // decoder between the audio thread and any UI-thread query; for MP3 even a length query
+    // re-decodes frames through the same dr_mp3 state, which corrupts the bit reservoir
+    // (audible crackle, then a heap-corruption crash). SFX are short; memory is cheap.
+    if (ma_sound_init_from_file(engine, abs_path.c_str(), MA_SOUND_FLAG_DECODE, nullptr, nullptr,
+                                sound) != MA_SUCCESS) {
         delete sound;
         state.status_message = "playback failed: " + abs_path;
         return;
     }
+    // Cache the length once, before the audio thread touches the sound. The per-frame
+    // countdown then only reads the cursor, which is safe during playback.
+    float length = 0.0f;
+    state.playing_length_s = ma_sound_get_length_in_seconds(sound, &length) == MA_SUCCESS
+                                 ? static_cast<double>(length)
+                                 : 0.0;
     if (ma_sound_start(sound) != MA_SUCCESS) {
         ma_sound_uninit(sound);
         delete sound;
@@ -417,14 +427,14 @@ double playback_remaining_s(const AppState &state) {
     if (state.active_sound == nullptr) {
         return 0.0;
     }
+    // Cursor-only query: the length was cached at start (see playback_start_path); asking a
+    // playing MP3 for its length races the decoder on the audio thread.
     ma_sound *sound = static_cast<ma_sound *>(state.active_sound);
-    float length = 0.0f;
     float cursor = 0.0f;
-    if (ma_sound_get_length_in_seconds(sound, &length) != MA_SUCCESS ||
-        ma_sound_get_cursor_in_seconds(sound, &cursor) != MA_SUCCESS) {
+    if (ma_sound_get_cursor_in_seconds(sound, &cursor) != MA_SUCCESS) {
         return 0.0;
     }
-    double remaining = static_cast<double>(length) - static_cast<double>(cursor);
+    double remaining = state.playing_length_s - static_cast<double>(cursor);
     return remaining > 0.0 ? remaining : 0.0;
 }
 
