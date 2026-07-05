@@ -26,8 +26,10 @@ float glyph_scale(float cell_px) {
     return (cell_px * 0.5f - 6.0f) / (64.0f * 1.45f);
 }
 
-void draw_glyph(ImDrawList *draw, const sp::FileEntry &e, ImVec2 center, float cell_px) {
-    const sp::Visual &v = e.visual;
+} // namespace
+
+// Also used by the manual's example glyphs (manual.cpp).
+void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px) {
     const float scale = glyph_scale(cell_px);
 
     std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
@@ -52,6 +54,8 @@ void draw_glyph(ImDrawList *draw, const sp::FileEntry &e, ImVec2 center, float c
         }
     }
 }
+
+namespace {
 
 // ImGui has no dashed stroke; draw a dashed circle as alternating short arcs (~dash 4 px,
 // gap 3 px at 100 % scale — extension-2 §7.1 amber style).
@@ -214,9 +218,10 @@ void draw_grid(AppState &state) {
                                 pts.data(), static_cast<int>(pts.size()),
                                 hsl_to_rgba(v.hue_deg, v.sat, v.light, 0.35));
                         } else {
-                            draw_glyph(draw, e, center, cell);
+                            draw_glyph(draw, e.visual, center, cell);
                         }
-                        if (dev != nullptr && state.show_halos && state.show_z_labels &&
+                        // z labels are independent of the halo toggle (either works alone).
+                        if (dev != nullptr && state.show_z_labels &&
                             dev->band != sp::DevBand::none) {
                             char zbuf[16];
                             std::snprintf(zbuf, sizeof(zbuf), "z %.1f", dev->max_z);

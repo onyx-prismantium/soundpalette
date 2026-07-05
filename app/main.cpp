@@ -70,7 +70,8 @@ int main(int argc, char **argv) {
             initial_view = argv[++i];
         } else {
             std::fprintf(stderr, "usage: soundpalette-app [--smoke <out.png>] [--dir <folder>] "
-                                 "[--profile <p.sppal.json>] [--view grid|constellation]\n");
+                                 "[--profile <p.sppal.json>] "
+                                 "[--view grid|constellation|manual|about]\n");
             return 2;
         }
     }
@@ -162,6 +163,10 @@ int main(int argc, char **argv) {
     if (initial_view == "constellation") {
         state.view_mode = spapp::ViewMode::kConstellation;
         state.force_view_tab = true;
+    } else if (initial_view == "manual" || initial_view == "about") {
+        // Smoke coverage for the Manual/About windows (over the default grid).
+        state.show_manual = initial_view == "manual";
+        state.show_about = initial_view == "about";
     } else if (initial_view == "grid" || initial_view.empty()) {
         state.view_mode = spapp::ViewMode::kGrid;
         state.force_view_tab = !initial_view.empty();

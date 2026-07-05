@@ -44,6 +44,7 @@ add_executable(soundpalette-app
     gui/tuner.cpp
     gui/harmonize_panel.cpp
     gui/constellation.cpp
+    gui/manual.cpp
     $<TARGET_OBJECTS:sp_vendor_stb>
 )
 target_include_directories(soundpalette-app PRIVATE

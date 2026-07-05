@@ -108,6 +108,13 @@ void draw_menu_bar(AppState &state) {
         }
         ImGui::EndMenu();
     }
+    // Top-level items (no dropdown): each opens its window.
+    if (ImGui::MenuItem("Manual")) {
+        state.show_manual = true;
+    }
+    if (ImGui::MenuItem("About")) {
+        state.show_about = true;
+    }
     ImGui::EndMainMenuBar();
 }
 
@@ -145,16 +152,16 @@ void draw_status_bar(AppState &state) {
     if (state.scanning.load()) {
         ImGui::Text("analyzed %zu/%zu", state.scan_done.load(), state.scan_total.load());
     } else {
+        ImGui::Text("%zu files | scan %.2f s | mapping v%d | %s", state.manifest.files.size(),
+                    state.last_scan_seconds, state.manifest.mapping_version,
+                    state.audio_ok ? "audio on" : "audio off");
         if (state.profile_loaded) {
-            ImGui::Text("%zu files | scan %.2f s | mapping v%d | %s | profile: %s (%d cat)",
-                        state.manifest.files.size(), state.last_scan_seconds,
-                        state.manifest.mapping_version, state.audio_ok ? "audio on" : "audio off",
-                        state.profile.name.empty() ? "(baseline)" : state.profile.name.c_str(),
-                        static_cast<int>(state.profile.categories.size()));
-        } else {
-            ImGui::Text("%zu files | scan %.2f s | mapping v%d | %s", state.manifest.files.size(),
-                        state.last_scan_seconds, state.manifest.mapping_version,
-                        state.audio_ok ? "audio on" : "audio off");
+            ImGui::SameLine();
+            // Profile-region green (a lighter #639922) so the loaded profile stands out.
+            ImGui::TextColored(ImVec4(0.58f, 0.85f, 0.35f, 1.0f), "| profile: %s (%d cat)",
+                               state.profile.name.empty() ? "(baseline)"
+                                                          : state.profile.name.c_str(),
+                               static_cast<int>(state.profile.categories.size()));
         }
         if (!state.view_note.empty()) {
             ImGui::SameLine();
@@ -507,6 +514,13 @@ void draw_ui(AppState &state) {
     ImGui::EndChild();
 
     draw_status_bar(state);
+
+    if (state.show_manual) {
+        draw_manual(state);
+    }
+    if (state.show_about) {
+        draw_about(state);
+    }
 
     // Create-profile name dialog (Profile menu, §7.1): from the whole folder or the current
     // multi-selection; writes <name>.sppal.json under the project root via core and loads it.

@@ -14,6 +14,9 @@
 #include "soundpalette/profile.h"
 #include "soundpalette/recipe.h"
 
+struct ImDrawList; // imgui.h; app_state.h stays imgui-free
+struct ImVec2;
+
 namespace spapp {
 
 // Sidebar sort modes (§10 + extension-2 §7.1 "by deviation").
@@ -90,10 +93,17 @@ struct AppState {
     int constellation_axis_x = 0; // 0..6 dims, 7 = PCA1, 8 = PCA2
     int constellation_axis_y = 1;
     int constellation_category = -1; // -1 = all (top-level), else category index
-    std::string view_note;           // e.g. the PCA fallback message
-    bool force_view_tab = false;     // set by --view to pre-select a tab in smoke mode
-    int want_create_profile = 0;     // 1 = from folder, 2 = from selection (modal pending)
-    std::set<int> multi_selected;    // ctrl+click multi-selection for create-from-selection
+    // Constellation zoom/pan: wheel zooms about the cursor, left-drag pans. zoom 1 + pan 0
+    // is the auto-fit view; reset on axis/category change and via the "reset view" button.
+    double constellation_zoom = 1.0;
+    double constellation_pan_x = 0.0; // data-unit offset of the view center
+    double constellation_pan_y = 0.0;
+    bool show_manual = false;     // Manual window (menu bar)
+    bool show_about = false;      // About window (menu bar)
+    std::string view_note;        // e.g. the PCA fallback message
+    bool force_view_tab = false;  // set by --view to pre-select a tab in smoke mode
+    int want_create_profile = 0;  // 1 = from folder, 2 = from selection (modal pending)
+    std::set<int> multi_selected; // ctrl+click multi-selection for create-from-selection
 
     bool proposal_valid = false;
     int proposal_for = -1; // manifest.files index the proposal belongs to
@@ -127,6 +137,13 @@ double playback_remaining_s(const AppState &state); // seconds left in the activ
 void draw_grid(AppState &state);      // grid.cpp
 void draw_inspector(AppState &state); // inspector.cpp
 void draw_tuner(AppState &state);     // tuner.cpp
+
+// manual.cpp: Manual and About windows (menu bar entries).
+void draw_manual(AppState &state);
+void draw_about(AppState &state);
+
+// grid.cpp: glyph + decay tail into a cell_px-square cell, shared with the manual's examples.
+void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px);
 
 // harmonize_panel.cpp (M9, extension §6.5).
 bool load_baseline(AppState &state, const std::string &path); // manifest OR .sppal.json

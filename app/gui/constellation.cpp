@@ -121,13 +121,23 @@ void draw_constellation(AppState &state) {
     }
     state.view_note.clear();
 
-    // Axis pickers + category dropdown (§7.2).
+    // Axis pickers + category dropdown (§7.2). Changing either resets zoom/pan: the old view
+    // window is meaningless in the new data space.
+    auto reset_view = [&state] {
+        state.constellation_zoom = 1.0;
+        state.constellation_pan_x = 0.0;
+        state.constellation_pan_y = 0.0;
+    };
     const float fs = ImGui::GetFontSize();
     ImGui::SetNextItemWidth(8.0f * fs);
-    ImGui::Combo("X", &state.constellation_axis_x, kAxisNames, 9);
+    if (ImGui::Combo("X", &state.constellation_axis_x, kAxisNames, 9)) {
+        reset_view();
+    }
     ImGui::SameLine();
     ImGui::SetNextItemWidth(8.0f * fs);
-    ImGui::Combo("Y", &state.constellation_axis_y, kAxisNames, 9);
+    if (ImGui::Combo("Y", &state.constellation_axis_y, kAxisNames, 9)) {
+        reset_view();
+    }
     ImGui::SameLine();
     ImGui::SetNextItemWidth(8.0f * fs);
     std::vector<const char *> cat_names{"all"};
@@ -138,7 +148,18 @@ void draw_constellation(AppState &state) {
     if (ImGui::Combo("category", &cat_combo, cat_names.data(),
                      static_cast<int>(cat_names.size()))) {
         state.constellation_category = cat_combo - 1;
+        reset_view();
     }
+    ImGui::SameLine();
+    const bool view_is_fit = state.constellation_zoom == 1.0 && state.constellation_pan_x == 0.0 &&
+                             state.constellation_pan_y == 0.0;
+    ImGui::BeginDisabled(view_is_fit);
+    if (ImGui::SmallButton("reset view")) {
+        reset_view();
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::TextDisabled("wheel: zoom, drag: pan");
 
     // Point set: non-silent, non-error files, filtered to the selected category (§7.2).
     std::vector<int> plotted;
@@ -197,6 +218,7 @@ void draw_constellation(AppState &state) {
     const float side = std::max(120.0f, std::min(avail.x, avail.y));
     ImVec2 origin = ImGui::GetCursorScreenPos();
     ImGui::InvisibleButton("##plot", ImVec2(side, side));
+    ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY); // wheel zooms the plot, not the panel scroll
     ImDrawList *draw = ImGui::GetWindowDrawList();
     draw->AddRectFilled(origin, ImVec2(origin.x + side, origin.y + side),
                         IM_COL32(24, 24, 27, 255));
@@ -259,11 +281,46 @@ void draw_constellation(AppState &state) {
     min_y -= pad_y;
     max_y += pad_y;
 
+    // Apply zoom/pan: shrink the fit window around the panned center.
+    {
+        const double cx = (min_x + max_x) * 0.5 + state.constellation_pan_x;
+        const double cy = (min_y + max_y) * 0.5 + state.constellation_pan_y;
+        const double hx = (max_x - min_x) * 0.5 / state.constellation_zoom;
+        const double hy = (max_y - min_y) * 0.5 / state.constellation_zoom;
+        min_x = cx - hx;
+        max_x = cx + hx;
+        min_y = cy - hy;
+        max_y = cy + hy;
+    }
+
     std::function<ImVec2(double, double)> to_screen = [&](double x, double y) {
         const float sx = origin.x + static_cast<float>((x - min_x) / (max_x - min_x)) * side;
         const float sy = origin.y + side - static_cast<float>((y - min_y) / (max_y - min_y)) * side;
         return ImVec2(sx, sy);
     };
+
+    // Zoom (wheel, about the cursor) and pan (left-drag) on the plot; takes effect next frame.
+    {
+        const ImGuiIO &io = ImGui::GetIO();
+        if (ImGui::IsItemHovered() && io.MouseWheel != 0.0f) {
+            const double new_zoom = std::clamp(
+                state.constellation_zoom * std::pow(1.2, static_cast<double>(io.MouseWheel)), 1.0,
+                64.0);
+            const double applied = new_zoom / state.constellation_zoom;
+            // Keep the data point under the cursor fixed while the window shrinks/grows.
+            const double mx = min_x + (io.MousePos.x - origin.x) / side * (max_x - min_x);
+            const double my = min_y + (origin.y + side - io.MousePos.y) / side * (max_y - min_y);
+            state.constellation_pan_x += (mx - (min_x + max_x) * 0.5) * (1.0 - 1.0 / applied);
+            state.constellation_pan_y += (my - (min_y + max_y) * 0.5) * (1.0 - 1.0 / applied);
+            state.constellation_zoom = new_zoom;
+        }
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+            state.constellation_pan_x -= io.MouseDelta.x / side * (max_x - min_x);
+            state.constellation_pan_y += io.MouseDelta.y / side * (max_y - min_y);
+        }
+    }
+    // Zoomed/panned content can leave the square; clip everything drawn below to it.
+    draw->PushClipRect(origin, ImVec2(origin.x + side, origin.y + side), true);
 
     // Region: 1-sigma solid green + 8 % fill, 2-sigma dashed neutral (§7.2).
     if (have_region) {
@@ -354,6 +411,7 @@ void draw_constellation(AppState &state) {
                 IM_COL32(230, 230, 230, 220), zbuf);
         }
     }
+    draw->PopClipRect();
 }
 
 } // namespace spapp
