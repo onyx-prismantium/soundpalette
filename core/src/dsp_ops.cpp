@@ -12,6 +12,8 @@
 
 #include "soundpalette/recipe.h"
 
+#include "soundpalette/psycho.h"
+
 namespace sp {
 
 namespace {
@@ -354,7 +356,8 @@ void apply_chain(NativeAudio &audio, const std::vector<Op> &ops, ApplyReport &re
     }
 }
 
-void analyze_native(const NativeAudio &audio, Loudness &loudness, Features &features) {
+void analyze_native(const NativeAudio &audio, Loudness &loudness, Features &features,
+                    PsychoFeatures &psycho) {
     // Downmix (channel mean) then resample to 48 kHz with miniaudio's default resampler —
     // the same preprocessing a scan of the written file goes through (§6.1: re-analyze via
     // the standard pipeline).
@@ -404,6 +407,7 @@ void analyze_native(const NativeAudio &audio, Loudness &loudness, Features &feat
 
     loudness = measure_loudness(buffer);
     features = extract_features(buffer, loudness);
+    psycho = compute_psycho(buffer, active_mapping_config());
 }
 
 } // namespace sp

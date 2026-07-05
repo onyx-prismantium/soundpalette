@@ -16,7 +16,8 @@ sp::NativeAudio load(const char *path) {
 }
 
 void analyze(const sp::NativeAudio &audio, sp::Loudness &loudness, sp::Features &features) {
-    sp::analyze_native(audio, loudness, features);
+    sp::PsychoFeatures psycho;
+    sp::analyze_native(audio, loudness, features, psycho);
 }
 
 sp::Op make_shelf(sp::OpType type, double freq_hz, double gain_db) {

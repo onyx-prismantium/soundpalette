@@ -1,6 +1,7 @@
 {
-  "schema_version": 1,
-  "mapping_version": 1,
+  "schema_version": 2,
+  "ref_spl": 75.0,
+  "mapping_version": 2,
   "root": "tests/golden/fixtures",
   "file_count": 29,
   "files": [
@@ -36,15 +37,25 @@
           0.7835
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 12.9964,
+        "sones_mean": 8.0949,
+        "sharpness_acum": 3.7316,
+        "roughness_asper": 0.0546,
+        "fluctuation_vacil": 0.8487,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 220.0,
         "sat": 44.6159,
         "light": 78.0,
-        "size_px": 43.517,
+        "size_px": 49.6556,
         "spike01": 0.733,
         "spikes": 11,
-        "jitter01": 0.5777,
+        "jitter01": 0.0597,
         "tail01": 0.4771,
+        "fluct01": 0.8456,
         "seed": 9004422993170285738
       }
     },
@@ -80,15 +91,25 @@
           0.0006
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 10.8524,
+        "sones_mean": 4.8427,
+        "sharpness_acum": 1.19,
+        "roughness_asper": 0.0523,
+        "fluctuation_vacil": 0.9349,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 220.0,
         "sat": 84.8789,
-        "light": 28.0,
-        "size_px": 35.9699,
+        "light": 38.1716,
+        "size_px": 46.2372,
         "spike01": 0.7345,
         "spikes": 11,
-        "jitter01": 0.0012,
+        "jitter01": 0.0557,
         "tail01": 0.3536,
+        "fluct01": 0.9336,
         "seed": 10810168846404138579
       }
     },
@@ -124,15 +145,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 16.7595,
+        "sones_mean": 5.2301,
+        "sharpness_acum": 0.872,
+        "roughness_asper": 0.5422,
+        "fluctuation_vacil": 0.8214,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 32.9419,
         "sat": 84.9757,
-        "light": 28.0,
-        "size_px": 31.0732,
+        "light": 32.6899,
+        "size_px": 55.0322,
         "spike01": 0.4791,
         "spikes": 9,
-        "jitter01": 0.2448,
+        "jitter01": 0.9003,
         "tail01": 0.7288,
+        "fluct01": 0.8178,
         "seed": 15589315446761457141
       }
     },
@@ -168,15 +199,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 19.9334,
+        "sones_mean": 6.6757,
+        "sharpness_acum": 0.9039,
+        "roughness_asper": 0.6283,
+        "fluctuation_vacil": 0.909,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 34.1404,
         "sat": 84.9741,
-        "light": 28.0,
-        "size_px": 34.807,
+        "light": 33.239,
+        "size_px": 59.1116,
         "spike01": 0.4809,
         "spikes": 9,
-        "jitter01": 0.2444,
+        "jitter01": 1.0,
         "tail01": 0.7829,
+        "fluct01": 0.9071,
         "seed": 4717451182026746050
       }
     },
@@ -212,15 +253,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 18.7167,
+        "sones_mean": 6.6559,
+        "sharpness_acum": 0.879,
+        "roughness_asper": 0.6785,
+        "fluctuation_vacil": 0.8036,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 25.5894,
         "sat": 84.9766,
-        "light": 28.0,
-        "size_px": 34.4993,
+        "light": 32.8097,
+        "size_px": 57.5891,
         "spike01": 0.3858,
         "spikes": 8,
-        "jitter01": 0.2421,
+        "jitter01": 1.0,
         "tail01": 0.7914,
+        "fluct01": 0.7996,
         "seed": 6629637249428411627
       }
     },
@@ -256,15 +307,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 15.3217,
+        "sones_mean": 5.733,
+        "sharpness_acum": 0.8837,
+        "roughness_asper": 0.6603,
+        "fluctuation_vacil": 0.7389,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 36.1205,
         "sat": 84.9758,
-        "light": 28.0,
-        "size_px": 28.2797,
+        "light": 32.8921,
+        "size_px": 53.0572,
         "spike01": 0.3532,
         "spikes": 8,
-        "jitter01": 0.2528,
+        "jitter01": 1.0,
         "tail01": 0.818,
+        "fluct01": 0.7336,
         "seed": 2000320413893266424
       }
     },
@@ -300,15 +361,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 18.4068,
+        "sones_mean": 7.2629,
+        "sharpness_acum": 0.8717,
+        "roughness_asper": 0.6009,
+        "fluctuation_vacil": 0.6494,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 30.484,
         "sat": 84.9755,
-        "light": 28.0,
-        "size_px": 33.1665,
+        "light": 32.6853,
+        "size_px": 57.1935,
         "spike01": 0.5425,
         "spikes": 9,
-        "jitter01": 0.2562,
+        "jitter01": 1.0,
         "tail01": 0.825,
+        "fluct01": 0.6423,
         "seed": 3912488889108880625
       }
     },
@@ -344,15 +415,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 17.6046,
+        "sones_mean": 7.2374,
+        "sharpness_acum": 0.8769,
+        "roughness_asper": 0.5692,
+        "fluctuation_vacil": 0.6331,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 25.307,
         "sat": 84.9746,
-        "light": 28.0117,
-        "size_px": 30.4424,
+        "light": 32.7747,
+        "size_px": 56.1536,
         "spike01": 0.876,
         "spikes": 13,
-        "jitter01": 0.2532,
+        "jitter01": 0.9468,
         "tail01": 0.8295,
+        "fluct01": 0.6256,
         "seed": 4636668951778665038
       }
     },
@@ -388,15 +469,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 19.0683,
+        "sones_mean": 8.2459,
+        "sharpness_acum": 0.883,
+        "roughness_asper": 0.6052,
+        "fluctuation_vacil": 0.6149,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 27.4566,
         "sat": 84.9767,
-        "light": 28.0,
-        "size_px": 33.5823,
+        "light": 32.8796,
+        "size_px": 58.0339,
         "spike01": 0.3003,
         "spikes": 0,
-        "jitter01": 0.2576,
+        "jitter01": 1.0,
         "tail01": 0.823,
+        "fluct01": 0.6071,
         "seed": 10149344466109621399
       }
     },
@@ -432,15 +523,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 19.2509,
+        "sones_mean": 8.9576,
+        "sharpness_acum": 0.9007,
+        "roughness_asper": 0.6069,
+        "fluctuation_vacil": 0.5517,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 28.6533,
         "sat": 84.9741,
-        "light": 28.3455,
-        "size_px": 32.5144,
+        "light": 33.1851,
+        "size_px": 58.2634,
         "spike01": 0.4895,
         "spikes": 9,
-        "jitter01": 0.2539,
+        "jitter01": 1.0,
         "tail01": 0.8235,
+        "fluct01": 0.5426,
         "seed": 13939914076140674516
       }
     },
@@ -476,15 +577,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 19.6936,
+        "sones_mean": 9.2899,
+        "sharpness_acum": 0.9052,
+        "roughness_asper": 0.5387,
+        "fluctuation_vacil": 0.5194,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 28.8239,
         "sat": 84.9729,
-        "light": 28.0727,
-        "size_px": 33.358,
+        "light": 33.2615,
+        "size_px": 58.8152,
         "spike01": 0.6351,
         "spikes": 10,
-        "jitter01": 0.2594,
+        "jitter01": 0.8944,
         "tail01": 0.8284,
+        "fluct01": 0.5096,
         "seed": 9719303456633751309
       }
     },
@@ -520,15 +631,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 20.1267,
+        "sones_mean": 9.8469,
+        "sharpness_acum": 0.8942,
+        "roughness_asper": 0.5385,
+        "fluctuation_vacil": 0.4793,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 28.0054,
         "sat": 84.9738,
-        "light": 28.0,
-        "size_px": 34.7501,
+        "light": 33.0732,
+        "size_px": 59.349,
         "spike01": 0.2303,
         "spikes": 0,
-        "jitter01": 0.2576,
+        "jitter01": 0.8939,
         "tail01": 0.8213,
+        "fluct01": 0.4687,
         "seed": 11222765715821143514
       }
     },
@@ -564,15 +685,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 18.4782,
+        "sones_mean": 9.341,
+        "sharpness_acum": 0.8853,
+        "roughness_asper": 0.5935,
+        "fluctuation_vacil": 0.4924,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 32.9574,
         "sat": 84.9751,
-        "light": 28.0,
-        "size_px": 33.1381,
+        "light": 32.9196,
+        "size_px": 57.2849,
         "spike01": 0.3221,
         "spikes": 0,
-        "jitter01": 0.2576,
+        "jitter01": 0.9888,
         "tail01": 0.8239,
+        "fluct01": 0.482,
         "seed": 10490086466931009736
       }
     },
@@ -608,15 +739,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 18.4312,
+        "sones_mean": 9.4603,
+        "sharpness_acum": 0.8961,
+        "roughness_asper": 0.5267,
+        "fluctuation_vacil": 0.4078,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 23.4431,
         "sat": 84.9749,
-        "light": 28.0,
-        "size_px": 32.1196,
+        "light": 33.1047,
+        "size_px": 57.2248,
         "spike01": 0.5402,
         "spikes": 9,
-        "jitter01": 0.2638,
+        "jitter01": 0.8737,
         "tail01": 0.821,
+        "fluct01": 0.3957,
         "seed": 8986624207743617531
       }
     },
@@ -652,15 +793,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 19.0406,
+        "sones_mean": 10.1443,
+        "sharpness_acum": 0.8981,
+        "roughness_asper": 0.4313,
+        "fluctuation_vacil": 0.3564,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 29.5521,
         "sat": 84.9752,
-        "light": 28.0,
-        "size_px": 33.5209,
+        "light": 33.1389,
+        "size_px": 57.9992,
         "spike01": 0.5965,
         "spikes": 10,
-        "jitter01": 0.2559,
+        "jitter01": 0.7092,
         "tail01": 0.8211,
+        "fluct01": 0.3433,
         "seed": 994862399447161490
       }
     },
@@ -696,15 +847,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 20.8378,
+        "sones_mean": 11.5463,
+        "sharpness_acum": 0.9091,
+        "roughness_asper": 0.4858,
+        "fluctuation_vacil": 0.3815,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 32.7697,
         "sat": 84.9762,
-        "light": 28.0,
-        "size_px": 35.4199,
+        "light": 33.329,
+        "size_px": 60.2133,
         "spike01": 0.3461,
         "spikes": 0,
-        "jitter01": 0.2599,
+        "jitter01": 0.8031,
         "tail01": 0.8249,
+        "fluct01": 0.3688,
         "seed": 17938144213969320901
       }
     },
@@ -740,15 +901,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 20.3287,
+        "sones_mean": 11.4144,
+        "sharpness_acum": 0.9113,
+        "roughness_asper": 0.4653,
+        "fluctuation_vacil": 0.3569,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 23.2609,
         "sat": 84.9735,
-        "light": 28.2952,
-        "size_px": 34.393,
+        "light": 33.367,
+        "size_px": 59.5961,
         "spike01": 0.5507,
         "spikes": 10,
-        "jitter01": 0.2676,
+        "jitter01": 0.7677,
         "tail01": 0.8279,
+        "fluct01": 0.3438,
         "seed": 4084546198838552548
       }
     },
@@ -784,15 +955,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 20.8128,
+        "sones_mean": 11.9397,
+        "sharpness_acum": 0.9107,
+        "roughness_asper": 0.4491,
+        "fluctuation_vacil": 0.3217,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 37.1843,
         "sat": 84.9736,
-        "light": 28.0,
-        "size_px": 36.9774,
+        "light": 33.3565,
+        "size_px": 60.1832,
         "spike01": 0.4664,
         "spikes": 9,
-        "jitter01": 0.2648,
+        "jitter01": 0.7399,
         "tail01": 0.8271,
+        "fluct01": 0.3079,
         "seed": 131286375479546023
       }
     },
@@ -828,15 +1009,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 20.2308,
+        "sones_mean": 11.8661,
+        "sharpness_acum": 0.9082,
+        "roughness_asper": 0.4149,
+        "fluctuation_vacil": 0.3105,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 24.9849,
         "sat": 84.9739,
-        "light": 28.1119,
-        "size_px": 35.6708,
+        "light": 33.3144,
+        "size_px": 59.4765,
         "spike01": 0.298,
         "spikes": 0,
-        "jitter01": 0.2617,
+        "jitter01": 0.6809,
         "tail01": 0.8235,
+        "fluct01": 0.2965,
         "seed": 6801694559158083550
       }
     },
@@ -872,15 +1063,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 21.8396,
+        "sones_mean": 12.9336,
+        "sharpness_acum": 0.9165,
+        "roughness_asper": 0.394,
+        "fluctuation_vacil": 0.2751,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 31.9056,
         "sat": 84.9741,
-        "light": 28.0,
-        "size_px": 36.5664,
+        "light": 33.4573,
+        "size_px": 61.4061,
         "spike01": 0.1189,
         "spikes": 0,
-        "jitter01": 0.2629,
+        "jitter01": 0.6449,
         "tail01": 0.8034,
+        "fluct01": 0.2603,
         "seed": 6077795971465121153
       }
     },
@@ -916,15 +1117,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 22.0167,
+        "sones_mean": 13.3279,
+        "sharpness_acum": 0.9234,
+        "roughness_asper": 0.3774,
+        "fluctuation_vacil": 0.256,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 43.6118,
         "sat": 84.9748,
-        "light": 28.0,
-        "size_px": 36.8911,
+        "light": 33.5763,
+        "size_px": 61.6142,
         "spike01": 0.4538,
         "spikes": 9,
-        "jitter01": 0.2638,
+        "jitter01": 0.6162,
         "tail01": 0.8268,
+        "fluct01": 0.2408,
         "seed": 13920818077884693600
       }
     },
@@ -960,15 +1171,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 20.3162,
+        "sones_mean": 12.4643,
+        "sharpness_acum": 0.9149,
+        "roughness_asper": 0.4591,
+        "fluctuation_vacil": 0.3054,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 27.4454,
         "sat": 84.9751,
-        "light": 28.0,
-        "size_px": 35.4444,
+        "light": 33.4299,
+        "size_px": 59.5808,
         "spike01": 0.4043,
         "spikes": 8,
-        "jitter01": 0.266,
+        "jitter01": 0.7572,
         "tail01": 0.8259,
+        "fluct01": 0.2912,
         "seed": 12417355818697301395
       }
     },
@@ -1004,15 +1225,25 @@
           0.2488
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 22.2353,
+        "sones_mean": 3.8738,
+        "sharpness_acum": 1.0696,
+        "roughness_asper": 0.0049,
+        "fluctuation_vacil": 0.6409,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 220.0,
         "sat": 35.1271,
-        "light": 73.1561,
-        "size_px": 53.697,
+        "light": 36.0961,
+        "size_px": 61.8698,
         "spike01": 0.6958,
         "spikes": 11,
-        "jitter01": 0.4849,
+        "jitter01": 0.0,
         "tail01": 0.5648,
+        "fluct01": 0.6336,
         "seed": 12052561739471064284
       }
     },
@@ -1048,15 +1279,25 @@
           0.6041
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 37.1617,
+        "sones_mean": 32.9428,
+        "sharpness_acum": 2.6813,
+        "roughness_asper": 0.0105,
+        "fluctuation_vacil": 0.0012,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 220.0,
         "sat": 25.0,
-        "light": 78.0,
-        "size_px": 57.9117,
+        "light": 63.8844,
+        "size_px": 72.0,
         "spike01": 0.5015,
         "spikes": 9,
-        "jitter01": 0.9247,
+        "jitter01": 0.0,
         "tail01": 0.6494,
+        "fluct01": 0.0,
         "seed": 12358755550830429780
       }
     },
@@ -1092,15 +1333,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 26.9134,
+        "sones_mean": 23.7686,
+        "sharpness_acum": 0.6415,
+        "roughness_asper": 0.0067,
+        "fluctuation_vacil": 0.0767,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 20.0,
         "sat": 85.0,
-        "light": 38.6869,
-        "size_px": 64.0,
+        "light": 28.7159,
+        "size_px": 67.0659,
         "spike01": 0.5953,
         "spikes": 10,
-        "jitter01": 0.0001,
+        "jitter01": 0.0,
         "tail01": 0.6779,
+        "fluct01": 0.0579,
         "seed": 1615813384497296503
       }
     },
@@ -1136,15 +1387,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 26.4217,
+        "sones_mean": 23.3359,
+        "sharpness_acum": 0.6405,
+        "roughness_asper": 0.0028,
+        "fluctuation_vacil": 0.0484,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 20.0,
         "sat": 85.0,
-        "light": 38.6869,
-        "size_px": 64.0,
+        "light": 28.6988,
+        "size_px": 66.5422,
         "spike01": 0.5953,
         "spikes": 10,
-        "jitter01": 0.0003,
+        "jitter01": 0.0,
         "tail01": 0.6615,
+        "fluct01": 0.029,
         "seed": 3743502299813690093
       }
     },
@@ -1180,15 +1441,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 27.0597,
+        "sones_mean": 23.9075,
+        "sharpness_acum": 0.6416,
+        "roughness_asper": 0.0266,
+        "fluctuation_vacil": 0.1508,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 20.0,
         "sat": 85.0,
-        "light": 38.687,
-        "size_px": 64.0,
+        "light": 28.7179,
+        "size_px": 67.2208,
         "spike01": 0.5944,
         "spikes": 10,
-        "jitter01": 0.005,
+        "jitter01": 0.0114,
         "tail01": 0.6762,
+        "fluct01": 0.1334,
         "seed": 4826316744142162272
       }
     },
@@ -1224,15 +1495,25 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 26.9134,
+        "sones_mean": 23.7686,
+        "sharpness_acum": 0.6415,
+        "roughness_asper": 0.0067,
+        "fluctuation_vacil": 0.0767,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 20.0,
         "sat": 85.0,
-        "light": 38.6869,
-        "size_px": 64.0,
+        "light": 28.7159,
+        "size_px": 67.0659,
         "spike01": 0.5953,
         "spikes": 10,
-        "jitter01": 0.0001,
+        "jitter01": 0.0,
         "tail01": 0.6497,
+        "fluct01": 0.0579,
         "seed": 8413795584716702285
       }
     },
@@ -1268,24 +1549,34 @@
           0.0
         ]
       },
+      "psycho": {
+        "ref_spl": 75.0,
+        "sones_n5": 11.5342,
+        "sones_mean": 10.852,
+        "sharpness_acum": 1.044,
+        "roughness_asper": 0.0,
+        "fluctuation_vacil": 0.0001,
+        "experimental_fluctuation": true
+      },
       "visual": {
         "hue_deg": 220.0,
         "sat": 85.0,
-        "light": 49.774,
-        "size_px": 42.3307,
+        "light": 35.6549,
+        "size_px": 47.3582,
         "spike01": 0.6004,
         "spikes": 10,
         "jitter01": 0.0,
         "tail01": 0.8463,
+        "fluct01": 0.0,
         "seed": 13226531566593821812
       }
     }
   ],
   "stats": {
     "bright01": {
-      "mean": 0.1452,
-      "std": 0.2981,
-      "min": 0.0,
+      "mean": 0.1498,
+      "std": 0.2006,
+      "min": 0.014,
       "max": 1.0
     },
     "warm01": {
@@ -1313,16 +1604,22 @@
       "max": 0.8463
     },
     "loud01": {
-      "mean": 0.5242,
-      "std": 0.2259,
-      "min": 0.2856,
+      "mean": 0.7451,
+      "std": 0.0901,
+      "min": 0.549,
       "max": 1.0
     },
     "jitter01": {
-      "mean": 0.2462,
-      "std": 0.1849,
+      "mean": 0.5981,
+      "std": 0.4068,
       "min": 0.0,
-      "max": 0.9247
+      "max": 1.0
+    },
+    "fluct01": {
+      "mean": 0.4371,
+      "std": 0.2781,
+      "min": 0.0,
+      "max": 0.9336
     }
   }
 }

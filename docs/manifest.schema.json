@@ -2,106 +2,330 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://soundpalette.local/manifest.schema.json",
   "title": "SoundPalette manifest",
-  "description": "Canonical output of `soundpalette scan` (PLAN.md §8).",
+  "description": "Canonical output of `soundpalette scan` (PLAN.md \u00a78).",
   "type": "object",
-  "required": ["schema_version", "mapping_version", "root", "file_count", "files", "stats"],
+  "required": [
+    "schema_version",
+    "mapping_version",
+    "root",
+    "file_count",
+    "files",
+    "stats"
+  ],
   "properties": {
-    "schema_version": { "type": "integer", "const": 1 },
-    "mapping_version": { "type": "integer", "const": 1 },
-    "engine_version": { "type": "string" },
-    "root": { "type": "string" },
-    "file_count": { "type": "integer", "minimum": 0 },
+    "schema_version": {
+      "type": "integer",
+      "const": 2,
+      "description": "2 = every v1 field plus a per-file psycho block (strict superset)"
+    },
+    "mapping_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "engine_version": {
+      "type": "string"
+    },
+    "root": {
+      "type": "string"
+    },
+    "file_count": {
+      "type": "integer",
+      "minimum": 0
+    },
     "files": {
       "type": "array",
-      "items": { "$ref": "#/definitions/fileEntry" }
+      "items": {
+        "$ref": "#/definitions/fileEntry"
+      }
     },
     "stats": {
       "type": "object",
-      "required": ["bright01", "warm01", "ton01", "atk01", "tail01", "loud01", "jitter01"],
+      "required": [
+        "bright01",
+        "warm01",
+        "ton01",
+        "atk01",
+        "tail01",
+        "loud01",
+        "jitter01"
+      ],
       "properties": {
-        "bright01": { "$ref": "#/definitions/dimStats" },
-        "warm01": { "$ref": "#/definitions/dimStats" },
-        "ton01": { "$ref": "#/definitions/dimStats" },
-        "atk01": { "$ref": "#/definitions/dimStats" },
-        "tail01": { "$ref": "#/definitions/dimStats" },
-        "loud01": { "$ref": "#/definitions/dimStats" },
-        "jitter01": { "$ref": "#/definitions/dimStats" }
+        "bright01": {
+          "$ref": "#/definitions/dimStats"
+        },
+        "warm01": {
+          "$ref": "#/definitions/dimStats"
+        },
+        "ton01": {
+          "$ref": "#/definitions/dimStats"
+        },
+        "atk01": {
+          "$ref": "#/definitions/dimStats"
+        },
+        "tail01": {
+          "$ref": "#/definitions/dimStats"
+        },
+        "loud01": {
+          "$ref": "#/definitions/dimStats"
+        },
+        "jitter01": {
+          "$ref": "#/definitions/dimStats"
+        },
+        "fluct01": {
+          "$ref": "#/definitions/dimStats"
+        }
       }
+    },
+    "ref_spl": {
+      "type": "number",
+      "description": "Monitoring convention (extension-3 \u00a74): a -23 LUFS signal is assumed to play at ref_spl dB SPL"
     }
   },
   "definitions": {
     "dimStats": {
       "type": "object",
-      "required": ["mean", "std", "min", "max"],
+      "required": [
+        "mean",
+        "std",
+        "min",
+        "max"
+      ],
       "properties": {
-        "mean": { "type": "number" },
-        "std": { "type": "number", "minimum": 0 },
-        "min": { "type": "number" },
-        "max": { "type": "number" }
+        "mean": {
+          "type": "number"
+        },
+        "std": {
+          "type": "number",
+          "minimum": 0
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
       }
     },
     "fileEntry": {
       "type": "object",
       "required": [
-        "path", "sha256", "error", "duration_s", "sample_rate", "channels", "truncated",
-        "loudness", "features", "visual"
+        "path",
+        "sha256",
+        "error",
+        "duration_s",
+        "sample_rate",
+        "channels",
+        "truncated",
+        "loudness",
+        "features",
+        "visual"
       ],
       "properties": {
-        "path": { "type": "string" },
-        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "error": { "type": "string" },
-        "duration_s": { "type": "number", "minimum": 0 },
-        "sample_rate": { "type": "integer", "minimum": 0 },
-        "channels": { "type": "integer", "minimum": 0 },
-        "truncated": { "type": "boolean" },
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "error": {
+          "type": "string"
+        },
+        "duration_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "channels": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "truncated": {
+          "type": "boolean"
+        },
         "loudness": {
           "type": "object",
-          "required": ["lufs_i", "true_peak_db", "silent"],
+          "required": [
+            "lufs_i",
+            "true_peak_db",
+            "silent"
+          ],
           "properties": {
-            "lufs_i": { "type": "number" },
-            "true_peak_db": { "type": "number" },
-            "silent": { "type": "boolean" }
+            "lufs_i": {
+              "type": "number"
+            },
+            "true_peak_db": {
+              "type": "number"
+            },
+            "silent": {
+              "type": "boolean"
+            }
           }
         },
         "features": {
           "type": "object",
           "required": [
-            "centroid_hz", "rolloff85_hz", "flatness", "zcr", "attack_s", "tail_s",
-            "tail_clipped", "roughness", "warmth", "bands"
+            "centroid_hz",
+            "rolloff85_hz",
+            "flatness",
+            "zcr",
+            "attack_s",
+            "tail_s",
+            "tail_clipped",
+            "roughness",
+            "warmth",
+            "bands"
           ],
           "properties": {
-            "centroid_hz": { "type": "number", "minimum": 0 },
-            "rolloff85_hz": { "type": "number", "minimum": 0 },
-            "flatness": { "type": "number", "minimum": 0, "maximum": 1 },
-            "zcr": { "type": "number", "minimum": 0 },
-            "attack_s": { "type": "number", "minimum": 0 },
-            "tail_s": { "type": "number", "minimum": 0 },
-            "tail_clipped": { "type": "boolean" },
-            "roughness": { "type": "number", "minimum": 0 },
-            "warmth": { "type": "number", "minimum": 0 },
+            "centroid_hz": {
+              "type": "number",
+              "minimum": 0
+            },
+            "rolloff85_hz": {
+              "type": "number",
+              "minimum": 0
+            },
+            "flatness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "zcr": {
+              "type": "number",
+              "minimum": 0
+            },
+            "attack_s": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tail_s": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tail_clipped": {
+              "type": "boolean"
+            },
+            "roughness": {
+              "type": "number",
+              "minimum": 0
+            },
+            "warmth": {
+              "type": "number",
+              "minimum": 0
+            },
             "bands": {
               "type": "array",
               "minItems": 6,
               "maxItems": 6,
-              "items": { "type": "number", "minimum": 0 }
+              "items": {
+                "type": "number",
+                "minimum": 0
+              }
             }
           }
         },
         "visual": {
           "type": "object",
           "required": [
-            "hue_deg", "sat", "light", "size_px", "spike01", "spikes", "jitter01", "tail01", "seed"
+            "hue_deg",
+            "sat",
+            "light",
+            "size_px",
+            "spike01",
+            "spikes",
+            "jitter01",
+            "tail01",
+            "seed"
           ],
           "properties": {
-            "hue_deg": { "type": "number", "minimum": 0, "maximum": 360 },
-            "sat": { "type": "number", "minimum": 0, "maximum": 100 },
-            "light": { "type": "number", "minimum": 0, "maximum": 100 },
-            "size_px": { "type": "number", "minimum": 0 },
-            "spike01": { "type": "number", "minimum": 0, "maximum": 1 },
-            "spikes": { "type": "integer", "minimum": 0 },
-            "jitter01": { "type": "number", "minimum": 0, "maximum": 1 },
-            "tail01": { "type": "number", "minimum": 0, "maximum": 1 },
-            "seed": { "type": "integer", "minimum": 0 }
+            "hue_deg": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 360
+            },
+            "sat": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "light": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "size_px": {
+              "type": "number",
+              "minimum": 0
+            },
+            "spike01": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "spikes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "jitter01": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "tail01": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fluct01": {
+              "type": "number"
+            }
+          }
+        },
+        "psycho": {
+          "type": "object",
+          "description": "Psychoacoustic block (extension-3 \u00a75), computed on the original-gain buffer under ref_spl",
+          "required": [
+            "ref_spl",
+            "sones_n5",
+            "sones_mean",
+            "sharpness_acum",
+            "roughness_asper",
+            "fluctuation_vacil",
+            "experimental_fluctuation"
+          ],
+          "properties": {
+            "ref_spl": {
+              "type": "number"
+            },
+            "sones_n5": {
+              "type": "number",
+              "description": "ISO 532-1 time-varying loudness, N5 percentile"
+            },
+            "sones_mean": {
+              "type": "number"
+            },
+            "sharpness_acum": {
+              "type": "number",
+              "description": "DIN 45692"
+            },
+            "roughness_asper": {
+              "type": "number",
+              "description": "Daniel & Weber"
+            },
+            "fluctuation_vacil": {
+              "type": "number",
+              "description": "experimental"
+            },
+            "experimental_fluctuation": {
+              "type": "boolean"
+            }
           }
         }
       }

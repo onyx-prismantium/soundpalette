@@ -21,8 +21,8 @@ namespace spapp {
 
 namespace {
 
-constexpr const char *kDimNames[7] = {"bright01", "warm01", "ton01",   "atk01",
-                                      "tail01",   "loud01", "jitter01"};
+constexpr const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
+                                      "tail01",   "loud01", "jitter01", "fluct01"};
 
 // Decodes the selected entry, runs the solver, and derives the predicted visual by applying
 // the proposed chain in memory and re-analyzing (the same closed loop harmonize uses).
@@ -36,28 +36,31 @@ bool build_proposal(AppState &state, const sp::FileEntry &e) {
     }
     sp::Loudness loudness;
     sp::Features features;
-    sp::analyze_native(*audio, loudness, features);
+    sp::PsychoFeatures psycho;
+    sp::analyze_native(*audio, loudness, features, psycho);
 
     // Category targeting (extension-2 §6.1): pull stats from the file's resolved category.
     const int cat = sp::resolve_category(state.profile, e.path);
-    const std::array<sp::DimStats, 7> &target_stats =
+    const std::array<sp::DimStats, 8> &target_stats =
         cat >= 0 ? state.profile.categories[static_cast<std::size_t>(cat)].stats
                  : state.profile.stats;
-    state.proposal =
-        sp::propose_recipe(*audio, features, loudness, target_stats, state.profile.threshold);
+    state.proposal = sp::propose_recipe(*audio, features, loudness, psycho, target_stats,
+                                        state.profile.threshold);
     state.proposal.source_path = e.path;
     state.proposal.source_sha256 = sp::file_sha256(abs);
     state.proposal.target_baseline = state.profile_source_path;
-    state.proposal_dims_before = sp::mapping_dims(features, loudness);
+    state.proposal_dims_before = sp::mapping_dims(features, loudness, psycho);
 
     sp::NativeAudio processed = *audio;
     sp::ApplyReport report;
     sp::apply_chain(processed, state.proposal.ops, report);
     sp::Loudness post_loudness;
     sp::Features post_features;
-    sp::analyze_native(processed, post_loudness, post_features);
-    state.proposal_dims_after = sp::mapping_dims(post_features, post_loudness);
-    state.predicted_visual = sp::map_v1(post_features, post_loudness, sp::path_seed(e.path));
+    sp::PsychoFeatures post_psycho;
+    sp::analyze_native(processed, post_loudness, post_features, post_psycho);
+    state.proposal_dims_after = sp::mapping_dims(post_features, post_loudness, post_psycho);
+    state.predicted_visual =
+        sp::map_v2(post_features, post_loudness, post_psycho, sp::path_seed(e.path));
 
     state.proposal_valid = true;
     state.proposal_for = state.selected;
@@ -133,7 +136,9 @@ bool load_baseline(AppState &state, const std::string &path) {
             return false;
         }
         sp::Manifest baseline;
-        for (int d = 0; d < 7; ++d) {
+        baseline.mapping_version = j.value("mapping_version", 1);
+        baseline.ref_spl = j.value("ref_spl", 75.0);
+        for (int d = 0; d < 8; ++d) {
             if (!j["stats"].contains(kDimNames[d])) {
                 return false;
             }
@@ -145,6 +150,13 @@ bool load_baseline(AppState &state, const std::string &path) {
             out.max = sj.value("max", 0.0);
         }
         state.profile = sp::profile_from_manifest(baseline);
+    }
+
+    // Extension-3 §0: refuse mapping_version/ref_spl mismatches, never mix silently.
+    if (std::string compat = sp::profile_compat_error(state.profile); !compat.empty()) {
+        state.status_message = compat;
+        state.profile = sp::Profile{};
+        return false;
     }
 
     state.profile_source_path = path;
@@ -227,7 +239,7 @@ void draw_harmonize(AppState &state) {
     }
 
     // Before/after mini bars for the seven dims.
-    for (int d = 0; d < 7; ++d) {
+    for (int d = 0; d < 8; ++d) {
         ImGui::Text("%-9s", kDimNames[d]);
         const float fs = ImGui::GetFontSize();
         ImGui::SameLine(7.0f * fs);

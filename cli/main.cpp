@@ -148,12 +148,15 @@ bool load_baseline_stats(const std::string &path, sp::Manifest &baseline, std::s
         err = path + ": missing 'stats' block";
         return false;
     }
+    baseline.mapping_version = j.value("mapping_version", 1);
+    baseline.ref_spl = j.value("ref_spl", 75.0);
 
-    static const char *kDimNames[7] = {"bright01", "warm01", "ton01",   "atk01",
-                                       "tail01",   "loud01", "jitter01"};
-    for (int d = 0; d < 7; ++d) {
+    static const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
+                                       "tail01",   "loud01", "jitter01", "fluct01"};
+    for (int d = 0; d < 8; ++d) {
         if (!j["stats"].contains(kDimNames[d])) {
-            err = path + ": stats missing '" + kDimNames[d] + "'";
+            err = path + ": stats missing '" + kDimNames[d] +
+                  "' (mapping v1 baseline? rescan to regenerate a v2 manifest)";
             return false;
         }
         const auto &s = j["stats"][kDimNames[d]];
@@ -183,6 +186,11 @@ bool load_profile_arg(const std::string &baseline_path, const std::string &profi
             return false;
         }
         out = std::move(*p);
+        err = sp::profile_compat_error(out);
+        if (!err.empty()) {
+            err = profile_path + ": " + err;
+            return false;
+        }
         return true;
     }
     sp::Manifest baseline;
@@ -190,6 +198,11 @@ bool load_profile_arg(const std::string &baseline_path, const std::string &profi
         return false;
     }
     out = sp::profile_from_manifest(baseline);
+    err = sp::profile_compat_error(out);
+    if (!err.empty()) {
+        err = baseline_path + ": " + err + " (rescan the baseline folder)";
+        return false;
+    }
     return true;
 }
 
@@ -243,8 +256,8 @@ int cmd_lint(const std::vector<std::string> &args) {
     }
     const bool with_categories = !profile_path.empty();
 
-    static const char *kDims[7] = {"bright01", "warm01", "ton01",   "atk01",
-                                   "tail01",   "loud01", "jitter01"};
+    static const char *kDims[8] = {"bright01", "warm01", "ton01",    "atk01",
+                                   "tail01",   "loud01", "jitter01", "fluct01"};
 
     sp::Manifest candidate = sp::scan_directory(dir, sp::ScanOptions{});
     struct Row {
@@ -269,7 +282,7 @@ int cmd_lint(const std::vector<std::string> &args) {
 
     auto dims_over_of = [&](const Row &r) {
         std::vector<std::string> dims;
-        for (int d = 0; d < 7; ++d) {
+        for (int d = 0; d < 8; ++d) {
             if (std::fabs(r.dev.z[static_cast<std::size_t>(d)]) >= profile.threshold) {
                 dims.emplace_back(kDims[d]);
             }
@@ -308,7 +321,7 @@ int cmd_lint(const std::vector<std::string> &args) {
                 o["worst_dim"] = kDims[r.dev.worst_dim];
                 o["band"] = sp::dev_band_name(r.dev.band);
                 nlohmann::ordered_json z;
-                for (int d = 0; d < 7; ++d) {
+                for (int d = 0; d < 8; ++d) {
                     z[kDims[d]] = round4(r.dev.z[static_cast<std::size_t>(d)]);
                 }
                 o["z"] = std::move(z);
@@ -376,17 +389,17 @@ int cmd_describe(const std::vector<std::string> &args) {
         std::fprintf(stderr, "soundpalette: %s: %s\n", file.c_str(), e.error.c_str());
         return 2;
     }
-    std::string sentence = sp::describe_words(e.features, e.loudness);
+    std::string sentence = sp::describe_words(e.features, e.loudness, e.psycho);
 
     if (!json_out) {
         std::fprintf(stdout, "%s\n", sentence.c_str());
         return 0;
     }
 
-    std::array<double, 7> dims = sp::mapping_dims(e.features, e.loudness);
-    std::array<std::string, 7> words = sp::describe_dim_words(e.features, e.loudness);
-    static const char *kDims[7] = {"bright01", "warm01", "ton01",   "atk01",
-                                   "tail01",   "loud01", "jitter01"};
+    std::array<double, 8> dims = sp::mapping_dims(e.features, e.loudness, e.psycho);
+    std::array<std::string, 8> words = sp::describe_dim_words(e.features, e.loudness, e.psycho);
+    static const char *kDims[8] = {"bright01", "warm01", "ton01",    "atk01",
+                                   "tail01",   "loud01", "jitter01", "fluct01"};
 
     nlohmann::ordered_json j;
     j["path"] = e.path;
@@ -419,7 +432,7 @@ int cmd_describe(const std::vector<std::string> &args) {
     visual["tail01"] = round4(e.visual.tail01);
     j["visual"] = std::move(visual);
     nlohmann::ordered_json jd, jw;
-    for (int d = 0; d < 7; ++d) {
+    for (int d = 0; d < 8; ++d) {
         jd[kDims[d]] = round4(dims[static_cast<std::size_t>(d)]);
         jw[kDims[d]] = words[static_cast<std::size_t>(d)];
     }
@@ -693,7 +706,7 @@ int cmd_profile(const std::vector<std::string> &args) {
 // ---- M9 recipe engine subcommands (extension §6.5) ----
 
 bool analyze_for_propose(const std::string &file, sp::NativeAudio &audio, sp::Loudness &loudness,
-                         sp::Features &features) {
+                         sp::Features &features, sp::PsychoFeatures &psycho) {
     std::string err;
     auto decoded = sp::decode_file_native(file, err);
     if (!decoded.has_value()) {
@@ -701,7 +714,7 @@ bool analyze_for_propose(const std::string &file, sp::NativeAudio &audio, sp::Lo
         return false;
     }
     audio = std::move(*decoded);
-    sp::analyze_native(audio, loudness, features);
+    sp::analyze_native(audio, loudness, features, psycho);
     return true;
 }
 
@@ -743,7 +756,8 @@ int cmd_propose(const std::vector<std::string> &args) {
     sp::NativeAudio audio;
     sp::Loudness loudness;
     sp::Features features;
-    if (!analyze_for_propose(file, audio, loudness, features)) {
+    sp::PsychoFeatures psycho;
+    if (!analyze_for_propose(file, audio, loudness, features, psycho)) {
         return 2;
     }
 
@@ -751,11 +765,11 @@ int cmd_propose(const std::vector<std::string> &args) {
     // category so a misfiled sound harmonizes toward the family it sits in.
     const std::string rel = std::filesystem::path(file).filename().string();
     const int cat = sp::resolve_category(profile, rel);
-    const std::array<sp::DimStats, 7> &target_stats =
+    const std::array<sp::DimStats, 8> &target_stats =
         cat >= 0 ? profile.categories[static_cast<std::size_t>(cat)].stats : profile.stats;
 
     sp::Recipe recipe =
-        sp::propose_recipe(audio, features, loudness, target_stats, profile.threshold);
+        sp::propose_recipe(audio, features, loudness, psycho, target_stats, profile.threshold);
     recipe.source_path = file;
     recipe.source_sha256 = sp::file_sha256(file);
     recipe.target_baseline = profile_path.empty() ? baseline_path : profile_path;
@@ -818,7 +832,8 @@ int cmd_apply(const std::vector<std::string> &args) {
     if (!report_path.empty()) {
         sp::Loudness post_loudness;
         sp::Features post_features;
-        sp::analyze_native(*audio, post_loudness, post_features);
+        sp::PsychoFeatures post_psycho;
+        sp::analyze_native(*audio, post_loudness, post_features, post_psycho);
         nlohmann::ordered_json j;
         j["source"] = file;
         j["output"] = out;
@@ -921,15 +936,16 @@ int cmd_harmonize(const std::vector<std::string> &args) {
         sp::NativeAudio audio;
         sp::Loudness loudness;
         sp::Features features;
-        if (!analyze_for_propose(abs_path, audio, loudness, features)) {
+        sp::PsychoFeatures psycho;
+        if (!analyze_for_propose(abs_path, audio, loudness, features, psycho)) {
             return 2;
         }
 
         const int cat = sp::resolve_category(profile, rel_path);
-        const std::array<sp::DimStats, 7> &target_stats =
+        const std::array<sp::DimStats, 8> &target_stats =
             cat >= 0 ? profile.categories[static_cast<std::size_t>(cat)].stats : profile.stats;
-        sp::Recipe recipe =
-            sp::propose_recipe(audio, features, loudness, target_stats, threshold, max_iter);
+        sp::Recipe recipe = sp::propose_recipe(audio, features, loudness, psycho, target_stats,
+                                               threshold, max_iter);
         recipe.source_path = rel_path;
         recipe.source_sha256 = sp::file_sha256(abs_path);
         recipe.target_baseline = profile_path.empty() ? baseline_path : profile_path;
@@ -1041,6 +1057,24 @@ int cmd_export_svg(const std::vector<std::string> &args) {
             fe.features.tail_s = tj.value("tail_s", 0.0);
             fe.features.roughness = tj.value("roughness", 0.0);
             fe.features.warmth = tj.value("warmth", 0.0);
+        }
+        if (fe.error.empty()) {
+            // Schema 2 psycho block: without it the v2 dims are meaningless, so refuse (§0).
+            if (!fj.contains("psycho")) {
+                std::fprintf(stderr,
+                             "soundpalette: %s: no psycho block (schema 1 manifest? rescan "
+                             "to regenerate)\n",
+                             manifest_path.c_str());
+                return 2;
+            }
+            const auto &pj = fj["psycho"];
+            fe.psycho.ref_spl = pj.value("ref_spl", 75.0);
+            fe.psycho.sones_n5 = pj.value("sones_n5", 0.0);
+            fe.psycho.sones_mean = pj.value("sones_mean", 0.0);
+            fe.psycho.sharpness_acum = pj.value("sharpness_acum", 0.0);
+            fe.psycho.roughness_asper = pj.value("roughness_asper", 0.0);
+            fe.psycho.fluctuation_vacil = pj.value("fluctuation_vacil", 0.0);
+            fe.psycho.experimental_fluctuation = pj.value("experimental_fluctuation", true);
         }
         if (fe.error.empty() && fj.contains("visual")) {
             const auto &vj = fj["visual"];

@@ -5,9 +5,9 @@
 #include "soundpalette/pca.h"
 
 TEST_CASE("pca/deterministic") {
-    std::vector<std::array<double, 7>> points;
+    std::vector<std::array<double, 8>> points;
     for (int i = 0; i < 20; ++i) {
-        std::array<double, 7> p{};
+        std::array<double, 8> p{};
         const double t = 0.05 * i;
         p[0] = 0.3 + t;
         p[1] = 0.5 - 0.5 * t;
@@ -22,15 +22,15 @@ TEST_CASE("pca/deterministic") {
     sp::Pca2 a = sp::compute_pca2(points);
     sp::Pca2 b = sp::compute_pca2(points);
     REQUIRE(a.valid);
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         CHECK(a.pc1[d] == b.pc1[d]); // bit-identical across runs
         CHECK(a.pc2[d] == b.pc2[d]);
     }
 
     // Sign convention: the largest-|value| entry of each component is positive.
-    auto largest_positive = [](const std::array<double, 7> &v) {
+    auto largest_positive = [](const std::array<double, 8> &v) {
         std::size_t largest = 0;
-        for (std::size_t d = 1; d < 7; ++d) {
+        for (std::size_t d = 1; d < 8; ++d) {
             if (std::fabs(v[d]) > std::fabs(v[largest])) {
                 largest = d;
             }
@@ -42,7 +42,7 @@ TEST_CASE("pca/deterministic") {
 
     // Orthogonal components.
     double dot = 0.0;
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         dot += a.pc1[d] * a.pc2[d];
     }
     CHECK(std::fabs(dot) < 1e-9);
@@ -50,9 +50,9 @@ TEST_CASE("pca/deterministic") {
 
 TEST_CASE("pca/direction") {
     // dim0 = t, dim1 = t, others constant -> PC1 must align with (e0+e1)/sqrt(2) (§8).
-    std::vector<std::array<double, 7>> points;
+    std::vector<std::array<double, 8>> points;
     for (double t = 0.1; t <= 0.9 + 1e-9; t += 0.1) {
-        std::array<double, 7> p{};
+        std::array<double, 8> p{};
         p[0] = t;
         p[1] = t;
         p[2] = 0.5;
@@ -76,10 +76,10 @@ TEST_CASE("pca/direction") {
 }
 
 TEST_CASE("pca/fallback on degenerate sets") {
-    std::vector<std::array<double, 7>> two_points(2, {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7});
+    std::vector<std::array<double, 8>> two_points(2, {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7});
     CHECK_FALSE(sp::compute_pca2(two_points).valid); // < 3 points
 
-    std::vector<std::array<double, 7>> identical(10, {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5});
+    std::vector<std::array<double, 8>> identical(10, {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5});
     CHECK_FALSE(sp::compute_pca2(identical).valid); // zero spread
 }
 

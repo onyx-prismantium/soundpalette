@@ -10,20 +10,20 @@ namespace sp {
 
 namespace {
 
-constexpr const char *kDimNames[7] = {"bright01", "warm01", "ton01",   "atk01",
-                                      "tail01",   "loud01", "jitter01"};
+constexpr const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
+                                      "tail01",   "loud01", "jitter01", "fluct01"};
 constexpr int kBright = 0, kWarm = 1, kAtk = 3, kTail = 4, kLoud = 5;
 
-std::array<double, 7> z_scores(const std::array<double, 7> &dims,
-                               const std::array<DimStats, 7> &stats) {
-    std::array<double, 7> z{};
-    for (std::size_t d = 0; d < 7; ++d) {
+std::array<double, 8> z_scores(const std::array<double, 8> &dims,
+                               const std::array<DimStats, 8> &stats) {
+    std::array<double, 8> z{};
+    for (std::size_t d = 0; d < 8; ++d) {
         z[d] = (dims[d] - stats[d].mean) / std::max(stats[d].std, 0.02); // §9 floor
     }
     return z;
 }
 
-double max_abs(const std::array<double, 7> &z) {
+double max_abs(const std::array<double, 8> &z) {
     double m = 0.0;
     for (double v : z) {
         m = std::max(m, std::fabs(v));
@@ -46,19 +46,19 @@ double invert_tail01(double tail01) {
 } // namespace
 
 Recipe propose_recipe(const NativeAudio &audio, const Features &features, const Loudness &loudness,
-                      const std::array<DimStats, 7> &baseline_stats, double threshold, int max_iter,
-                      const SolverConfig &cfg) {
+                      const PsychoFeatures &psycho, const std::array<DimStats, 8> &baseline_stats,
+                      double threshold, int max_iter, const SolverConfig &cfg) {
     Recipe recipe;
     recipe.target_threshold = threshold;
 
-    const std::array<double, 7> dims0 = mapping_dims(features, loudness);
-    const std::array<double, 7> z0 = z_scores(dims0, baseline_stats);
+    const std::array<double, 8> dims0 = mapping_dims(features, loudness, psycho);
+    const std::array<double, 8> z0 = z_scores(dims0, baseline_stats);
     recipe.result_max_z_before = max_abs(z0);
 
     // Step 1-3 (§6.4): map each offense to a tier-one op or to unresolved[].
-    std::array<double, 7> target{}; // pulled inside with the half-sigma margin
-    std::array<bool, 7> offending{};
-    for (std::size_t d = 0; d < 7; ++d) {
+    std::array<double, 8> target{}; // pulled inside with the half-sigma margin
+    std::array<bool, 8> offending{};
+    for (std::size_t d = 0; d < 8; ++d) {
         offending[d] = std::fabs(z0[d]) >= threshold;
         if (offending[d]) {
             const double sign = z0[d] > 0 ? 1.0 : -1.0;
@@ -70,7 +70,7 @@ Recipe propose_recipe(const NativeAudio &audio, const Features &features, const 
 
     Op high_shelf, low_shelf, attack, tail, gain;
     bool use_hs = false, use_ls = false, use_atk = false, use_tail = false, use_gain = false;
-    std::array<bool, 7> resolvable{};
+    std::array<bool, 8> resolvable{};
 
     if (offending[kBright]) {
         use_hs = true;
@@ -113,10 +113,17 @@ Recipe propose_recipe(const NativeAudio &audio, const Features &features, const 
         use_gain = true;
         resolvable[kLoud] = true;
         gain.op = OpType::kGainToLufs;
-        gain.target_lufs = -40.0 + 30.0 * baseline_stats[kLoud].mean; // §6.4 lufs*
+        // Mapping v2 inverse (extension-3 §6): loud01 = sqrt(sones)/div, and sones double per
+        // +10 dB, so the LUFS shift toward the target is 10*log2(target_sones/current_sones).
+        const double div = active_mapping_config().loud_sone_div;
+        const double cur_sones = std::max(psycho.sones_n5, 1e-6);
+        const double tgt_loud = std::clamp(target[kLoud], 0.02, 1.0);
+        const double tgt_sones = div * div * tgt_loud * tgt_loud;
+        gain.target_lufs =
+            std::clamp(loudness.lufs_i + 10.0 * std::log2(tgt_sones / cur_sones), -60.0, -5.0);
         gain.tp_ceiling_db = -1.0;
     }
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         if (offending[d] && !resolvable[d] && kDimNames[d] != std::string("atk01") &&
             kDimNames[d] != std::string("tail01")) {
             recipe.result_unresolved.push_back(kDimNames[d]);
@@ -124,7 +131,8 @@ Recipe propose_recipe(const NativeAudio &audio, const Features &features, const 
     }
 
     // Step 4: iterate apply -> re-analyze -> damped correction (§6.4).
-    std::array<double, 7> dims_k = dims0;
+    std::array<double, 8> dims_k = dims0;
+    double post_psycho_sones = psycho.sones_n5;
     ApplyReport last_report;
     int iterations = 0;
     bool converged = false;
@@ -158,12 +166,14 @@ Recipe propose_recipe(const NativeAudio &audio, const Features &features, const 
 
         Loudness post_loudness;
         Features post_features;
-        analyze_native(work, post_loudness, post_features);
-        dims_k = mapping_dims(post_features, post_loudness);
-        const std::array<double, 7> z_k = z_scores(dims_k, baseline_stats);
+        PsychoFeatures post_psycho;
+        analyze_native(work, post_loudness, post_features, post_psycho);
+        post_psycho_sones = post_psycho.sones_n5;
+        dims_k = mapping_dims(post_features, post_loudness, post_psycho);
+        const std::array<double, 8> z_k = z_scores(dims_k, baseline_stats);
 
         double worst_resolvable = 0.0;
-        for (std::size_t d = 0; d < 7; ++d) {
+        for (std::size_t d = 0; d < 8; ++d) {
             if (resolvable[d]) {
                 worst_resolvable = std::max(worst_resolvable, std::fabs(z_k[d]));
             }
@@ -197,15 +207,25 @@ Recipe propose_recipe(const NativeAudio &audio, const Features &features, const 
             const double delta = cfg.damping * (target[kTail] - dims_k[kTail]) * span;
             tail.target_tail_s = std::max(0.01, tail.target_tail_s * std::pow(10.0, delta));
         }
-        // gain_to_lufs targets an absolute LUFS; no correction needed.
+        if (use_gain) {
+            // The 10 dB-per-doubling inverse is approximate; correct the absolute target
+            // from the re-analyzed sones (damped, like the other ops).
+            const double div = active_mapping_config().loud_sone_div;
+            const double tgt_loud = std::clamp(target[kLoud], 0.02, 1.0);
+            const double tgt_sones = div * div * tgt_loud * tgt_loud;
+            const double post_sones = std::max(post_psycho_sones, 1e-6);
+            gain.target_lufs = std::clamp(gain.target_lufs + cfg.damping * 10.0 *
+                                                                 std::log2(tgt_sones / post_sones),
+                                          -60.0, -5.0);
+        }
     }
 
-    const std::array<double, 7> z_final = z_scores(dims_k, baseline_stats);
+    const std::array<double, 8> z_final = z_scores(dims_k, baseline_stats);
     recipe.result_iterations = iterations;
     recipe.result_converged = converged;
     recipe.result_limited_by_peak = last_report.limited_by_peak;
     recipe.result_max_z_after = max_abs(z_final);
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         if (offending[d]) {
             recipe.result_dims_after[kDimNames[d]] = dims_k[d];
         }
@@ -217,7 +237,7 @@ Recipe propose_recipe(const NativeAudio &audio, const Features &features, const 
     // is either inside the threshold now or listed here.
     std::vector<std::string> still_unresolved;
     for (const std::string &name : recipe.result_unresolved) {
-        for (std::size_t d = 0; d < 7; ++d) {
+        for (std::size_t d = 0; d < 8; ++d) {
             if (name == kDimNames[d] && std::fabs(z_final[d]) >= threshold) {
                 still_unresolved.push_back(name);
             }

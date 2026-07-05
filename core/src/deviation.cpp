@@ -15,12 +15,12 @@ Deviation compute_deviation(const FileEntry &entry, const Profile &profile) {
     }
 
     const int cat = resolve_category(profile, entry.path);
-    const std::array<DimStats, 7> &stats =
+    const std::array<DimStats, 8> &stats =
         cat >= 0 ? profile.categories[static_cast<std::size_t>(cat)].stats : profile.stats;
     dev.category = cat >= 0 ? profile.categories[static_cast<std::size_t>(cat)].name : "";
 
-    const std::array<double, 7> dims = mapping_dims(entry.features, entry.loudness);
-    for (std::size_t d = 0; d < 7; ++d) {
+    const std::array<double, 8> dims = mapping_dims(entry.features, entry.loudness, entry.psycho);
+    for (std::size_t d = 0; d < 8; ++d) {
         dev.z[d] = (dims[d] - stats[d].mean) / std::max(stats[d].std, 0.02); // floor at use
         if (std::fabs(dev.z[d]) > dev.max_z) {
             dev.max_z = std::fabs(dev.z[d]);

@@ -13,7 +13,7 @@ namespace sp {
 enum class DevBand { none, amber, red };
 
 struct Deviation {
-    std::array<double, 7> z{};
+    std::array<double, 8> z{};
     double max_z = 0.0;
     int worst_dim = 0;
     std::string category; // resolved category name, "" = top-level

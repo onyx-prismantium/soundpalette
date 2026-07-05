@@ -125,7 +125,14 @@ std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points
         double rand_i = next_uniform01(state);
         double jitter_term = v.jitter01 * 0.30 * (rand_i - 0.5);
 
-        double r = v.size_px * (1.0 + spike_term + jitter_term);
+        // Mapping v2 (extension-3 §6): slow three-lobe wave for fluctuation strength —
+        // visually distinct from jitter's fine random raggedness. Phase from the seed so the
+        // same file always waves the same way.
+        double fluct_term =
+            v.fluct01 * 0.18 *
+            std::sin(3.0 * theta + 2.0 * kPi * (static_cast<double>(v.seed % 360) / 360.0));
+
+        double r = v.size_px * (1.0 + spike_term + jitter_term + fluct_term);
 
         pts[static_cast<std::size_t>(i)] = {static_cast<float>(r * std::cos(theta)),
                                             static_cast<float>(r * std::sin(theta))};

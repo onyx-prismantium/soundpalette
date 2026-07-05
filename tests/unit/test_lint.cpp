@@ -25,15 +25,20 @@ sp::FileEntry make_entry(const std::string &path) {
     fe.features.tail_s = 0.5;
     fe.features.roughness = 0.1;
     fe.features.warmth = 0.4;
-    fe.visual = sp::map_v1(fe.features, fe.loudness, 1);
+    fe.psycho.ref_spl = 75.0;
+    fe.psycho.sones_n5 = 9.0;
+    fe.psycho.sharpness_acum = 1.5;
+    fe.psycho.roughness_asper = 0.1;
+    fe.psycho.fluctuation_vacil = 0.2;
+    fe.visual = sp::map_v2(fe.features, fe.loudness, fe.psycho, 1);
     return fe;
 }
 
 // Baseline whose per-dim mean equals the entry's own dims (z == 0 everywhere) with a given std.
 sp::Manifest baseline_centered_on(const sp::FileEntry &fe, double std) {
     sp::Manifest baseline;
-    std::array<double, 7> dims = sp::mapping_dims(fe.features, fe.loudness);
-    for (std::size_t d = 0; d < 7; ++d) {
+    std::array<double, 8> dims = sp::mapping_dims(fe.features, fe.loudness, fe.psycho);
+    for (std::size_t d = 0; d < 8; ++d) {
         baseline.stats[d].mean = dims[d];
         baseline.stats[d].std = std;
         baseline.stats[d].min = dims[d];
@@ -98,7 +103,7 @@ TEST_CASE("lint/outliers sorted by |worst_z| descending") {
     sp::FileEntry small = make_entry("small.wav");
     sp::FileEntry big = make_entry("big.wav");
     big.features.tail_s = 2.5; // pushes tail01 far above the baseline mean
-    big.visual = sp::map_v1(big.features, big.loudness, 2);
+    big.visual = sp::map_v2(big.features, big.loudness, big.psycho, 2);
 
     sp::Manifest baseline = baseline_centered_on(small, 0.05);
     baseline.stats[static_cast<std::size_t>(sp::LintDim::kWarm01)].mean -= 0.15; // small: z=3
@@ -124,7 +129,7 @@ TEST_CASE("lint/error and silent files are excluded") {
 
     sp::Manifest baseline = baseline_centered_on(good, 0.1);
     // Shift every mean so any considered file would be a wild outlier.
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         baseline.stats[d].mean += 10.0;
     }
 

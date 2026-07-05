@@ -8,18 +8,22 @@
 namespace {
 
 sp::FileEntry entry_with_dims_bright(double bright01_target) {
-    // centroid such that bright01 = log01(centroid, 200, 8000) equals the target.
+    // v2: sharpness such that bright01 = lin01(acum, 0.6, 3.5) equals the target.
     sp::FileEntry e;
     e.path = "t.wav";
     e.loudness.lufs_i = -25.0;
     e.loudness.silent = false;
-    double log_lo = std::log10(200.0), log_hi = std::log10(8000.0);
-    e.features.centroid_hz = std::pow(10.0, log_lo + bright01_target * (log_hi - log_lo));
+    e.features.centroid_hz = 1200.0;
     e.features.flatness = 0.2;
     e.features.attack_s = 0.02;
     e.features.tail_s = 0.5;
     e.features.roughness = 0.1;
     e.features.warmth = 0.4;
+    e.psycho.ref_spl = 75.0;
+    e.psycho.sharpness_acum = 0.6 + bright01_target * (3.5 - 0.6);
+    e.psycho.sones_n5 = 9.0; // loud01 = 0.5
+    e.psycho.roughness_asper = 0.1;
+    e.psycho.fluctuation_vacil = 0.2;
     return e;
 }
 
@@ -27,8 +31,8 @@ sp::FileEntry entry_with_dims_bright(double bright01_target) {
 sp::Profile centered_profile(const sp::FileEntry &e, double threshold) {
     sp::Profile p;
     p.threshold = threshold;
-    std::array<double, 7> dims = sp::mapping_dims(e.features, e.loudness);
-    for (std::size_t d = 0; d < 7; ++d) {
+    std::array<double, 8> dims = sp::mapping_dims(e.features, e.loudness, e.psycho);
+    for (std::size_t d = 0; d < 8; ++d) {
         p.stats[d].mean = dims[d];
         p.stats[d].std = 0.1;
         p.cov[d][d] = 0.01;

@@ -9,13 +9,13 @@ namespace sp {
 
 namespace {
 
-using Vec7 = std::array<double, 7>;
-using Mat7 = std::array<std::array<double, 7>, 7>;
+using Vec7 = std::array<double, 8>;
+using Mat8 = std::array<std::array<double, 8>, 8>;
 
-Vec7 mat_vec(const Mat7 &m, const Vec7 &v) {
+Vec7 mat_vec(const Mat8 &m, const Vec7 &v) {
     Vec7 out{};
-    for (std::size_t a = 0; a < 7; ++a) {
-        for (std::size_t b = 0; b < 7; ++b) {
+    for (std::size_t a = 0; a < 8; ++a) {
+        for (std::size_t b = 0; b < 8; ++b) {
             out[a] += m[a][b] * v[b];
         }
     }
@@ -24,7 +24,7 @@ Vec7 mat_vec(const Mat7 &m, const Vec7 &v) {
 
 double dot(const Vec7 &a, const Vec7 &b) {
     double s = 0.0;
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         s += a[d] * b[d];
     }
     return s;
@@ -44,7 +44,7 @@ bool normalize(Vec7 &v) {
 // Sign convention (§7.2): flip so the component's largest-|value| entry is positive.
 void fix_sign(Vec7 &v) {
     std::size_t largest = 0;
-    for (std::size_t d = 1; d < 7; ++d) {
+    for (std::size_t d = 1; d < 8; ++d) {
         if (std::fabs(v[d]) > std::fabs(v[largest])) {
             largest = d;
         }
@@ -65,18 +65,18 @@ Pca2 compute_pca2(const std::vector<Vec7> &points) {
     }
 
     for (const Vec7 &p : points) {
-        for (std::size_t d = 0; d < 7; ++d) {
+        for (std::size_t d = 0; d < 8; ++d) {
             result.mean[d] += p[d];
         }
     }
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         result.mean[d] /= static_cast<double>(points.size());
     }
 
-    Mat7 cov{};
+    Mat8 cov{};
     for (const Vec7 &p : points) {
-        for (std::size_t a = 0; a < 7; ++a) {
-            for (std::size_t b = 0; b < 7; ++b) {
+        for (std::size_t a = 0; a < 8; ++a) {
+            for (std::size_t b = 0; b < 8; ++b) {
                 cov[a][b] += (p[a] - result.mean[a]) * (p[b] - result.mean[b]);
             }
         }
@@ -99,20 +99,20 @@ Pca2 compute_pca2(const std::vector<Vec7> &points) {
     result.lambda1 = dot(v1, mat_vec(cov, v1));
 
     // PC2: deflation, re-orthogonalized against v1 and normalized each iteration.
-    Mat7 deflated = cov;
-    for (std::size_t a = 0; a < 7; ++a) {
-        for (std::size_t b = 0; b < 7; ++b) {
+    Mat8 deflated = cov;
+    for (std::size_t a = 0; a < 8; ++a) {
+        for (std::size_t b = 0; b < 8; ++b) {
             deflated[a][b] -= result.lambda1 * v1[a] * v1[b];
         }
     }
     Vec7 v2;
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         v2[d] = 1.0 / std::sqrt(7.0) * (d % 2 == 0 ? 1.0 : -1.0); // deterministic start
     }
     for (int it = 0; it < 200; ++it) {
         v2 = mat_vec(deflated, v2);
         const double along = dot(v2, v1);
-        for (std::size_t d = 0; d < 7; ++d) {
+        for (std::size_t d = 0; d < 8; ++d) {
             v2[d] -= along * v1[d];
         }
         if (!normalize(v2)) {

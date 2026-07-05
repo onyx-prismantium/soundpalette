@@ -285,7 +285,7 @@ void rebuild_visuals(AppState &state) {
     sp::set_active_mapping_config(state.tuner);
     for (sp::FileEntry &e : state.manifest.files) {
         if (e.error.empty()) {
-            e.visual = sp::map_v1(e.features, e.loudness, sp::path_seed(e.path));
+            e.visual = sp::map_v2(e.features, e.loudness, e.psycho, sp::path_seed(e.path));
         }
     }
     recompute_badges(state);

@@ -28,7 +28,7 @@ TEST_CASE("presets/designed_stats_sane") {
         CHECK(p.created_from_file_count == 0);
         CHECK(p.threshold == doctest::Approx(2.5));
         CHECK(p.categories.empty());
-        for (std::size_t d = 0; d < 7; ++d) {
+        for (std::size_t d = 0; d < 8; ++d) {
             // Authored priors: means inside the mapping range, generous non-zero stds,
             // diagonal covariance == std² (no correlation claimed), full min/max range.
             CHECK(p.stats[d].mean >= 0.0);
@@ -57,7 +57,7 @@ TEST_CASE("presets/json_roundtrip") {
         CHECK(back->name == p.name);
         CHECK(back->created_from_type == "designed");
         CHECK(back->threshold == doctest::Approx(p.threshold));
-        for (std::size_t d = 0; d < 7; ++d) {
+        for (std::size_t d = 0; d < 8; ++d) {
             CHECK(back->stats[d].mean == doctest::Approx(p.stats[d].mean));
             CHECK(back->stats[d].std == doctest::Approx(p.stats[d].std));
         }
@@ -76,6 +76,11 @@ TEST_CASE("presets/deviation_direction") {
     blip.features.attack_s = 0.003;     // near-instant
     blip.features.tail_s = 0.08;        // barely any tail
     blip.features.roughness = 0.05;
+    blip.psycho.ref_spl = 75.0;
+    blip.psycho.sones_n5 = 20.0;         // loud01 ~ .75 (consistent chip output level)
+    blip.psycho.sharpness_acum = 1.9;    // bright01 ~ .45
+    blip.psycho.roughness_asper = 0.15;  // jitter01 ~ .22 (pure tone, slight edge)
+    blip.psycho.fluctuation_vacil = 0.5; // fluct01 ~ .49 (short blip, mild envelope)
     blip.features.warmth = 0.25;
 
     sp::Deviation retro = sp::compute_deviation(blip, *sp::builtin_preset("retro-8bit"));

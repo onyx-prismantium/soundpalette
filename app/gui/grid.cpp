@@ -18,7 +18,8 @@ constexpr float kCellPx = 132.0f; // glyph area at 100 % scale; §9's 120 px SVG
 constexpr float kLabelPx = 16.0f; // filename line beneath the glyph, at 100 % scale
 constexpr int kTailCircles = 5;   // §7 decay tail
 
-const char *kDimNames[7] = {"bright01", "warm01", "ton01", "atk01", "tail01", "loud01", "jitter01"};
+const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
+                            "tail01",   "loud01", "jitter01", "fluct01"};
 
 // Glyphs are authored at size_px up to 64 (radius) with spikes up to +45 %; scale so the
 // largest possible glyph plus its tail fits the cell.
@@ -103,8 +104,8 @@ void draw_tooltip(const sp::FileEntry &e) {
     if (e.error.empty()) {
         ImGui::Text("%.3f s  |  %.1f LUFS", e.duration_s, e.loudness.lufs_i);
         ImGui::Separator();
-        std::array<double, 7> dims = sp::mapping_dims(e.features, e.loudness);
-        for (int d = 0; d < 7; ++d) {
+        std::array<double, 8> dims = sp::mapping_dims(e.features, e.loudness, e.psycho);
+        for (int d = 0; d < 8; ++d) {
             ImGui::Text("%-9s", kDimNames[d]);
             ImGui::SameLine(7.0f * ImGui::GetFontSize());
             ImGui::ProgressBar(static_cast<float>(dims[static_cast<std::size_t>(d)]),

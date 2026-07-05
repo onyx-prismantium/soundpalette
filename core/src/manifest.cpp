@@ -83,10 +83,11 @@ FileEntry process_one(const std::filesystem::path &root, const std::filesystem::
 
     entry.loudness = measure_loudness(*buffer);
     entry.features = extract_features(*buffer, entry.loudness);
-    entry.visual = map_v1(entry.features, entry.loudness, path_seed(entry.path));
+    // visual needs the psycho block (v2 dims), so compute it first
     if (with_psycho) {
         entry.psycho = compute_psycho(*buffer, active_mapping_config());
     }
+    entry.visual = map_v2(entry.features, entry.loudness, entry.psycho, path_seed(entry.path));
 
     return entry;
 }
@@ -95,7 +96,8 @@ double round4(double x) {
     return std::round(x * 10000.0) / 10000.0;
 }
 
-const char *kDimNames[7] = {"bright01", "warm01", "ton01", "atk01", "tail01", "loud01", "jitter01"};
+const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
+                            "tail01",   "loud01", "jitter01", "fluct01"};
 
 } // namespace
 
@@ -104,6 +106,8 @@ Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &op
     manifest.root = root.generic_string();
     manifest.include_meta = options.include_meta;
     manifest.engine_version = kVersionString;
+    manifest.ref_spl = active_mapping_config().ref_spl;
+    manifest.mapping_version = active_mapping_config().mapping_version;
 
     std::vector<std::filesystem::path> targets;
     if (std::filesystem::exists(root) && std::filesystem::is_directory(root)) {
@@ -174,17 +178,17 @@ FileEntry analyze_file(const std::filesystem::path &root, const std::filesystem:
 
 void recompute_stats(Manifest &manifest) {
     // Stats over the seven lint dimensions, non-error + non-silent files only (§8).
-    std::array<std::vector<double>, 7> dim_values;
+    std::array<std::vector<double>, 8> dim_values;
     for (const FileEntry &e : manifest.files) {
         if (!e.error.empty() || e.loudness.silent) {
             continue;
         }
-        std::array<double, 7> dims = mapping_dims(e.features, e.loudness);
-        for (int d = 0; d < 7; ++d) {
+        std::array<double, 8> dims = mapping_dims(e.features, e.loudness, e.psycho);
+        for (int d = 0; d < 8; ++d) {
             dim_values[d].push_back(dims[d]);
         }
     }
-    for (int d = 0; d < 7; ++d) {
+    for (int d = 0; d < 8; ++d) {
         const std::vector<double> &v = dim_values[d];
         DimStats s;
         if (!v.empty()) {
@@ -213,6 +217,7 @@ std::string manifest_to_json(const Manifest &manifest) {
 
     json root_obj = json::object();
     root_obj["schema_version"] = manifest.schema_version;
+    root_obj["ref_spl"] = round4(manifest.ref_spl);
     root_obj["mapping_version"] = manifest.mapping_version;
     if (manifest.include_meta) {
         root_obj["engine_version"] = manifest.engine_version;
@@ -254,6 +259,17 @@ std::string manifest_to_json(const Manifest &manifest) {
         features["bands"] = std::move(bands);
         fe["features"] = std::move(features);
 
+        // Extension-3 §6: psychoacoustic block (schema 2), original-gain + ref_spl semantics.
+        json psycho = json::object();
+        psycho["ref_spl"] = round4(e.psycho.ref_spl);
+        psycho["sones_n5"] = round4(e.psycho.sones_n5);
+        psycho["sones_mean"] = round4(e.psycho.sones_mean);
+        psycho["sharpness_acum"] = round4(e.psycho.sharpness_acum);
+        psycho["roughness_asper"] = round4(e.psycho.roughness_asper);
+        psycho["fluctuation_vacil"] = round4(e.psycho.fluctuation_vacil);
+        psycho["experimental_fluctuation"] = e.psycho.experimental_fluctuation;
+        fe["psycho"] = std::move(psycho);
+
         json visual = json::object();
         visual["hue_deg"] = round4(e.visual.hue_deg);
         visual["sat"] = round4(e.visual.sat);
@@ -263,6 +279,7 @@ std::string manifest_to_json(const Manifest &manifest) {
         visual["spikes"] = e.visual.spikes;
         visual["jitter01"] = round4(e.visual.jitter01);
         visual["tail01"] = round4(e.visual.tail01);
+        visual["fluct01"] = round4(e.visual.fluct01);
         visual["seed"] = e.visual.seed;
         fe["visual"] = std::move(visual);
 
@@ -271,7 +288,7 @@ std::string manifest_to_json(const Manifest &manifest) {
     root_obj["files"] = std::move(files_arr);
 
     json stats_obj = json::object();
-    for (int d = 0; d < 7; ++d) {
+    for (int d = 0; d < 8; ++d) {
         const DimStats &s = manifest.stats[static_cast<std::size_t>(d)];
         json dim = json::object();
         dim["mean"] = round4(s.mean);

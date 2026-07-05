@@ -34,7 +34,7 @@ TEST_CASE("profile/from_manifest") {
     CHECK(p.created_from_type == "manifest");
     CHECK(p.created_from_file_count == 20);
     CHECK(p.categories.empty()); // single anonymous top-level profile
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         CHECK(p.stats[d].mean == doctest::Approx(m.stats[d].mean).epsilon(1e-12));
         CHECK(p.stats[d].std == doctest::Approx(m.stats[d].std).epsilon(1e-12));
         CHECK(p.cov[d][d] == doctest::Approx(m.stats[d].std * m.stats[d].std).epsilon(1e-9));
@@ -96,4 +96,17 @@ TEST_CASE("seam/fail_open") {
     CHECK(sp::capability("profile.create"));
     CHECK(sp::capability("export.clean_sheet"));
     CHECK(sp::capability("some.unknown.future.feature")); // fail-open (§6.3)
+}
+
+TEST_CASE("profile/version_mismatch_refusal") {
+    // Extension-3 §0: artifacts must match mapping_version AND ref_spl; refuse, never mix.
+    sp::Profile p;
+    p.mapping_version = 1;
+    CHECK_FALSE(sp::profile_compat_error(p).empty());
+    p.mapping_version = 2;
+    p.ref_spl = 80.0;
+    std::string err = sp::profile_compat_error(p);
+    CHECK(err.find("ref_spl") != std::string::npos);
+    p.ref_spl = 75.0;
+    CHECK(sp::profile_compat_error(p).empty());
 }

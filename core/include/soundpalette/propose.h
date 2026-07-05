@@ -27,7 +27,8 @@ struct SolverConfig {
 // wall clock. Iterates apply-in-memory -> re-analyze -> correct magnitudes (damped), at most
 // max_iter times. Offenses without a tier-one inverse go to result_unresolved.
 Recipe propose_recipe(const NativeAudio &audio, const Features &features, const Loudness &loudness,
-                      const std::array<DimStats, 7> &baseline_stats, double threshold,
-                      int max_iter = 3, const SolverConfig &config = SolverConfig{});
+                      const PsychoFeatures &psycho, const std::array<DimStats, 8> &baseline_stats,
+                      double threshold, int max_iter = 3,
+                      const SolverConfig &config = SolverConfig{});
 
 } // namespace sp

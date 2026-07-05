@@ -10,30 +10,32 @@
 
 namespace sp {
 
-// 7x7 covariance over the mapping dims, row-major (extension-2 §4.1). Diagonal == std² 1e-9.
-using Cov7 = std::array<std::array<double, 7>, 7>;
+// 8x8 covariance over the mapping dims, row-major (extension-2 §4.1 shape, extension-3 v2
+// dims). Diagonal == std².
+using Cov8 = std::array<std::array<double, 8>, 8>;
 
 struct CategoryProfile {
     std::string name;
     std::vector<std::string> match; // §4.2 glob patterns, first-match-wins across categories
     int file_count = 0;
-    std::array<DimStats, 7> stats{};
-    Cov7 cov{};
+    std::array<DimStats, 8> stats{};
+    Cov8 cov{};
 };
 
 // A palette profile: named, portable identity statistics (extension-2 §4). Top-level stats
 // and cov cover ALL contributing files; categories are optional refinements.
 struct Profile {
     int profile_version = 1;
-    int mapping_version = 1;
+    int mapping_version = 2;
+    double ref_spl = 75.0; // §4 convention the stats were computed under (extension-3 §0)
     std::string name;
     std::string description;
     double threshold = 2.5;
     std::string created_from_type = "folder"; // folder | manifest | selection
     std::string created_from_root;
     int created_from_file_count = 0;
-    std::array<DimStats, 7> stats{};
-    Cov7 cov{};
+    std::array<DimStats, 8> stats{};
+    Cov8 cov{};
     std::vector<CategoryProfile> categories;
 };
 
@@ -54,6 +56,11 @@ Profile profile_from_entries(
     const std::vector<FileEntry> &entries, const std::string &name, const std::string &description,
     double threshold,
     const std::vector<std::pair<std::string, std::vector<std::string>>> &category_specs);
+
+// Extension-3 §0 rule: artifacts must match the engine's mapping_version AND ref_spl;
+// returns a human-readable refusal (telling the user to rescan/regenerate) or empty when
+// compatible. Every comparison surface (lint, harmonize, GUI load) checks this first.
+std::string profile_compat_error(const Profile &profile);
 
 // Canonical JSON, 6-decimal floats (§4.1). Deterministic: same inputs -> identical bytes.
 std::string profile_to_json(const Profile &profile);

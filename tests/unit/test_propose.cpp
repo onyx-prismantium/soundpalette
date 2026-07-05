@@ -10,7 +10,7 @@
 namespace {
 
 // v1 fixture-set baseline stats, computed live (fast; ~30 files).
-std::array<sp::DimStats, 7> fixture_baseline() {
+std::array<sp::DimStats, 8> fixture_baseline() {
     sp::Manifest m = sp::scan_directory("tests/golden/fixtures", sp::ScanOptions{});
     REQUIRE(m.files.size() > 20);
     return m.stats;
@@ -24,11 +24,12 @@ TEST_CASE("propose/deterministic") {
     REQUIRE_MESSAGE(audio.has_value(), err);
     sp::Loudness loudness;
     sp::Features features;
-    sp::analyze_native(*audio, loudness, features);
+    sp::PsychoFeatures psycho;
+    sp::analyze_native(*audio, loudness, features, psycho);
     const auto stats = fixture_baseline();
 
-    sp::Recipe a = sp::propose_recipe(*audio, features, loudness, stats, 2.5);
-    sp::Recipe b = sp::propose_recipe(*audio, features, loudness, stats, 2.5);
+    sp::Recipe a = sp::propose_recipe(*audio, features, loudness, psycho, stats, 2.5);
+    sp::Recipe b = sp::propose_recipe(*audio, features, loudness, psycho, stats, 2.5);
     CHECK(sp::recipe_to_json(a) == sp::recipe_to_json(b)); // byte-identical, twice (§6.4: pure)
     CHECK(a.result_max_z_after < a.result_max_z_before);
 }
@@ -47,11 +48,17 @@ TEST_CASE("propose/unresolved") {
     sp::Loudness l;
     l.lufs_i = -25.0;
     l.silent = false;
+    sp::PsychoFeatures psy;
+    psy.ref_spl = 75.0;
+    psy.sones_n5 = 9.0;
+    psy.sharpness_acum = 1.5;
+    psy.roughness_asper = 0.1;
+    psy.fluctuation_vacil = 0.2;
 
     // Baseline centered exactly on this file's dims, except ton01 far away.
-    std::array<double, 7> dims = sp::mapping_dims(f, l);
-    std::array<sp::DimStats, 7> stats{};
-    for (std::size_t d = 0; d < 7; ++d) {
+    std::array<double, 8> dims = sp::mapping_dims(f, l, psy);
+    std::array<sp::DimStats, 8> stats{};
+    for (std::size_t d = 0; d < 8; ++d) {
         stats[d].mean = dims[d];
         stats[d].std = 0.1;
     }
@@ -61,7 +68,7 @@ TEST_CASE("propose/unresolved") {
     dummy.rate = 48000;
     dummy.channels.resize(1, std::vector<float>(1024, 0.1f));
 
-    sp::Recipe r = sp::propose_recipe(dummy, f, l, stats, 2.5);
+    sp::Recipe r = sp::propose_recipe(dummy, f, l, psy, stats, 2.5);
     CHECK(r.ops.empty());
     REQUIRE(r.result_unresolved.size() == 1);
     CHECK(r.result_unresolved[0] == "ton01");

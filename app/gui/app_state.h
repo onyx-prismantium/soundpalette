@@ -109,8 +109,8 @@ struct AppState {
     int proposal_for = -1; // manifest.files index the proposal belongs to
     sp::Recipe proposal;
     sp::Visual predicted_visual; // §6.5 predicted glyph from the solver's post-metrics
-    std::array<double, 7> proposal_dims_before{};
-    std::array<double, 7> proposal_dims_after{};
+    std::array<double, 8> proposal_dims_before{};
+    std::array<double, 8> proposal_dims_after{};
 
     bool smoke_mode = false; // suppresses NFD dialogs
     bool want_quit = false;  // set by File > Quit; main loop closes the window

@@ -14,8 +14,8 @@ namespace sp {
 
 namespace {
 
-constexpr const char *kDimNames[7] = {"bright01", "warm01", "ton01",   "atk01",
-                                      "tail01",   "loud01", "jitter01"};
+constexpr const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
+                                      "tail01",   "loud01", "jitter01", "fluct01"};
 
 double round6(double x) {
     return std::round(x * 1000000.0) / 1000000.0;
@@ -49,48 +49,48 @@ std::string glob_to_regex(std::string_view pattern) {
 
 // Stats + covariance over a set of dim vectors (population forms, matching the §8 manifest
 // stats block; diagonal of cov is exactly std² by construction).
-void compute_stats_cov(const std::vector<std::array<double, 7>> &dims,
-                       std::array<DimStats, 7> &stats, Cov7 &cov) {
+void compute_stats_cov(const std::vector<std::array<double, 8>> &dims,
+                       std::array<DimStats, 8> &stats, Cov8 &cov) {
     stats = {};
     cov = {};
     const std::size_t n = dims.size();
     if (n == 0) {
         return;
     }
-    std::array<double, 7> mean{};
+    std::array<double, 8> mean{};
     for (const auto &v : dims) {
-        for (std::size_t d = 0; d < 7; ++d) {
+        for (std::size_t d = 0; d < 8; ++d) {
             mean[d] += v[d];
         }
     }
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         mean[d] /= static_cast<double>(n);
     }
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         stats[d].mean = mean[d];
         stats[d].min = dims[0][d];
         stats[d].max = dims[0][d];
     }
     for (const auto &v : dims) {
-        for (std::size_t a = 0; a < 7; ++a) {
+        for (std::size_t a = 0; a < 8; ++a) {
             stats[a].min = std::min(stats[a].min, v[a]);
             stats[a].max = std::max(stats[a].max, v[a]);
-            for (std::size_t b = 0; b < 7; ++b) {
+            for (std::size_t b = 0; b < 8; ++b) {
                 cov[a][b] += (v[a] - mean[a]) * (v[b] - mean[b]);
             }
         }
     }
-    for (std::size_t a = 0; a < 7; ++a) {
-        for (std::size_t b = 0; b < 7; ++b) {
+    for (std::size_t a = 0; a < 8; ++a) {
+        for (std::size_t b = 0; b < 8; ++b) {
             cov[a][b] /= static_cast<double>(n);
         }
         stats[a].std = std::sqrt(cov[a][a]);
     }
 }
 
-nlohmann::ordered_json stats_to_json(const std::array<DimStats, 7> &stats) {
+nlohmann::ordered_json stats_to_json(const std::array<DimStats, 8> &stats) {
     nlohmann::ordered_json j;
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         j[kDimNames[d]] = {{"mean", round6(stats[d].mean)},
                            {"std", round6(stats[d].std)},
                            {"min", round6(stats[d].min)},
@@ -99,11 +99,11 @@ nlohmann::ordered_json stats_to_json(const std::array<DimStats, 7> &stats) {
     return j;
 }
 
-nlohmann::ordered_json cov_to_json(const Cov7 &cov) {
+nlohmann::ordered_json cov_to_json(const Cov8 &cov) {
     nlohmann::ordered_json rows = nlohmann::ordered_json::array();
-    for (std::size_t a = 0; a < 7; ++a) {
+    for (std::size_t a = 0; a < 8; ++a) {
         nlohmann::ordered_json row = nlohmann::ordered_json::array();
-        for (std::size_t b = 0; b < 7; ++b) {
+        for (std::size_t b = 0; b < 8; ++b) {
             row.push_back(round6(cov[a][b]));
         }
         rows.push_back(std::move(row));
@@ -111,8 +111,8 @@ nlohmann::ordered_json cov_to_json(const Cov7 &cov) {
     return rows;
 }
 
-bool stats_from_json(const nlohmann::json &j, std::array<DimStats, 7> &stats, std::string &err) {
-    for (std::size_t d = 0; d < 7; ++d) {
+bool stats_from_json(const nlohmann::json &j, std::array<DimStats, 8> &stats, std::string &err) {
+    for (std::size_t d = 0; d < 8; ++d) {
         if (!j.contains(kDimNames[d])) {
             err = std::string("stats missing ") + kDimNames[d];
             return false;
@@ -126,17 +126,17 @@ bool stats_from_json(const nlohmann::json &j, std::array<DimStats, 7> &stats, st
     return true;
 }
 
-bool cov_from_json(const nlohmann::json &j, Cov7 &cov, std::string &err) {
-    if (!j.is_array() || j.size() != 7) {
-        err = "cov must be a 7x7 array";
+bool cov_from_json(const nlohmann::json &j, Cov8 &cov, std::string &err) {
+    if (!j.is_array() || j.size() != 8) {
+        err = "cov must be an 8x8 array (mapping v1 profile? regenerate from a fresh scan)";
         return false;
     }
-    for (std::size_t a = 0; a < 7; ++a) {
-        if (!j[a].is_array() || j[a].size() != 7) {
-            err = "cov must be a 7x7 array";
+    for (std::size_t a = 0; a < 8; ++a) {
+        if (!j[a].is_array() || j[a].size() != 8) {
+            err = "cov must be an 8x8 array (mapping v1 profile? regenerate from a fresh scan)";
             return false;
         }
-        for (std::size_t b = 0; b < 7; ++b) {
+        for (std::size_t b = 0; b < 8; ++b) {
             cov[a][b] = j[a][b].get<double>();
         }
     }
@@ -146,8 +146,8 @@ bool cov_from_json(const nlohmann::json &j, Cov7 &cov, std::string &err) {
 // §4.1: diagonal must equal std² within 1e-9 in memory. Parsed files carry 6-decimal rounding
 // on cov and std independently (§4.1 serialization), so validation of serialized input allows
 // the corresponding worst-case rounding noise (~2*std*5e-7 + 5e-7) on top.
-bool validate_cov(const std::array<DimStats, 7> &stats, const Cov7 &cov, std::string &err) {
-    for (std::size_t d = 0; d < 7; ++d) {
+bool validate_cov(const std::array<DimStats, 8> &stats, const Cov8 &cov, std::string &err) {
+    for (std::size_t d = 0; d < 8; ++d) {
         const double tolerance = 1e-9 + 5e-7 + 2.0 * stats[d].std * 5e-7;
         if (std::fabs(cov[d][d] - stats[d].std * stats[d].std) > tolerance) {
             err = std::string("cov diagonal does not match std^2 for ") + kDimNames[d];
@@ -182,13 +182,15 @@ int resolve_category(const Profile &profile, std::string_view path) {
 
 Profile profile_from_manifest(const Manifest &manifest) {
     Profile p;
+    p.mapping_version = manifest.mapping_version;
+    p.ref_spl = manifest.ref_spl;
     p.name = "";
     p.created_from_type = "manifest";
     p.created_from_root = manifest.root;
     p.stats = manifest.stats;
     // The manifest stats block has no covariance; synthesize the diagonal so cov stays
     // schema-valid (off-diagonals unknown -> 0). Deviation only needs the per-dim stats.
-    for (std::size_t d = 0; d < 7; ++d) {
+    for (std::size_t d = 0; d < 8; ++d) {
         p.cov[d][d] = manifest.stats[d].std * manifest.stats[d].std;
     }
     int count = 0;
@@ -206,6 +208,8 @@ Profile profile_from_entries(
     double threshold,
     const std::vector<std::pair<std::string, std::vector<std::string>>> &category_specs) {
     Profile p;
+    p.mapping_version = active_mapping_config().mapping_version;
+    p.ref_spl = active_mapping_config().ref_spl;
     p.name = name;
     p.description = description;
     p.threshold = threshold;
@@ -217,13 +221,13 @@ Profile profile_from_entries(
         p.categories.push_back(std::move(cat));
     }
 
-    std::vector<std::array<double, 7>> all_dims;
-    std::vector<std::vector<std::array<double, 7>>> cat_dims(p.categories.size());
+    std::vector<std::array<double, 8>> all_dims;
+    std::vector<std::vector<std::array<double, 8>>> cat_dims(p.categories.size());
     for (const FileEntry &e : entries) {
         if (!e.error.empty() || e.loudness.silent) {
             continue; // §4.1: silent and error files never contribute
         }
-        std::array<double, 7> dims = mapping_dims(e.features, e.loudness);
+        std::array<double, 8> dims = mapping_dims(e.features, e.loudness, e.psycho);
         all_dims.push_back(dims);
         int cat = resolve_category(p, e.path);
         if (cat >= 0) {
@@ -245,6 +249,7 @@ std::string profile_to_json(const Profile &p) {
     json j;
     j["profile_version"] = p.profile_version;
     j["mapping_version"] = p.mapping_version;
+    j["ref_spl"] = round6(p.ref_spl);
     j["name"] = p.name;
     j["description"] = p.description;
     j["threshold"] = round6(p.threshold);
@@ -284,6 +289,7 @@ std::optional<Profile> profile_from_json(const std::string &text, std::string &e
             return std::nullopt;
         }
         p.mapping_version = j.value("mapping_version", 1);
+        p.ref_spl = j.value("ref_spl", 75.0);
         p.name = j.value("name", "");
         p.description = j.value("description", "");
         p.threshold = j.value("threshold", 2.5);
@@ -312,6 +318,24 @@ std::optional<Profile> profile_from_json(const std::string &text, std::string &e
         return std::nullopt;
     }
     return p;
+}
+
+std::string profile_compat_error(const Profile &profile) {
+    const MappingConfig &c = active_mapping_config();
+    if (profile.mapping_version != c.mapping_version) {
+        return "profile has mapping_version " + std::to_string(profile.mapping_version) +
+               " but the engine produces v" + std::to_string(c.mapping_version) +
+               "; regenerate it from a fresh scan";
+    }
+    if (std::fabs(profile.ref_spl - c.ref_spl) > 1e-6) {
+        char buf[128];
+        std::snprintf(buf, sizeof(buf),
+                      "profile was computed at ref_spl %.1f but the engine uses %.1f; "
+                      "rescan/regenerate at a matching ref_spl",
+                      profile.ref_spl, c.ref_spl);
+        return buf;
+    }
+    return "";
 }
 
 } // namespace sp

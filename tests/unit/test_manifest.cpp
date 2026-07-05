@@ -83,8 +83,9 @@ TEST_CASE("manifest/schema") {
          {"schema_version", "mapping_version", "root", "file_count", "files", "stats"}) {
         REQUIRE_MESSAGE(m.contains(key), key);
     }
-    CHECK(m.at("schema_version").get<int>() == 1);
-    CHECK(m.at("mapping_version").get<int>() == 1);
+    CHECK(m.at("schema_version").get<int>() == 2); // v2: psycho block per file
+    CHECK(m.at("ref_spl").get<double>() == doctest::Approx(75.0));
+    CHECK(m.at("mapping_version").get<int>() == 2);
     CHECK(m.at("file_count").get<std::size_t>() == m.at("files").size());
 
     for (const auto &fe : m.at("files")) {

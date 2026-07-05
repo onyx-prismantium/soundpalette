@@ -1,5 +1,30 @@
 {
-  "mapping_version": 1,
+  "mapping_version": 2,
+  "ref_spl": 75.0,
+  "loud01_v2": {
+    "sone_div": 6.0
+  },
+  "bright01_v2": {
+    "acum_lo": 0.6,
+    "acum_hi": 3.5
+  },
+  "jitter01_v2": {
+    "asper_lo": 0.02,
+    "asper_hi": 0.6
+  },
+  "fluct01": {
+    "vacil_lo": 0.02,
+    "vacil_hi": 1.0
+  },
+  "size_v2": {
+    "sone_base_px": 10.0,
+    "sone_scale_px": 11.0
+  },
+  "fluct_wave_amp": 0.18,
+  "jnd": {
+    "loud_ratio": 1.1,
+    "fraction": 0.1
+  },
   "bright01": {
     "lo_hz": 200.0,
     "hi_hz": 8000.0

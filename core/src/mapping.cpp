@@ -1,5 +1,7 @@
 #include "soundpalette/mapping.h"
 
+#include "soundpalette/psycho.h"
+
 #include <algorithm>
 #include <cmath>
 #include <mutex>
@@ -56,7 +58,9 @@ std::uint64_t path_seed(std::string_view relative_path) {
     return hash;
 }
 
-std::array<double, 7> mapping_dims(const Features &f, const Loudness &loudness) {
+std::array<double, 8> mapping_dims(const Features &f, const Loudness &loudness,
+                                   const PsychoFeatures &psycho) {
+    (void)loudness; // v2 loudness dims come from sones; the parameter stays for API symmetry
     // Copy the active config once so config changes are not observed mid-computation.
     MappingConfig c;
     {
@@ -64,20 +68,23 @@ std::array<double, 7> mapping_dims(const Features &f, const Loudness &loudness) 
         c = mutable_active_config();
     }
 
-    const double bright01 = log01(std::max(f.centroid_hz, 1e-9), c.bright_lo_hz, c.bright_hi_hz);
+    // v2 perceptual dims (extension-3 §6): loudness, brightness, grit, and the new
+    // fluctuation come from the psychoacoustic block; the validated timbre axes stay v1.
+    const double bright01 = lin01(psycho.sharpness_acum, c.bright_acum_lo, c.bright_acum_hi);
     const double warm01 = lin01(f.warmth, c.warm_lo, c.warm_hi);
     const double ton01 = 1.0 - lin01(f.flatness, 0.0, c.ton_flatness_hi);
-    const double loud01 = lin01(loudness.lufs_i, c.loud_lo_lufs, c.loud_hi_lufs);
+    const double loud01 =
+        std::clamp(std::sqrt(std::max(0.0, psycho.sones_n5)) / c.loud_sone_div, 0.0, 1.0);
     const double atk01 = 1.0 - log01(std::max(f.attack_s, 1e-9), c.atk_lo_s, c.atk_hi_s);
     const double tail01 = log01(std::max(f.tail_s, 1e-9), c.tail_lo_s, c.tail_hi_s);
-    const double flat01 = lin01(f.flatness, 0.0, c.flat_hi);
-    const double rough01 = std::clamp(f.roughness * c.rough_scale, 0.0, 1.0);
-    const double jitter01 = c.jitter_flat_weight * flat01 + c.jitter_rough_weight * rough01;
+    const double jitter01 = lin01(psycho.roughness_asper, c.jitter_asper_lo, c.jitter_asper_hi);
+    const double fluct01 = lin01(psycho.fluctuation_vacil, c.fluct_vacil_lo, c.fluct_vacil_hi);
 
-    return {bright01, warm01, ton01, atk01, tail01, loud01, jitter01};
+    return {bright01, warm01, ton01, atk01, tail01, loud01, jitter01, fluct01};
 }
 
-Visual map_v1(const Features &features, const Loudness &loudness, std::uint64_t seed) {
+Visual map_v2(const Features &features, const Loudness &loudness, const PsychoFeatures &psycho,
+              std::uint64_t seed) {
     MappingConfig c;
     {
         std::lock_guard<std::mutex> lock(active_config_mutex());
@@ -96,28 +103,34 @@ Visual map_v1(const Features &features, const Loudness &loudness, std::uint64_t 
         v.spikes = 0;
         v.jitter01 = 0.0;
         v.tail01 = 0.0;
+        v.fluct01 = 0.0;
         return v;
     }
 
-    std::array<double, 7> dims = mapping_dims(features, loudness);
+    std::array<double, 8> dims = mapping_dims(features, loudness, psycho);
     const double bright01 = dims[0];
     const double warm01 = dims[1];
     const double ton01 = dims[2];
     const double atk01 = dims[3];
     const double tail01 = dims[4];
-    const double loud01 = dims[5];
     const double jitter01 = dims[6];
+    const double fluct01 = dims[7];
 
     v.hue_deg = c.hue_base_deg - c.hue_warm_span_deg * warm01;
     v.sat = c.sat_base + c.sat_ton_span * ton01;
     v.light = c.light_base + c.light_bright_span * bright01;
-    v.size_px = c.size_base_px + c.size_loud_span_px * loud01;
+    // Perceptually honest size (extension-3 §6): area proportional to sones — double the
+    // sones, double the area.
+    v.size_px = std::clamp(c.size_sone_base_px +
+                               c.size_sone_scale_px * std::sqrt(std::max(0.0, psycho.sones_n5)),
+                           12.0, 72.0);
     v.spike01 = atk01;
     v.spikes = (atk01 > c.spike_threshold)
                    ? static_cast<int>(std::lround(c.spike_count_base + c.spike_count_span * atk01))
                    : 0;
     v.jitter01 = jitter01;
     v.tail01 = tail01;
+    v.fluct01 = fluct01;
 
     return v;
 }
@@ -126,6 +139,33 @@ std::string mapping_config_to_json(const MappingConfig &c) {
     using json = nlohmann::ordered_json;
     json root = json::object();
     root["mapping_version"] = c.mapping_version;
+    root["ref_spl"] = c.ref_spl;
+
+    // v2 perceptual dims (extension-3 §6).
+    json loud2 = json::object();
+    loud2["sone_div"] = c.loud_sone_div;
+    root["loud01_v2"] = std::move(loud2);
+    json bright2 = json::object();
+    bright2["acum_lo"] = c.bright_acum_lo;
+    bright2["acum_hi"] = c.bright_acum_hi;
+    root["bright01_v2"] = std::move(bright2);
+    json jitter2 = json::object();
+    jitter2["asper_lo"] = c.jitter_asper_lo;
+    jitter2["asper_hi"] = c.jitter_asper_hi;
+    root["jitter01_v2"] = std::move(jitter2);
+    json fluct2 = json::object();
+    fluct2["vacil_lo"] = c.fluct_vacil_lo;
+    fluct2["vacil_hi"] = c.fluct_vacil_hi;
+    root["fluct01"] = std::move(fluct2);
+    json size2 = json::object();
+    size2["sone_base_px"] = c.size_sone_base_px;
+    size2["sone_scale_px"] = c.size_sone_scale_px;
+    root["size_v2"] = std::move(size2);
+    root["fluct_wave_amp"] = c.fluct_wave_amp;
+    json jnd = json::object();
+    jnd["loud_ratio"] = c.jnd_loud_ratio;
+    jnd["fraction"] = c.jnd_fraction;
+    root["jnd"] = std::move(jnd);
 
     json bright = json::object();
     bright["lo_hz"] = c.bright_lo_hz;

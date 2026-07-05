@@ -8,6 +8,7 @@
 
 #include "soundpalette/audio.h"
 #include "soundpalette/features.h"
+#include "soundpalette/psycho.h"
 
 namespace sp {
 
@@ -75,7 +76,8 @@ void apply_chain(NativeAudio &audio, const std::vector<Op> &ops, ApplyReport &re
 
 // Runs the standard PLAN.md §6 analysis pipeline over in-memory audio (downmix -> 48 kHz ->
 // 30 s cap), so proposer iterations measure exactly what a scan of the written file would.
-void analyze_native(const NativeAudio &audio, Loudness &loudness, Features &features);
+void analyze_native(const NativeAudio &audio, Loudness &loudness, Features &features,
+                    PsychoFeatures &psycho);
 
 // SHA-256 of a file on disk (recipe provenance, extension §6.3).
 std::string file_sha256(const std::filesystem::path &path);

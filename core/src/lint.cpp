@@ -10,8 +10,8 @@ namespace sp {
 
 namespace {
 constexpr double kStdFloor = 0.02;
-constexpr const char *kDimNames[7] = {"bright01", "warm01", "ton01",   "atk01",
-                                      "tail01",   "loud01", "jitter01"};
+constexpr const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
+                                      "tail01",   "loud01", "jitter01", "fluct01"};
 } // namespace
 
 LintReport lint(const Manifest &baseline, const Manifest &candidate, double threshold) {
@@ -23,14 +23,14 @@ LintReport lint(const Manifest &baseline, const Manifest &candidate, double thre
         }
         ++report.considered_files;
 
-        std::array<double, 7> dims = mapping_dims(fe.features, fe.loudness);
+        std::array<double, 8> dims = mapping_dims(fe.features, fe.loudness, fe.psycho);
 
         double worst_z = 0.0;
         double worst_abs_z = -1.0;
         int worst_idx = 0;
         std::vector<std::string> offending;
 
-        for (int d = 0; d < 7; ++d) {
+        for (int d = 0; d < 8; ++d) {
             double std_floored =
                 std::max(baseline.stats[static_cast<std::size_t>(d)].std, kStdFloor);
             double z = (dims[static_cast<std::size_t>(d)] -

@@ -21,8 +21,8 @@ namespace spapp {
 
 namespace {
 
-constexpr const char *kDimNames[7] = {"bright01", "warm01", "ton01",   "atk01",
-                                      "tail01",   "loud01", "jitter01"};
+constexpr const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
+                                      "tail01",   "loud01", "jitter01", "fluct01"};
 constexpr const char *kAxisNames[9] = {"bright01", "warm01",   "ton01", "atk01", "tail01",
                                        "loud01",   "jitter01", "PCA 1", "PCA 2"};
 constexpr float kPi = 3.14159265f;
@@ -89,7 +89,7 @@ void draw_deviation_section(AppState &state, int file_index) {
     const float fs = ImGui::GetFontSize();
     const float bar_w = 11.0f * fs;
     const float bar_h = ImGui::GetTextLineHeight() * 0.8f;
-    for (int d = 0; d < 7; ++d) {
+    for (int d = 0; d < 8; ++d) {
         ImGui::Text("%-9s", kDimNames[d]);
         ImGui::SameLine(7.0f * fs);
         ImVec2 pos = ImGui::GetCursorScreenPos();
@@ -163,7 +163,7 @@ void draw_constellation(AppState &state) {
 
     // Point set: non-silent, non-error files, filtered to the selected category (§7.2).
     std::vector<int> plotted;
-    std::vector<std::array<double, 7>> plotted_dims;
+    std::vector<std::array<double, 8>> plotted_dims;
     for (int i = 0; i < static_cast<int>(files.size()); ++i) {
         const sp::FileEntry &e = files[static_cast<std::size_t>(i)];
         if (!e.error.empty() || e.loudness.silent) {
@@ -175,7 +175,7 @@ void draw_constellation(AppState &state) {
             }
         }
         plotted.push_back(i);
-        plotted_dims.push_back(sp::mapping_dims(e.features, e.loudness));
+        plotted_dims.push_back(sp::mapping_dims(e.features, e.loudness, e.psycho));
     }
 
     // PCA over the plotted set when a PCA axis is chosen (§7.2), with fallback.
@@ -191,11 +191,11 @@ void draw_constellation(AppState &state) {
             state.view_note = "PCA unavailable for this set; showing bright01/warm01";
         }
     }
-    auto project = [&](const std::array<double, 7> &dims, int axis) {
+    auto project = [&](const std::array<double, 8> &dims, int axis) {
         if (axis >= 7) {
-            const std::array<double, 7> &pc = axis == 7 ? pca.pc1 : pca.pc2;
+            const std::array<double, 8> &pc = axis == 7 ? pca.pc1 : pca.pc2;
             double v = 0.0;
-            for (std::size_t d = 0; d < 7; ++d) {
+            for (std::size_t d = 0; d < 8; ++d) {
                 v += (dims[d] - pca.mean[d]) * pc[d];
             }
             return v;
@@ -204,11 +204,11 @@ void draw_constellation(AppState &state) {
     };
 
     // Profile region stats for the selected category.
-    const std::array<sp::DimStats, 7> &region_stats =
+    const std::array<sp::DimStats, 8> &region_stats =
         state.constellation_category >= 0
             ? state.profile.categories[static_cast<std::size_t>(state.constellation_category)].stats
             : state.profile.stats;
-    const sp::Cov7 &region_cov =
+    const sp::Cov8 &region_cov =
         state.constellation_category >= 0
             ? state.profile.categories[static_cast<std::size_t>(state.constellation_category)].cov
             : state.profile.cov;

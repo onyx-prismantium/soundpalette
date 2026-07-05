@@ -58,7 +58,7 @@ import json, sys
 j = json.load(open(sys.argv[1]))
 assert len(j["files"]) == 17, f"expected 17 entries, got {len(j['files'])}"
 assert any(f["path"] == "combat/misplaced.wav" and f["band"] == "red" for f in j["files"])
-assert all("z" in f and len(f["z"]) == 7 for f in j["files"])
+assert all("z" in f and len(f["z"]) == 8 for f in j["files"])
 EOF
 
 echo "category_lint.sh: PASS"

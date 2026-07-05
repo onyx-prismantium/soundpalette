@@ -39,12 +39,13 @@ struct DimStats {
 enum class LintDim { kBright01 = 0, kWarm01, kTon01, kAtk01, kTail01, kLoud01, kJitter01, kCount };
 
 struct Manifest {
-    int schema_version = 1;
-    int mapping_version = 1;
+    int schema_version = 2; // v2: strict superset of v1 + per-file psycho block
+    int mapping_version = 2;
+    double ref_spl = 75.0; // §4 convention the psycho blocks were computed under
     std::string engine_version;
     std::string root;
     std::vector<FileEntry> files;
-    std::array<DimStats, 7> stats{}; // over non-error, non-silent files (§8)
+    std::array<DimStats, 8> stats{}; // over non-error, non-silent files (§8)
     bool include_meta = true;        // false => manifest_to_json omits engine_version (--no-meta)
 };
 

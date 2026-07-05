@@ -218,15 +218,19 @@ bool generate_perf_file(const std::filesystem::path &outdir, int i) {
 
 } // namespace
 
-// fixable_outlier.wav (extension §7): offends tier-one-fixable dims vs the darkset baseline.
+// fixable_outlier.wav (extension §7): offends tier-one-fixable dims vs the fixture baseline.
 bool generate_fixable_outlier(const std::filesystem::path &outdir) {
-    // Deviation from the extension's §7 recipe (HPF 3 kHz x2): that construction saturates
-    // bright01 (centroid 14.4 kHz > the 8 kHz mapping cap), which no clamped +-12 dB shelf can
-    // undo — see NOTES.md M9. A 6 kHz one-pole low-pass puts the centroid at ~6-7 kHz:
-    // genuinely off-palette bright (z ~ +2.6 vs the v1 fixture-set baseline) yet inside the
+    // Mapping v2 revision (extension-3; see NOTES.md): bright01 is now DIN 45692 sharpness,
+    // so the offense must live in the sharpness domain while staying spectrally compact
+    // enough that ton01 (flatness, a v1 dim) stays in-palette — broadband constructions leak
+    // an unresolvable ton01 offense — and wide enough to straddle the 4 kHz shelf corner (a
+    // shelf only moves sharpness when it can TILT the occupied spectrum). A wide band of noise
+    // around 4 kHz is sharp (acum well above the fixture family), tonal by flatness, and a -12
+    // dB-clamped high shelf can pull the sharpness back in: genuinely off-palette yet inside the
     // tier-one solver's reach.
     std::vector<float> buf = white_noise(kBaseSeed, seconds_to_frames(3.0), 1.0);
-    onepole_lowpass_inplace(buf, 6000.0);
+    biquad_bandpass_inplace(buf, 4000.0, 0.8);
+    biquad_bandpass_inplace(buf, 4000.0, 0.8);
     apply_exp_decay_inplace(buf, 0.3);
     peak_normalize_inplace(buf, 0.8);
     return write_wav_mono_f32(outdir / "fixable_outlier.wav", buf);
