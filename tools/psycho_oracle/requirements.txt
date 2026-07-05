@@ -1,0 +1,6 @@
+# Development-time psychoacoustic oracle (extension-3 §2). Never a runtime dependency.
+mosqito==1.2.1
+numpy==2.5.1
+scipy==1.18.0
+# MoSQITo 1.2.1 imports matplotlib at module load (roughness_ecma module); unused by us.
+matplotlib==3.11.0

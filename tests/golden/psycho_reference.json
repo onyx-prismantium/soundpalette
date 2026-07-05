@@ -1,0 +1,98 @@
+{
+  "_meta": {
+    "calibration_pa_per_fs": 1.588656,
+    "fluctuation_strength": "not provided by mosqito 1.2.1; definitional gates only (extension-3 \u00a75)",
+    "mosqito": "1.2.1",
+    "n5_definition": "95th percentile of the loudness_zwtv track",
+    "numpy": "2.5.1",
+    "ref_spl": 75.0,
+    "scipy": "1.18.0",
+    "tool": "tools/psycho_oracle/compute_reference.py"
+  },
+  "files": {
+    "am4_60db.wav": {
+      "loudness_zwst_sone": 4.075,
+      "loudness_zwtv_mean_sone": 3.2186,
+      "loudness_zwtv_n5_sone": 4.6686,
+      "roughness_dw_asper": 0.008,
+      "sharpness_din_acum": 1.0084
+    },
+    "am70_60db.wav": {
+      "loudness_zwst_sone": 4.216,
+      "loudness_zwtv_mean_sone": 3.7859,
+      "loudness_zwtv_n5_sone": 4.2413,
+      "roughness_dw_asper": 1.0191,
+      "sharpness_din_acum": 0.9983
+    },
+    "bright_outlier.wav": {
+      "loudness_zwst_sone": 14.162,
+      "loudness_zwtv_mean_sone": 6.5232,
+      "loudness_zwtv_n5_sone": 15.1285,
+      "roughness_dw_asper": 0.0024,
+      "sharpness_din_acum": 3.6799
+    },
+    "click.wav": {
+      "loudness_zwst_sone": 17.26,
+      "loudness_zwtv_mean_sone": 2.8498,
+      "loudness_zwtv_n5_sone": 10.0599,
+      "roughness_dw_asper": 0.9191,
+      "sharpness_din_acum": 1.4498
+    },
+    "darkset/dark_00.wav": {
+      "loudness_zwst_sone": 12.391,
+      "loudness_zwtv_mean_sone": 4.8528,
+      "loudness_zwtv_n5_sone": 18.3983,
+      "roughness_dw_asper": 0.017,
+      "sharpness_din_acum": 0.8703
+    },
+    "decay_t60.wav": {
+      "loudness_zwst_sone": 17.2,
+      "loudness_zwtv_mean_sone": 2.9436,
+      "loudness_zwtv_n5_sone": 21.7979,
+      "roughness_dw_asper": 0.0002,
+      "sharpness_din_acum": 1.0791
+    },
+    "nbnoise1k_60db.wav": {
+      "loudness_zwst_sone": 5.011,
+      "loudness_zwtv_mean_sone": 4.7161,
+      "loudness_zwtv_n5_sone": 5.3816,
+      "roughness_dw_asper": 0.0581,
+      "sharpness_din_acum": 1.0681
+    },
+    "noise_white_1s.wav": {
+      "loudness_zwst_sone": 39.7,
+      "loudness_zwtv_mean_sone": 37.5267,
+      "loudness_zwtv_n5_sone": 39.9291,
+      "roughness_dw_asper": 0.043,
+      "sharpness_din_acum": 2.618
+    },
+    "sine997_cal.wav": {
+      "loudness_zwst_sone": 11.798,
+      "loudness_zwtv_mean_sone": 11.2468,
+      "loudness_zwtv_n5_sone": 11.4554,
+      "roughness_dw_asper": 0.0013,
+      "sharpness_din_acum": 1.0264
+    },
+    "tone1k_40db.wav": {
+      "loudness_zwst_sone": 1.006,
+      "loudness_zwtv_mean_sone": 0.9792,
+      "loudness_zwtv_n5_sone": 1.0,
+      "roughness_dw_asper": 0.0002,
+      "sharpness_din_acum": 1.0169
+    },
+    "tone1k_50db.wav": {
+      "loudness_zwst_sone": 2.025,
+      "loudness_zwtv_mean_sone": 1.9704,
+      "loudness_zwtv_n5_sone": 2.01,
+      "roughness_dw_asper": 0.0006,
+      "sharpness_din_acum": 1.011
+    },
+    "tone1k_60db.wav": {
+      "loudness_zwst_sone": 4.067,
+      "loudness_zwtv_mean_sone": 3.9439,
+      "loudness_zwtv_n5_sone": 4.019,
+      "roughness_dw_asper": 0.0006,
+      "sharpness_din_acum": 1.0093
+    }
+  }
+}

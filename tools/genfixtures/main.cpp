@@ -116,6 +116,86 @@ std::size_t seconds_to_frames(double seconds) {
     return static_cast<std::size_t>(std::llround(seconds * kSampleRate));
 }
 
+// Exact-RMS calibration for the psycho fixtures (extension-3 §8): target dB SPL S under the
+// §4 convention (ref_spl 75) means RMS dBFS = S - 98.
+void rms_normalize_inplace(std::vector<float> &buf, double target_rms_dbfs) {
+    double sumsq = 0.0;
+    for (float x : buf) {
+        sumsq += static_cast<double>(x) * static_cast<double>(x);
+    }
+    const double rms = std::sqrt(sumsq / static_cast<double>(buf.size()));
+    if (rms <= 0.0) {
+        return;
+    }
+    const double target = std::pow(10.0, target_rms_dbfs / 20.0);
+    const float scale = static_cast<float>(target / rms);
+    for (float &x : buf) {
+        x *= scale;
+    }
+}
+
+// RBJ constant-0dB-peak bandpass biquad, direct form 1; two cascaded = the §8 4th-order.
+void biquad_bandpass_inplace(std::vector<float> &buf, double f0, double q) {
+    const double w0 = 2.0 * kPi * f0 / kSampleRate;
+    const double alpha = std::sin(w0) / (2.0 * q);
+    const double b0 = alpha, b1 = 0.0, b2 = -alpha;
+    const double a0 = 1.0 + alpha, a1 = -2.0 * std::cos(w0), a2 = 1.0 - alpha;
+    double x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0;
+    for (float &x : buf) {
+        const double x0 = x;
+        const double y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
+        x2 = x1;
+        x1 = x0;
+        y2 = y1;
+        y1 = y0;
+        x = static_cast<float>(y0);
+    }
+}
+
+// Calibrated psychoacoustic fixtures (extension-3 §8): definitional reference signals for
+// 1 sone / 1 acum / 1 asper / 1 vacil plus level steps, at exact RMS under ref_spl = 75.
+bool generate_psycho(const std::filesystem::path &outdir) {
+    bool ok = true;
+
+    // tone1k_{40,50,60}db.wav: 1 kHz sine, RMS -58/-48/-38 dBFS, 2 s.
+    const double levels[3][2] = {{40.0, -58.0}, {50.0, -48.0}, {60.0, -38.0}};
+    for (const auto &lv : levels) {
+        std::vector<float> buf = sine(1000.0, 1.0, seconds_to_frames(2.0));
+        rms_normalize_inplace(buf, lv[1]);
+        char name[32];
+        std::snprintf(name, sizeof(name), "tone1k_%.0fdb.wav", lv[0]);
+        ok &= write_wav_mono_f32(outdir / name, buf);
+    }
+
+    // am70_60db.wav / am4_60db.wav: 1 kHz carrier, 100 % AM (m = 1), RMS -38 dBFS.
+    const double am_specs[2][2] = {{70.0, 2.0}, {4.0, 4.0}}; // {mod Hz, seconds}
+    for (const auto &am : am_specs) {
+        const std::size_t n = seconds_to_frames(am[1]);
+        std::vector<float> buf(n);
+        for (std::size_t i = 0; i < n; ++i) {
+            const double t = static_cast<double>(i) / kSampleRate;
+            buf[i] = static_cast<float>((1.0 + std::cos(2.0 * kPi * am[0] * t)) *
+                                        std::sin(2.0 * kPi * 1000.0 * t));
+        }
+        rms_normalize_inplace(buf, -38.0);
+        char name[32];
+        std::snprintf(name, sizeof(name), "am%.0f_60db.wav", am[0]);
+        ok &= write_wav_mono_f32(outdir / name, buf);
+    }
+
+    // nbnoise1k_60db.wav: white noise band-passed 920-1080 Hz (one critical band at 1 kHz;
+    // f0 = 1 kHz, Q = 1000/160, two biquads = 4th order), RMS -38 dBFS, 2 s.
+    {
+        std::vector<float> buf = white_noise(kBaseSeed + 300, seconds_to_frames(2.0), 1.0);
+        biquad_bandpass_inplace(buf, 1000.0, 1000.0 / 160.0);
+        biquad_bandpass_inplace(buf, 1000.0, 1000.0 / 160.0);
+        rms_normalize_inplace(buf, -38.0);
+        ok &= write_wav_mono_f32(outdir / "nbnoise1k_60db.wav", buf);
+    }
+
+    return ok;
+}
+
 bool generate_dark_file(const std::filesystem::path &outdir, int i) {
     const std::size_t n = seconds_to_frames(1.5);
     std::vector<float> buf = white_noise(kBaseSeed + static_cast<std::uint64_t>(i), n, 1.0);
@@ -189,18 +269,22 @@ int main(int argc, char **argv) {
     if (argc < 2) {
         std::fprintf(
             stderr,
-            "usage: genfixtures <outdir> [--perf200] [--extra <dir>] [--profile-set <dir>]\n");
+            "usage: genfixtures <outdir> [--perf200] [--extra <dir>] [--profile-set <dir>] "
+            "[--psycho <dir>]\n");
         return 2;
     }
     std::filesystem::path outdir = argv[1];
     bool perf200 = false;
     std::string extra_dir;
     std::string profile_set_dir;
+    std::string psycho_dir;
     for (int i = 2; i < argc; ++i) {
         if (std::string(argv[i]) == "--extra") {
             extra_dir = i + 1 < argc ? argv[++i] : "fixtures_m9";
         } else if (std::string(argv[i]) == "--profile-set") {
             profile_set_dir = i + 1 < argc ? argv[++i] : "fixtures_m10";
+        } else if (std::string(argv[i]) == "--psycho") {
+            psycho_dir = i + 1 < argc ? argv[++i] : "fixtures_psycho";
         } else if (std::string(argv[i]) == "--perf200") {
             perf200 = true;
         }
@@ -278,6 +362,12 @@ int main(int argc, char **argv) {
         std::filesystem::path extra(extra_dir);
         std::filesystem::create_directories(extra, ec);
         ok &= generate_fixable_outlier(extra);
+    }
+
+    if (!psycho_dir.empty()) {
+        std::filesystem::path pdir(psycho_dir);
+        std::filesystem::create_directories(pdir, ec);
+        ok &= generate_psycho(pdir);
     }
 
     if (!ok) {

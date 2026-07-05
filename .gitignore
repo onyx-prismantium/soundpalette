@@ -17,3 +17,7 @@ mcp/dist-test/
 # Generated M9 fixtures (extension §7); sibling of the v1 set so goldens stay untouched
 /fixtures_m9/
 /fixtures_m10/
+
+# Development-time psychoacoustic oracle env (extension-3 §2); never a runtime dependency
+.venv-psycho/
+/fixtures_psycho/

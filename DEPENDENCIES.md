@@ -31,3 +31,14 @@ verification trail).
 | @resvg/resvg-js | 2.6.2 | MPL-2.0 | Rasterize the SVG sheet to PNG for MCP image results |
 | typescript | 5.9.3 (dev) | Apache-2.0 | Build mcp/src -> mcp/dist |
 | @types/node | 20.19.9 (dev) | MIT | Type definitions for the Node 20 baseline |
+
+## Development-time oracles (extension-3 §2; never runtime or user-facing dependencies)
+
+| Package | Pin | License | Purpose |
+|---|---|---|---|
+| MoSQITo | 1.2.1 (pip) | Apache-2.0 | Psychoacoustic reference values (ISO 532-1 loudness, DIN 45692 sharpness, Daniel & Weber roughness) for `tests/golden/psycho_reference.json`; numbers only, no code ported |
+| numpy | 2.5.1 (pip) | BSD-3-Clause | Oracle script array math |
+| scipy | 1.18.0 (pip) | BSD-3-Clause | Oracle script WAV loading (`scipy.io.wavfile`) |
+| matplotlib | 3.11.0 (pip) | PSF-based (matplotlib license) | Transitive import required by MoSQITo 1.2.1 at module load; unused by the oracle script itself |
+
+Environment: `python3 -m venv .venv-psycho && . .venv-psycho/bin/activate && pip install "mosqito==1.2.1" scipy numpy matplotlib` (git-ignored). MoSQITo 1.2.1 does not export fluctuation strength; the §5 definitional gates stand alone for that metric (recorded in NOTES.md).
