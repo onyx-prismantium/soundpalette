@@ -1193,6 +1193,10 @@ int cmd_export_svg(const std::vector<std::string> &args) {
             fe.visual.spikes = vj.value("spikes", 0);
             fe.visual.jitter01 = vj.value("jitter01", 0.0);
             fe.visual.tail01 = vj.value("tail01", 0.0);
+            fe.visual.fluct01 = vj.value("fluct01", 0.0);
+            fe.visual.loud01 = vj.value("loud01", 0.0);
+            fe.visual.sharp01 = vj.value("sharp01", 0.0);
+            fe.visual.silent = vj.value("silent", false);
             fe.visual.seed = vj.value("seed", static_cast<std::uint64_t>(0));
         }
         manifest.files.push_back(std::move(fe));

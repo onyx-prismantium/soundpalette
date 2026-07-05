@@ -16,11 +16,21 @@
     "vacil_lo": 0.02,
     "vacil_hi": 1.0
   },
-  "size_v2": {
-    "sone_base_px": 10.0,
-    "sone_scale_px": 11.0
+  "blob": {
+    "size_px": 26.0,
+    "light": 55.0
   },
-  "fluct_wave_amp": 0.18,
+  "line": {
+    "width_per_sone_px": 0.22,
+    "width_min_px": 1.0,
+    "width_max_px": 14.0,
+    "amp_min_px": 1.5,
+    "amp_max_px": 8.0,
+    "cycles_min": 1.5,
+    "cycles_max": 9.0,
+    "sharp_hue_lo_deg": 220.0,
+    "sharp_hue_hi_deg": 0.0
+  },
   "jnd": {
     "loud_ratio": 1.1,
     "fraction": 0.1

@@ -49,13 +49,16 @@
       "visual": {
         "hue_deg": 220.0,
         "sat": 44.6159,
-        "light": 78.0,
-        "size_px": 49.6556,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.733,
         "spikes": 11,
         "jitter01": 0.0597,
         "tail01": 0.4771,
         "fluct01": 0.8456,
+        "loud01": 0.6008,
+        "sharp01": 1.0,
+        "silent": false,
         "seed": 9004422993170285738
       }
     },
@@ -103,13 +106,16 @@
       "visual": {
         "hue_deg": 220.0,
         "sat": 84.8789,
-        "light": 38.1716,
-        "size_px": 46.2372,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.7345,
         "spikes": 11,
         "jitter01": 0.0557,
         "tail01": 0.3536,
         "fluct01": 0.9336,
+        "loud01": 0.549,
+        "sharp01": 0.2034,
+        "silent": false,
         "seed": 10810168846404138579
       }
     },
@@ -157,13 +163,16 @@
       "visual": {
         "hue_deg": 32.9419,
         "sat": 84.9757,
-        "light": 32.6899,
-        "size_px": 55.0322,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.4791,
         "spikes": 9,
         "jitter01": 0.9003,
         "tail01": 0.7288,
         "fluct01": 0.8178,
+        "loud01": 0.6823,
+        "sharp01": 0.0938,
+        "silent": false,
         "seed": 15589315446761457141
       }
     },
@@ -211,13 +220,16 @@
       "visual": {
         "hue_deg": 34.1404,
         "sat": 84.9741,
-        "light": 33.239,
-        "size_px": 59.1116,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.4809,
         "spikes": 9,
         "jitter01": 1.0,
         "tail01": 0.7829,
         "fluct01": 0.9071,
+        "loud01": 0.7441,
+        "sharp01": 0.1048,
+        "silent": false,
         "seed": 4717451182026746050
       }
     },
@@ -265,13 +277,16 @@
       "visual": {
         "hue_deg": 25.5894,
         "sat": 84.9766,
-        "light": 32.8097,
-        "size_px": 57.5891,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.3858,
         "spikes": 8,
         "jitter01": 1.0,
         "tail01": 0.7914,
         "fluct01": 0.7996,
+        "loud01": 0.721,
+        "sharp01": 0.0962,
+        "silent": false,
         "seed": 6629637249428411627
       }
     },
@@ -319,13 +334,16 @@
       "visual": {
         "hue_deg": 36.1205,
         "sat": 84.9758,
-        "light": 32.8921,
-        "size_px": 53.0572,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.3532,
         "spikes": 8,
         "jitter01": 1.0,
         "tail01": 0.818,
         "fluct01": 0.7336,
+        "loud01": 0.6524,
+        "sharp01": 0.0978,
+        "silent": false,
         "seed": 2000320413893266424
       }
     },
@@ -373,13 +391,16 @@
       "visual": {
         "hue_deg": 30.484,
         "sat": 84.9755,
-        "light": 32.6853,
-        "size_px": 57.1935,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5425,
         "spikes": 9,
         "jitter01": 1.0,
         "tail01": 0.825,
         "fluct01": 0.6423,
+        "loud01": 0.7151,
+        "sharp01": 0.0937,
+        "silent": false,
         "seed": 3912488889108880625
       }
     },
@@ -427,13 +448,16 @@
       "visual": {
         "hue_deg": 25.307,
         "sat": 84.9746,
-        "light": 32.7747,
-        "size_px": 56.1536,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.876,
         "spikes": 13,
         "jitter01": 0.9468,
         "tail01": 0.8295,
         "fluct01": 0.6256,
+        "loud01": 0.6993,
+        "sharp01": 0.0955,
+        "silent": false,
         "seed": 4636668951778665038
       }
     },
@@ -481,13 +505,16 @@
       "visual": {
         "hue_deg": 27.4566,
         "sat": 84.9767,
-        "light": 32.8796,
-        "size_px": 58.0339,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.3003,
         "spikes": 0,
         "jitter01": 1.0,
         "tail01": 0.823,
         "fluct01": 0.6071,
+        "loud01": 0.7278,
+        "sharp01": 0.0976,
+        "silent": false,
         "seed": 10149344466109621399
       }
     },
@@ -535,13 +562,16 @@
       "visual": {
         "hue_deg": 28.6533,
         "sat": 84.9741,
-        "light": 33.1851,
-        "size_px": 58.2634,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.4895,
         "spikes": 9,
         "jitter01": 1.0,
         "tail01": 0.8235,
         "fluct01": 0.5426,
+        "loud01": 0.7313,
+        "sharp01": 0.1037,
+        "silent": false,
         "seed": 13939914076140674516
       }
     },
@@ -589,13 +619,16 @@
       "visual": {
         "hue_deg": 28.8239,
         "sat": 84.9729,
-        "light": 33.2615,
-        "size_px": 58.8152,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.6351,
         "spikes": 10,
         "jitter01": 0.8944,
         "tail01": 0.8284,
         "fluct01": 0.5096,
+        "loud01": 0.7396,
+        "sharp01": 0.1052,
+        "silent": false,
         "seed": 9719303456633751309
       }
     },
@@ -643,13 +676,16 @@
       "visual": {
         "hue_deg": 28.0054,
         "sat": 84.9738,
-        "light": 33.0732,
-        "size_px": 59.349,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.2303,
         "spikes": 0,
         "jitter01": 0.8939,
         "tail01": 0.8213,
         "fluct01": 0.4687,
+        "loud01": 0.7477,
+        "sharp01": 0.1015,
+        "silent": false,
         "seed": 11222765715821143514
       }
     },
@@ -697,13 +733,16 @@
       "visual": {
         "hue_deg": 32.9574,
         "sat": 84.9751,
-        "light": 32.9196,
-        "size_px": 57.2849,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.3221,
         "spikes": 0,
         "jitter01": 0.9888,
         "tail01": 0.8239,
         "fluct01": 0.482,
+        "loud01": 0.7164,
+        "sharp01": 0.0984,
+        "silent": false,
         "seed": 10490086466931009736
       }
     },
@@ -751,13 +790,16 @@
       "visual": {
         "hue_deg": 23.4431,
         "sat": 84.9749,
-        "light": 33.1047,
-        "size_px": 57.2248,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5402,
         "spikes": 9,
         "jitter01": 0.8737,
         "tail01": 0.821,
         "fluct01": 0.3957,
+        "loud01": 0.7155,
+        "sharp01": 0.1021,
+        "silent": false,
         "seed": 8986624207743617531
       }
     },
@@ -805,13 +847,16 @@
       "visual": {
         "hue_deg": 29.5521,
         "sat": 84.9752,
-        "light": 33.1389,
-        "size_px": 57.9992,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5965,
         "spikes": 10,
         "jitter01": 0.7092,
         "tail01": 0.8211,
         "fluct01": 0.3433,
+        "loud01": 0.7273,
+        "sharp01": 0.1028,
+        "silent": false,
         "seed": 994862399447161490
       }
     },
@@ -859,13 +904,16 @@
       "visual": {
         "hue_deg": 32.7697,
         "sat": 84.9762,
-        "light": 33.329,
-        "size_px": 60.2133,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.3461,
         "spikes": 0,
         "jitter01": 0.8031,
         "tail01": 0.8249,
         "fluct01": 0.3688,
+        "loud01": 0.7608,
+        "sharp01": 0.1066,
+        "silent": false,
         "seed": 17938144213969320901
       }
     },
@@ -913,13 +961,16 @@
       "visual": {
         "hue_deg": 23.2609,
         "sat": 84.9735,
-        "light": 33.367,
-        "size_px": 59.5961,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5507,
         "spikes": 10,
         "jitter01": 0.7677,
         "tail01": 0.8279,
         "fluct01": 0.3438,
+        "loud01": 0.7515,
+        "sharp01": 0.1073,
+        "silent": false,
         "seed": 4084546198838552548
       }
     },
@@ -967,13 +1018,16 @@
       "visual": {
         "hue_deg": 37.1843,
         "sat": 84.9736,
-        "light": 33.3565,
-        "size_px": 60.1832,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.4664,
         "spikes": 9,
         "jitter01": 0.7399,
         "tail01": 0.8271,
         "fluct01": 0.3079,
+        "loud01": 0.7604,
+        "sharp01": 0.1071,
+        "silent": false,
         "seed": 131286375479546023
       }
     },
@@ -1021,13 +1075,16 @@
       "visual": {
         "hue_deg": 24.9849,
         "sat": 84.9739,
-        "light": 33.3144,
-        "size_px": 59.4765,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.298,
         "spikes": 0,
         "jitter01": 0.6809,
         "tail01": 0.8235,
         "fluct01": 0.2965,
+        "loud01": 0.7496,
+        "sharp01": 0.1063,
+        "silent": false,
         "seed": 6801694559158083550
       }
     },
@@ -1075,13 +1132,16 @@
       "visual": {
         "hue_deg": 31.9056,
         "sat": 84.9741,
-        "light": 33.4573,
-        "size_px": 61.4061,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.1189,
         "spikes": 0,
         "jitter01": 0.6449,
         "tail01": 0.8034,
         "fluct01": 0.2603,
+        "loud01": 0.7789,
+        "sharp01": 0.1091,
+        "silent": false,
         "seed": 6077795971465121153
       }
     },
@@ -1129,13 +1189,16 @@
       "visual": {
         "hue_deg": 43.6118,
         "sat": 84.9748,
-        "light": 33.5763,
-        "size_px": 61.6142,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.4538,
         "spikes": 9,
         "jitter01": 0.6162,
         "tail01": 0.8268,
         "fluct01": 0.2408,
+        "loud01": 0.782,
+        "sharp01": 0.1115,
+        "silent": false,
         "seed": 13920818077884693600
       }
     },
@@ -1183,13 +1246,16 @@
       "visual": {
         "hue_deg": 27.4454,
         "sat": 84.9751,
-        "light": 33.4299,
-        "size_px": 59.5808,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.4043,
         "spikes": 8,
         "jitter01": 0.7572,
         "tail01": 0.8259,
         "fluct01": 0.2912,
+        "loud01": 0.7512,
+        "sharp01": 0.1086,
+        "silent": false,
         "seed": 12417355818697301395
       }
     },
@@ -1237,13 +1303,16 @@
       "visual": {
         "hue_deg": 220.0,
         "sat": 35.1271,
-        "light": 36.0961,
-        "size_px": 61.8698,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.6958,
         "spikes": 11,
         "jitter01": 0.0,
         "tail01": 0.5648,
         "fluct01": 0.6336,
+        "loud01": 0.7859,
+        "sharp01": 0.1619,
+        "silent": false,
         "seed": 12052561739471064284
       }
     },
@@ -1291,13 +1360,16 @@
       "visual": {
         "hue_deg": 220.0,
         "sat": 25.0,
-        "light": 63.8844,
-        "size_px": 72.0,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5015,
         "spikes": 9,
         "jitter01": 0.0,
         "tail01": 0.6494,
         "fluct01": 0.0,
+        "loud01": 1.0,
+        "sharp01": 0.7177,
+        "silent": false,
         "seed": 12358755550830429780
       }
     },
@@ -1345,13 +1417,16 @@
       "visual": {
         "hue_deg": 20.0,
         "sat": 85.0,
-        "light": 28.7159,
-        "size_px": 67.0659,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5953,
         "spikes": 10,
         "jitter01": 0.0,
         "tail01": 0.6779,
         "fluct01": 0.0579,
+        "loud01": 0.8646,
+        "sharp01": 0.0143,
+        "silent": false,
         "seed": 1615813384497296503
       }
     },
@@ -1399,13 +1474,16 @@
       "visual": {
         "hue_deg": 20.0,
         "sat": 85.0,
-        "light": 28.6988,
-        "size_px": 66.5422,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5953,
         "spikes": 10,
         "jitter01": 0.0,
         "tail01": 0.6615,
         "fluct01": 0.029,
+        "loud01": 0.8567,
+        "sharp01": 0.014,
+        "silent": false,
         "seed": 3743502299813690093
       }
     },
@@ -1453,13 +1531,16 @@
       "visual": {
         "hue_deg": 20.0,
         "sat": 85.0,
-        "light": 28.7179,
-        "size_px": 67.2208,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5944,
         "spikes": 10,
         "jitter01": 0.0114,
         "tail01": 0.6762,
         "fluct01": 0.1334,
+        "loud01": 0.867,
+        "sharp01": 0.0144,
+        "silent": false,
         "seed": 4826316744142162272
       }
     },
@@ -1507,13 +1588,16 @@
       "visual": {
         "hue_deg": 20.0,
         "sat": 85.0,
-        "light": 28.7159,
-        "size_px": 67.0659,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.5953,
         "spikes": 10,
         "jitter01": 0.0,
         "tail01": 0.6497,
         "fluct01": 0.0579,
+        "loud01": 0.8646,
+        "sharp01": 0.0143,
+        "silent": false,
         "seed": 8413795584716702285
       }
     },
@@ -1561,13 +1645,16 @@
       "visual": {
         "hue_deg": 220.0,
         "sat": 85.0,
-        "light": 35.6549,
-        "size_px": 47.3582,
+        "light": 55.0,
+        "size_px": 26.0,
         "spike01": 0.6004,
         "spikes": 10,
         "jitter01": 0.0,
         "tail01": 0.8463,
         "fluct01": 0.0,
+        "loud01": 0.566,
+        "sharp01": 0.1531,
+        "silent": false,
         "seed": 13226531566593821812
       }
     }

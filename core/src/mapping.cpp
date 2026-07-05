@@ -95,6 +95,7 @@ Visual map_v2(const Features &features, const Loudness &loudness, const PsychoFe
     v.seed = seed;
 
     if (loudness.silent) {
+        v.silent = true;
         v.hue_deg = c.silent_hue_deg;
         v.sat = c.silent_sat;
         v.light = c.silent_light;
@@ -104,6 +105,8 @@ Visual map_v2(const Features &features, const Loudness &loudness, const PsychoFe
         v.jitter01 = 0.0;
         v.tail01 = 0.0;
         v.fluct01 = 0.0;
+        v.loud01 = 0.0;
+        v.sharp01 = 0.0;
         return v;
     }
 
@@ -113,17 +116,19 @@ Visual map_v2(const Features &features, const Loudness &loudness, const PsychoFe
     const double ton01 = dims[2];
     const double atk01 = dims[3];
     const double tail01 = dims[4];
+    const double loud01 = dims[5];
     const double jitter01 = dims[6];
     const double fluct01 = dims[7];
 
+    // Blob (upper half): the analytic story only. Size and lightness are fixed — loudness
+    // and sharpness moved into the psycho line.
     v.hue_deg = c.hue_base_deg - c.hue_warm_span_deg * warm01;
     v.sat = c.sat_base + c.sat_ton_span * ton01;
-    v.light = c.light_base + c.light_bright_span * bright01;
-    // Perceptually honest size (extension-3 §6): area proportional to sones — double the
-    // sones, double the area.
-    v.size_px = std::clamp(c.size_sone_base_px +
-                               c.size_sone_scale_px * std::sqrt(std::max(0.0, psycho.sones_n5)),
-                           12.0, 72.0);
+    v.light = c.blob_light;
+    v.size_px = c.blob_size_px;
+    // Line (lower half): perceptual dims.
+    v.loud01 = loud01;
+    v.sharp01 = bright01;
     v.spike01 = atk01;
     v.spikes = (atk01 > c.spike_threshold)
                    ? static_cast<int>(std::lround(c.spike_count_base + c.spike_count_span * atk01))
@@ -157,11 +162,21 @@ std::string mapping_config_to_json(const MappingConfig &c) {
     fluct2["vacil_lo"] = c.fluct_vacil_lo;
     fluct2["vacil_hi"] = c.fluct_vacil_hi;
     root["fluct01"] = std::move(fluct2);
-    json size2 = json::object();
-    size2["sone_base_px"] = c.size_sone_base_px;
-    size2["sone_scale_px"] = c.size_sone_scale_px;
-    root["size_v2"] = std::move(size2);
-    root["fluct_wave_amp"] = c.fluct_wave_amp;
+    json blob = json::object();
+    blob["size_px"] = c.blob_size_px;
+    blob["light"] = c.blob_light;
+    root["blob"] = std::move(blob);
+    json line = json::object();
+    line["width_per_sone_px"] = c.line_width_per_sone_px;
+    line["width_min_px"] = c.line_width_min_px;
+    line["width_max_px"] = c.line_width_max_px;
+    line["amp_min_px"] = c.line_amp_min_px;
+    line["amp_max_px"] = c.line_amp_max_px;
+    line["cycles_min"] = c.line_cycles_min;
+    line["cycles_max"] = c.line_cycles_max;
+    line["sharp_hue_lo_deg"] = c.sharp_hue_lo_deg;
+    line["sharp_hue_hi_deg"] = c.sharp_hue_hi_deg;
+    root["line"] = std::move(line);
     json jnd = json::object();
     jnd["loud_ratio"] = c.jnd_loud_ratio;
     jnd["fraction"] = c.jnd_fraction;

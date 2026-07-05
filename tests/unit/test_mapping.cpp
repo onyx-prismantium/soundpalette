@@ -46,36 +46,37 @@ bool in_unit_range(double x) {
 TEST_CASE("mapping/monotonic") {
     sp::reset_active_mapping_config();
 
-    SUBCASE("bright01 (via light) increases with sharpness (v2)") {
+    SUBCASE("sharp01 (line color) increases with sharpness; blob light/size fixed") {
         sp::Features f = make_features(1000.0, 0.02, 0.5);
         sp::Loudness l = make_loudness(-20.0);
 
         sp::Visual v_low = sp::map_v2(f, l, make_psycho(4.0, 0.8), 1);
-        sp::Visual v_mid = sp::map_v2(f, l, make_psycho(4.0, 1.8), 1);
         sp::Visual v_high = sp::map_v2(f, l, make_psycho(4.0, 3.0), 1);
 
-        CHECK(v_low.light < v_mid.light);
-        CHECK(v_mid.light < v_high.light);
+        CHECK(v_low.sharp01 < v_high.sharp01);
+        CHECK(v_low.light == v_high.light);     // blob lightness is fixed now
+        CHECK(v_low.size_px == v_high.size_px); // blob size is fixed now
     }
 
-    SUBCASE("size area is honest to sones (v2): 4x sones -> ~2x size_px") {
+    SUBCASE("loud01 (line width driver) is honest to sones: 4x sones -> 2x loud01") {
         sp::Features f = make_features(1000.0, 0.02, 0.5);
         sp::Loudness l = make_loudness(-20.0);
         sp::Visual v1x = sp::map_v2(f, l, make_psycho(4.0, 1.0), 1);
         sp::Visual v4x = sp::map_v2(f, l, make_psycho(16.0, 1.0), 1);
-        // size = 10 + 11*sqrt(sones): compare the sone-driven parts (area ratio == sones
-        // ratio within rounding once the base offset is removed).
-        const double r = (v4x.size_px - 10.0) / (v1x.size_px - 10.0);
-        CHECK(r == doctest::Approx(2.0).epsilon(0.01));
+        // loud01 = sqrt(sones)/div and line width is linear in sones -> the line AREA
+        // doubles when sones double.
+        CHECK(v4x.loud01 == doctest::Approx(2.0 * v1x.loud01).epsilon(0.001));
     }
 
-    SUBCASE("fluct01 maps fluctuation strength and reaches the glyph") {
+    SUBCASE("fluct01/jitter01 drive the line wave; both survive to the Visual") {
         sp::Features f = make_features(1000.0, 0.02, 0.5);
         sp::Loudness l = make_loudness(-20.0);
         sp::Visual steady = sp::map_v2(f, l, make_psycho(4.0, 1.0, 0.05, 0.0), 1);
-        sp::Visual wobbly = sp::map_v2(f, l, make_psycho(4.0, 1.0, 0.05, 0.9), 1);
+        sp::Visual wobbly = sp::map_v2(f, l, make_psycho(4.0, 1.0, 0.55, 0.9), 1);
         CHECK(steady.fluct01 < 0.05);
         CHECK(wobbly.fluct01 > 0.8);
+        CHECK(steady.jitter01 < wobbly.jitter01);
+        CHECK_FALSE(steady.silent);
     }
 
     SUBCASE("atk01 (via spike01) decreases as attack_s increases (faster attack -> higher atk01)") {
@@ -120,8 +121,9 @@ TEST_CASE("mapping/monotonic") {
                 CHECK(v.sat <= 85.0);
                 CHECK(v.light >= 28.0);
                 CHECK(v.light <= 78.0);
-                CHECK(v.size_px >= 12.0);
-                CHECK(v.size_px <= 72.0);
+                CHECK(in_unit_range(v.loud01));
+                CHECK(in_unit_range(v.sharp01));
+                CHECK(v.size_px == 26.0); // fixed blob size
             }
         }
     }
@@ -137,6 +139,8 @@ TEST_CASE("mapping/monotonic") {
         CHECK(v.spikes == 0);
         CHECK(v.jitter01 == 0.0);
         CHECK(v.tail01 == 0.0);
+        CHECK(v.silent);
+        CHECK(v.loud01 == 0.0);
         CHECK(v.seed == 42);
     }
 }
@@ -167,15 +171,13 @@ TEST_CASE("mapping/determinism") {
         CHECK(a[i][1] == b[i][1]);
     }
 
-    // A different seed must change the jittered outline.
+    // Split-glyph revision: the blob outline is clean (spikes only) — roughness moved to
+    // the psycho line — so a different seed leaves identical parameters identical.
     sp::Visual v2 = v;
     v2.seed = sp::path_seed("other/file.wav");
     auto c = sp::glyph_outline(v2);
-    bool any_diff = false;
     for (std::size_t i = 0; i < a.size(); ++i) {
-        if (a[i][0] != c[i][0] || a[i][1] != c[i][1]) {
-            any_diff = true;
-        }
+        CHECK(a[i][0] == c[i][0]);
+        CHECK(a[i][1] == c[i][1]);
     }
-    CHECK(any_diff);
 }

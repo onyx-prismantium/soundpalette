@@ -29,14 +29,17 @@ float glyph_scale(float cell_px) {
 
 } // namespace
 
-// Also used by the manual's example glyphs (manual.cpp).
+// Also used by the manual's example glyphs (manual.cpp). Split glyph: analytic blob in the
+// upper half of the cell, psychoacoustic line in the lower half (silent files: dot only).
 void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px) {
     const float scale = glyph_scale(cell_px);
+    const ImVec2 blob_center(center.x, center.y - 0.16f * cell_px);
 
     std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
     std::vector<ImVec2> pts(outline.size());
     for (std::size_t i = 0; i < outline.size(); ++i) {
-        pts[i] = ImVec2(center.x + outline[i][0] * scale, center.y + outline[i][1] * scale);
+        pts[i] =
+            ImVec2(blob_center.x + outline[i][0] * scale, blob_center.y + outline[i][1] * scale);
     }
     unsigned int fill = hsl_to_rgba(v.hue_deg, v.sat, v.light, 1.0);
     draw->AddConcavePolyFilled(pts.data(), static_cast<int>(pts.size()), fill);
@@ -46,14 +49,47 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
         const double spread = v.tail01 * 2.2 * v.size_px;
         for (int i = 0; i < kTailCircles; ++i) {
             double t = static_cast<double>(i) / (kTailCircles - 1);
-            double x = center.x + ((i + 1) / static_cast<double>(kTailCircles)) * spread * scale;
+            double x =
+                blob_center.x + ((i + 1) / static_cast<double>(kTailCircles)) * spread * scale;
             double radius = 0.16 * v.size_px * (1.0 - 0.8 * t) * scale;
             double opacity = 0.5 + (0.07 - 0.5) * t;
-            draw->AddCircleFilled(ImVec2(static_cast<float>(x), center.y),
+            draw->AddCircleFilled(ImVec2(static_cast<float>(x), blob_center.y),
                                   static_cast<float>(radius),
                                   hsl_to_rgba(v.hue_deg, v.sat, v.light, opacity));
         }
     }
+
+    if (v.silent) {
+        return; // the fixed gray dot above is the whole story
+    }
+
+    // Psycho line (lower half): width = loudness (linear in sones -> honest line area),
+    // color blue->red = sharpness, sine amplitude = roughness, frequency = fluctuation;
+    // enforced minimums keep both wave parameters visible (same math as the SVG sheet).
+    const sp::MappingConfig &c = sp::active_mapping_config();
+    const double sones = (v.loud01 * c.loud_sone_div) * (v.loud01 * c.loud_sone_div);
+    const float cell_norm = cell_px / 120.0f; // constants are authored at the 120 px SVG cell
+    const float width =
+        static_cast<float>(std::clamp(c.line_width_min_px + c.line_width_per_sone_px * sones,
+                                      c.line_width_min_px, c.line_width_max_px)) *
+        cell_norm;
+    const float amp = static_cast<float>(c.line_amp_min_px +
+                                         v.jitter01 * (c.line_amp_max_px - c.line_amp_min_px)) *
+                      cell_norm;
+    const double cycles = c.line_cycles_min + v.fluct01 * (c.line_cycles_max - c.line_cycles_min);
+    const double hue = c.sharp_hue_lo_deg + v.sharp01 * (c.sharp_hue_hi_deg - c.sharp_hue_lo_deg);
+
+    const float x0 = center.x - 0.42f * cell_px;
+    const float x1 = center.x + 0.42f * cell_px;
+    const float ly = center.y + 0.30f * cell_px;
+    const int n = 48;
+    for (int i = 0; i <= n; ++i) {
+        const float t = static_cast<float>(i) / n;
+        draw->PathLineTo(
+            ImVec2(x0 + t * (x1 - x0),
+                   ly - amp * static_cast<float>(std::sin(2.0 * 3.14159265358979 * cycles * t))));
+    }
+    draw->PathStroke(hsl_to_rgba(hue, 85.0, 55.0, 1.0), 0, std::max(1.0f, width));
 }
 
 namespace {

@@ -589,3 +589,25 @@ tool versions; CI re-computes it and diffs byte-for-byte.
       describe_units.sh, lint_jnd.sh).
 
 Gate: 55/55 unit, 18/18 integration, MCP 13/13, smokes green. engine_version 0.5.0.
+
+# Split-glyph revision (post-v0.5.0, user-directed 2026-07-05)
+
+Eight parameters in one blob exceeded what the eye can separate (Andreas). The glyph is now
+split horizontally: the UPPER half keeps the analytic blob — hue = warmth, saturation =
+tonality, spikes = attack, trail = decay — at fixed size/lightness; the LOWER half is a new
+psychoacoustic line — stroke width = loudness (linear in sones, so the line's AREA stays
+honest to the extension-3 §6 intent; length fixed), color blue→red = sharpness (thermal hue
+path 220→0), sine amplitude = roughness, sine frequency = fluctuation. Because the wave
+carries two parameters, both have enforced minimums (line_amp_min_px, line_cycles_min,
+TUNABLE) so a rough-but-steady sound shows few tall waves and a fluctuating-but-smooth sound
+shows many flat ripples — per the design brief. Silent files draw the fixed gray dot only.
+Visual gains loud01/sharp01/silent (schema doc extended, goldens regenerated deliberately);
+blob outline is clean (seed no longer perturbs it — jitter moved to the line), so
+mapping/determinism now asserts seed-independence. Constants in MappingConfig ("blob_*",
+"line_*", sharp_hue_*), live in the tuner's Perceptual (v2) group.
+
+Fixed while verifying: SVG `hsl()` colors were emitted with 3-decimal components, which
+resvg (the MCP sheet_png rasterizer) renders as BLACK — silently broken since M8 for agents;
+browsers were lenient so it never showed. hsl components are now integer-rounded (visually
+lossless). Also the export-svg manifest parser now reads the full Visual (fluct01/loud01/
+sharp01/silent) — previously the sheet regenerated lines from zeroed fields.

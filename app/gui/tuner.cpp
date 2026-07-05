@@ -63,9 +63,14 @@ void draw_tuner(AppState &state) {
         changed |= slider("jitter asper hi", &t.jitter_asper_hi, defaults.jitter_asper_hi);
         changed |= slider("fluct vacil lo", &t.fluct_vacil_lo, defaults.fluct_vacil_lo);
         changed |= slider("fluct vacil hi", &t.fluct_vacil_hi, defaults.fluct_vacil_hi);
-        changed |= slider("size sone base", &t.size_sone_base_px, defaults.size_sone_base_px);
-        changed |= slider("size sone scale", &t.size_sone_scale_px, defaults.size_sone_scale_px);
-        changed |= slider("fluct wave amp", &t.fluct_wave_amp, defaults.fluct_wave_amp);
+        changed |= slider("blob size px", &t.blob_size_px, defaults.blob_size_px);
+        changed |= slider("blob light", &t.blob_light, defaults.blob_light);
+        changed |=
+            slider("line w/sone px", &t.line_width_per_sone_px, defaults.line_width_per_sone_px);
+        changed |= slider("line amp min", &t.line_amp_min_px, defaults.line_amp_min_px);
+        changed |= slider("line amp max", &t.line_amp_max_px, defaults.line_amp_max_px);
+        changed |= slider("line cyc min", &t.line_cycles_min, defaults.line_cycles_min);
+        changed |= slider("line cyc max", &t.line_cycles_max, defaults.line_cycles_max);
         changed |= slider("jnd loud ratio", &t.jnd_loud_ratio, defaults.jnd_loud_ratio);
         changed |= slider("jnd fraction", &t.jnd_fraction, defaults.jnd_fraction);
         // ref_spl re-CALIBRATES the analysis, not the mapping: changing it invalidates every

@@ -285,6 +285,17 @@
             },
             "fluct01": {
               "type": "number"
+            },
+            "loud01": {
+              "type": "number",
+              "description": "psycho line: stroke width driver"
+            },
+            "sharp01": {
+              "type": "number",
+              "description": "psycho line: color blue->red"
+            },
+            "silent": {
+              "type": "boolean"
             }
           }
         },

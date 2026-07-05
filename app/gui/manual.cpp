@@ -26,17 +26,21 @@ void example_row(const sp::Visual &v, const char *title, const char *text, float
     ImGui::TextWrapped("%s", text);
 }
 
-sp::Visual make_visual(double hue, double sat, double light, double size, double spike01,
-                       int spikes, double jitter01, double tail01, std::uint64_t seed) {
+sp::Visual make_visual(double hue, double sat, double spike01, int spikes, double tail01,
+                       double loud01, double sharp01, double rough01, double fluct01,
+                       std::uint64_t seed) {
     sp::Visual v;
     v.hue_deg = hue;
     v.sat = sat;
-    v.light = light;
-    v.size_px = size;
+    v.light = 55.0;   // blob lightness is fixed in the split design
+    v.size_px = 26.0; // blob size is fixed
     v.spike01 = spike01;
     v.spikes = spikes;
-    v.jitter01 = jitter01;
     v.tail01 = tail01;
+    v.loud01 = loud01;
+    v.sharp01 = sharp01;
+    v.jitter01 = rough01;
+    v.fluct01 = fluct01;
     v.seed = seed;
     return v;
 }
@@ -64,75 +68,83 @@ void draw_manual(AppState &state) {
 
     ImGui::SeparatorText("How to read a glyph");
     ImGui::TextWrapped(
-        "Each visual property is driven by exactly one audio dimension (two for edge jitter):");
+        "The glyph is split horizontally. The UPPER half is the analytic blob (spectral "
+        "character, fixed size); the LOWER half is the psychoacoustic line (perceived "
+        "character in real units).");
+    ImGui::TextUnformatted("Blob (upper half):");
     ImGui::Bullet();
     ImGui::TextWrapped("Hue <- warmth: cold, thin sounds sit at blue (220 deg); warmth rotates "
                        "the hue through green and yellow toward orange/red.");
     ImGui::Bullet();
-    ImGui::TextWrapped("Lightness <- sharpness (DIN 45692, in acum): dull rumbles render dark, "
-                       "sharp hissy sounds render light. 1 acum = narrowband noise at 1 kHz, "
-                       "60 dB.");
-    ImGui::Bullet();
     ImGui::TextWrapped("Saturation <- tonality: pitched, tonal material is vivid; noise-like "
                        "material washes out toward gray.");
-    ImGui::Bullet();
-    ImGui::TextWrapped("Size <- loudness (ISO 532-1, in sones): glyph AREA is proportional to "
-                       "loudness - double the sones, double the area. 1 sone = a 1 kHz tone at "
-                       "40 dB SPL under the ref_spl monitoring convention.");
     ImGui::Bullet();
     ImGui::TextWrapped("Spikes <- attack: fast attacks grow spikes (more and longer as the "
                        "attack sharpens); soft attacks stay round.");
     ImGui::Bullet();
-    ImGui::TextWrapped("Edge jitter <- roughness (Daniel & Weber, in asper): gritty, rattling "
-                       "sounds make the outline ragged (deterministic per file). 1 asper = a "
-                       "1 kHz tone, 60 dB, fully amplitude-modulated at 70 Hz.");
-    ImGui::Bullet();
-    ImGui::TextWrapped("Tail <- decay tail: fading circles trail to the right; the longer the "
+    ImGui::TextWrapped("Trail <- decay tail: fading circles trail to the right; the longer the "
                        "decay, the wider the trail.");
+    ImGui::TextUnformatted("Line (lower half):");
     ImGui::Bullet();
-    ImGui::TextWrapped("Slow waves <- fluctuation strength (in vacil, experimental): slow "
-                       "envelope movement bends the outline into three broad lobes - distinct "
-                       "from jitter's fine grain. 1 vacil = the 70 Hz reference modulated at "
-                       "4 Hz instead.");
+    ImGui::TextWrapped("Width <- loudness (ISO 532-1, in sones): the line's thickness is linear "
+                       "in sones, so its AREA doubles when loudness doubles. 1 sone = a 1 kHz "
+                       "tone at 40 dB SPL under the ref_spl monitoring convention.");
+    ImGui::Bullet();
+    ImGui::TextWrapped("Color <- sharpness (DIN 45692, in acum): blue = dull, through green and "
+                       "yellow to red = sharp. 1 acum = narrowband noise at 1 kHz, 60 dB.");
+    ImGui::Bullet();
+    ImGui::TextWrapped("Wave height <- roughness (Daniel & Weber, in asper): rough, rattling "
+                       "sounds swing the line harder. 1 asper = a 1 kHz tone, 60 dB, fully "
+                       "amplitude-modulated at 70 Hz.");
+    ImGui::Bullet();
+    ImGui::TextWrapped("Wave count <- fluctuation strength (in vacil, experimental): slow "
+                       "envelope movement adds more wave cycles. 1 vacil = the 70 Hz reference "
+                       "modulated at 4 Hz instead.");
+    ImGui::TextWrapped(
+        "The wave carries two parameters at once, so both keep a visible minimum: a rough but "
+        "steady sound shows few-but-tall waves, a fluctuating but smooth sound shows "
+        "many-but-flat ripples.");
 
     ImGui::SeparatorText("Example glyphs");
     const float cell = 96.0f * s;
     if (ImGui::BeginTable("##examples", 2, ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableSetupColumn("glyph", ImGuiTableColumnFlags_WidthFixed, cell);
         ImGui::TableSetupColumn("text", ImGuiTableColumnFlags_WidthStretch);
-        example_row(make_visual(40.0, 82.0, 46.0, 39.0, 0.0, 0, 0.05, 0.85, 1),
-                    "Warm tonal pad", // warm01 .9, ton01 .95, tail01 .85
-                    "High warmth pulls the hue to orange, strong tonality saturates it, and the "
-                    "long decay leaves a wide trail of tail circles. No spikes: the attack is "
-                    "slow, so the body stays round.",
+        example_row(make_visual(40.0, 82.0, 0.0, 0, 0.85, 0.55, 0.25, 0.05, 0.35, 1),
+                    "Warm tonal pad",
+                    "Blob: orange hue (warm), vivid (tonal), round (slow attack), wide tail "
+                    "trail (long decay). Line: medium width, blue-green (dull), nearly flat "
+                    "wave (smooth) with a gentle ripple count.",
                     cell);
-        example_row(make_visual(190.0, 55.0, 73.0, 51.0, 0.9, 13, 0.15, 0.15, 2),
-                    "Bright percussive hit", // bright01 .9, atk01 .9, loud01 .75
-                    "A fast attack grows many long spikes, high brightness makes it light, and "
-                    "the cold character keeps the hue cyan-blue. Loud, so the glyph is large; "
-                    "short decay, so almost no tail.",
+        example_row(make_visual(190.0, 55.0, 0.9, 13, 0.15, 0.8, 0.85, 0.2, 0.2, 2),
+                    "Bright percussive hit",
+                    "Blob: cyan-blue (cold), many long spikes (instant attack), no tail. Line: "
+                    "thick (loud) and red (sharp), few shallow waves - percussion is neither "
+                    "rough nor fluctuating.",
                     cell);
-        example_row(make_visual(120.0, 31.0, 55.0, 36.0, 0.4, 8, 0.85, 0.3, 3),
-                    "Noisy texture / grit", // ton01 .1, jitter01 .85
-                    "Noise-like content desaturates the fill toward gray-green and drives heavy "
-                    "edge jitter - the wobbly outline is the signature of flat, rough spectra.",
+        example_row(make_visual(120.0, 31.0, 0.4, 8, 0.3, 0.6, 0.5, 0.9, 0.25, 3),
+                    "Rough texture / grit",
+                    "Blob: desaturated gray-green (noisy). Line: tall swings (high asper) at a "
+                    "low cycle count - roughness without slow fluctuation.",
                     cell);
-        example_row(make_visual(60.0, 61.0, 33.0, 21.0, 0.5, 9, 0.1, 0.25, 4),
-                    "Quiet dark thud", // bright01 .1, loud01 .15, warm01 .8
-                    "Low brightness renders it dark and low loudness keeps it small. Warmth "
-                    "still shows in the yellow-orange hue; a moderately sharp attack adds a few "
-                    "short spikes.",
+        example_row(make_visual(60.0, 61.0, 0.5, 9, 0.25, 0.3, 0.1, 0.1, 0.15, 4),
+                    "Quiet dark thud",
+                    "Blob: yellow-orange (warm), a few short spikes. Line: thin (quiet) and "
+                    "deep blue (dull), almost calm - the minimum ripple keeps it readable.",
                     cell);
-        sp::Visual drone = make_visual(90.0, 50.0, 42.0, 34.0, 0.0, 0, 0.1, 0.6, 6);
-        drone.fluct01 = 0.9;
-        example_row(drone, "Breathing drone", // fluct01 .9 (v2)
-                    "Strong slow modulation bends the outline into three broad waves - the "
-                    "fluctuation signature (vacil), visually distinct from jitter's fine grain.",
+        example_row(make_visual(90.0, 50.0, 0.0, 0, 0.6, 0.5, 0.35, 0.1, 0.95, 6),
+                    "Breathing drone",
+                    "Blob: round, mid-warm. Line: MANY wave cycles at modest height - strong "
+                    "slow fluctuation (vacil) without much roughness. Compare with the grit "
+                    "row: same wave, opposite parameter.",
                     cell);
-        example_row(make_visual(0.0, 0.0, 60.0, 8.0, 0.0, 0, 0.0, 0.0, 5),
-                    "Silent file", // fixed silent visual (§7)
-                    "Files with no measurable loudness get a fixed small gray dot. They never "
-                    "contribute to profile statistics or deviations.",
+        sp::Visual silent = make_visual(0.0, 0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 5);
+        silent.light = 60.0;
+        silent.size_px = 8.0;
+        silent.silent = true;
+        example_row(silent, "Silent file",
+                    "Files with no measurable loudness get a fixed small gray dot and no line. "
+                    "They never contribute to profile statistics or deviations.",
                     cell);
         ImGui::EndTable();
     }

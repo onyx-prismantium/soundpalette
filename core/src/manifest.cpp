@@ -280,6 +280,9 @@ std::string manifest_to_json(const Manifest &manifest) {
         visual["jitter01"] = round4(e.visual.jitter01);
         visual["tail01"] = round4(e.visual.tail01);
         visual["fluct01"] = round4(e.visual.fluct01);
+        visual["loud01"] = round4(e.visual.loud01);
+        visual["sharp01"] = round4(e.visual.sharp01);
+        visual["silent"] = e.visual.silent;
         visual["seed"] = e.visual.seed;
         fe["visual"] = std::move(visual);
 

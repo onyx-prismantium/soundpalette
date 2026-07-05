@@ -138,12 +138,14 @@ void draw_inspector(AppState &state) {
 
     if (ImGui::CollapsingHeader("Visual", ImGuiTreeNodeFlags_DefaultOpen)) {
         const sp::Visual &v = e.visual;
-        ImGui::Text("hue         %.1f deg", v.hue_deg);
-        ImGui::Text("sat/light   %.1f %% / %.1f %%", v.sat, v.light);
-        ImGui::Text("size        %.1f px", v.size_px);
+        ImGui::Text("blob hue    %.1f deg (warmth)", v.hue_deg);
+        ImGui::Text("blob sat    %.1f %% (tonality)", v.sat);
         ImGui::Text("spike01     %.2f (%d spikes)", v.spike01, v.spikes);
-        ImGui::Text("jitter01    %.2f", v.jitter01);
         ImGui::Text("tail01      %.2f", v.tail01);
+        ImGui::Text("line loud01 %.2f (width)", v.loud01);
+        ImGui::Text("line sharp  %.2f (blue->red)", v.sharp01);
+        ImGui::Text("line rough  %.2f (wave amp)", v.jitter01);
+        ImGui::Text("line fluct  %.2f (wave freq)", v.fluct01);
         ImGui::SameLine();
         ImGui::ColorButton(
             "##swatch", ImGui::ColorConvertU32ToFloat4(hsl_to_rgba(v.hue_deg, v.sat, v.light, 1.0)),

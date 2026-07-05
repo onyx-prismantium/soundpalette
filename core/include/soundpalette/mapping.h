@@ -11,16 +11,24 @@ namespace sp {
 
 struct PsychoFeatures; // psycho.h; by-reference here to avoid a header cycle
 
-// Visual attributes the analysis maps to (§7 + extension-3 §6). HSL color space.
+// Visual attributes the analysis maps to (§7 + extension-3 §6, split-glyph revision).
+// The glyph is split horizontally: the UPPER half is the analytic blob (hue = warmth,
+// saturation = tonality, spikes = attack, trailing circles = decay; fixed size/lightness),
+// the LOWER half is the psychoacoustic line (stroke width = loudness in sones, color blue->
+// red = sharpness, sine amplitude = roughness, sine frequency = fluctuation — both with
+// enforced visible minimums so neither hides the other).
 struct Visual {
-    double hue_deg = 0.0;
-    double sat = 0.0;
-    double light = 0.0;
-    double size_px = 0.0;
-    double spike01 = 0.0;
-    double jitter01 = 0.0;
-    double tail01 = 0.0;
-    double fluct01 = 0.0; // mapping v2: slow three-lobe wave, distinct from jitter's grain
+    double hue_deg = 0.0;  // blob: warmth
+    double sat = 0.0;      // blob: tonality
+    double light = 0.0;    // blob: fixed (blob_light)
+    double size_px = 0.0;  // blob: fixed (blob_size_px)
+    double spike01 = 0.0;  // blob: attack
+    double tail01 = 0.0;   // blob: decay trail
+    double loud01 = 0.0;   // line: stroke width
+    double sharp01 = 0.0;  // line: color blue->red
+    double jitter01 = 0.0; // line: sine amplitude (roughness)
+    double fluct01 = 0.0;  // line: sine frequency (fluctuation)
+    bool silent = false;   // silent files draw the fixed gray dot only, no line
     int spikes = 0;
     std::uint64_t seed = 0;
 };
@@ -98,13 +106,24 @@ struct MappingConfig {
     double fluct_vacil_lo = 0.02;
     double fluct_vacil_hi = 1.0;
 
-    // Glyph area proportional to loudness (sones are a ratio scale):
-    // size_px = clamp(size_sone_base + size_sone_scale * sqrt(sones_n5), 12, 72).
-    double size_sone_base_px = 10.0;
-    double size_sone_scale_px = 11.0;
-
-    // Fluctuation wave amplitude in glyph_outline: r += fluct01 * fluct_wave_amp * size_px.
-    double fluct_wave_amp = 0.18;
+    // Split-glyph constants. Blob (upper half): fixed size and lightness — loudness and
+    // sharpness live in the line now.
+    double blob_size_px = 26.0;
+    double blob_light = 55.0;
+    // Psycho line (lower half). Width is linear in sones, so the line's AREA stays honest
+    // to loudness (length is fixed). Sine amplitude = roughness, sine frequency (cycle
+    // count) = fluctuation; the _min values keep BOTH visible when the other is near zero.
+    double line_width_per_sone_px = 0.22;
+    double line_width_min_px = 1.0;
+    double line_width_max_px = 14.0;
+    double line_amp_min_px = 1.5;
+    double line_amp_max_px = 8.0;
+    double line_cycles_min = 1.5;
+    double line_cycles_max = 9.0;
+    // Sharpness color: hue from blue (sharp_hue_lo at bright01 = 0) descending to red
+    // (sharp_hue_hi at 1) through the thermal path cyan/green/yellow.
+    double sharp_hue_lo_deg = 220.0;
+    double sharp_hue_hi_deg = 0.0;
 
     // JND phrasing constants (§7, Zwicker & Fastl-order approximations, TUNABLE):
     // loudness JND count = ln(ratio) / ln(jnd_loud_ratio); other dims count =

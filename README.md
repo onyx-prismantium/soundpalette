@@ -199,8 +199,14 @@ psychoacoustic models rather than spectral proxies: ISO 532-1 (Zwicker) loudness
 (experimental). Every surface speaks these units: `describe` appends them to its sentence,
 `lint` phrases deviations in just-noticeable differences ("sharpness +1.9 acum (~8 JND)"),
 the inspector shows anchored scale bars, and the SVG sheet carries a legend strip
-("area = loudness (sones) · lightness = sharpness (acum) · …", suppress with `--no-legend`).
-Glyph **area is proportional to loudness** — double the sones, double the area.
+(suppress with `--no-legend`).
+
+The glyph itself is **split horizontally**: the upper half is the analytic blob (hue =
+warmth, saturation = tonality, spikes = attack, trailing circles = decay; fixed size), and
+the lower half is the psychoacoustic line — stroke **width = loudness** (linear in sones, so
+the line's area doubles when loudness doubles), **color blue→red = sharpness**, sine
+**amplitude = roughness**, sine **frequency = fluctuation**. Both wave parameters keep an
+enforced visible minimum so neither hides the other.
 
 ### Calibration convention
 
