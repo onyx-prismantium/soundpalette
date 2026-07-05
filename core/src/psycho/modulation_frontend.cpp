@@ -22,6 +22,10 @@
 namespace sp::psycho {
 
 namespace {
+constexpr double kPi = 3.14159265358979323846; // MSVC has no M_PI
+} // namespace
+
+namespace {
 
 constexpr double kRoughBestHz = 70.0;
 constexpr double kFluctBestHz = 4.0;
@@ -155,7 +159,7 @@ ModulationMetrics modulation_metrics(const TvAnalysis &tv) {
     const int nfft = 1024; // ~0.68 s at 1.5 kHz -> 1.46 Hz bins, resolves 4 Hz and 70 Hz
     std::vector<double> window(static_cast<std::size_t>(nfft));
     for (int i = 0; i < nfft; ++i) {
-        window[static_cast<std::size_t>(i)] = 0.5 - 0.5 * std::cos(2.0 * M_PI * i / (nfft - 1));
+        window[static_cast<std::size_t>(i)] = 0.5 - 0.5 * std::cos(2.0 * kPi * i / (nfft - 1));
     }
     std::size_t lenmem = 0;
     kiss_fftr_alloc(nfft, 0, nullptr, &lenmem);

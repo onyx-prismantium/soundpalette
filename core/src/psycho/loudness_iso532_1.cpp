@@ -22,6 +22,10 @@
 
 namespace sp::psycho {
 
+namespace {
+constexpr double kPi = 3.14159265358979323846; // MSVC has no M_PI
+} // namespace
+
 const std::array<double, kNumThirdOct> kThirdOctFc = {
     25.0,   31.5,   40.0,   50.0,   63.0,   80.0,   100.0,   125.0,  160.0,  200.0,
     250.0,  315.0,  400.0,  500.0,  630.0,  800.0,  1000.0,  1250.0, 1600.0, 2000.0,
@@ -236,7 +240,7 @@ struct Biquad {
 Biquad make_bandpass(double f0, double fs) {
     constexpr double kSectionQ = 2.2019;
     Biquad q;
-    const double w0 = 2.0 * M_PI * f0 / fs;
+    const double w0 = 2.0 * kPi * f0 / fs;
     const double alpha = std::sin(w0) / (2.0 * kSectionQ);
     const double a0 = 1.0 + alpha;
     q.b0 = alpha / a0;
@@ -325,7 +329,7 @@ TvAnalysis analyze_time_varying(const std::vector<float> &pa, int fs) {
         std::vector<double> window(static_cast<std::size_t>(nfft));
         double wsq = 0.0;
         for (int i = 0; i < nfft; ++i) {
-            window[static_cast<std::size_t>(i)] = 0.5 - 0.5 * std::cos(2.0 * M_PI * i / (nfft - 1));
+            window[static_cast<std::size_t>(i)] = 0.5 - 0.5 * std::cos(2.0 * kPi * i / (nfft - 1));
             wsq += window[static_cast<std::size_t>(i)] * window[static_cast<std::size_t>(i)];
         }
         std::size_t lenmem = 0;
@@ -410,7 +414,7 @@ TvAnalysis analyze_time_varying(const std::vector<float> &pa, int fs) {
 
     // Filterbank pass for the modulation envelopes only (roughness/fluctuation front-end).
     tv.band_env.assign(kNumThirdOct, {});
-    const double env_a = std::exp(-2.0 * M_PI * 300.0 / fs); // 300 Hz envelope low-pass
+    const double env_a = std::exp(-2.0 * kPi * 300.0 / fs); // 300 Hz envelope low-pass
     for (int band = 0; band < kNumThirdOct; ++band) {
         Biquad s1 = make_bandpass(kThirdOctFc[static_cast<std::size_t>(band)], fs);
         Biquad s2 = s1, s3 = s1;
