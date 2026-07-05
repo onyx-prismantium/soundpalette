@@ -26,6 +26,7 @@
 #include "soundpalette/presets.h"
 #include "soundpalette/profile.h"
 #include "soundpalette/propose.h"
+#include "soundpalette/psycho.h"
 #include "soundpalette/recipe.h"
 #include "soundpalette/version.h"
 
@@ -63,6 +64,7 @@ int cmd_scan(const std::vector<std::string> &args) {
     std::string dir;
     std::string out;
     bool no_meta = false;
+    bool no_psycho = false;
     bool quiet = false;
     int threads = 0;
 
@@ -72,6 +74,8 @@ int cmd_scan(const std::vector<std::string> &args) {
             out = args[++i];
         } else if (a == "--no-meta") {
             no_meta = true;
+        } else if (a == "--no-psycho") {
+            no_psycho = true;
         } else if (a == "--quiet") {
             quiet = true;
         } else if (a == "--threads" && i + 1 < args.size()) {
@@ -82,7 +86,9 @@ int cmd_scan(const std::vector<std::string> &args) {
     }
 
     if (dir.empty()) {
-        std::fprintf(stderr, "usage: soundpalette scan <dir> [--out palette.json] [--no-meta]\n");
+        std::fprintf(
+            stderr,
+            "usage: soundpalette scan <dir> [--out palette.json] [--no-meta] [--no-psycho]\n");
         return 2;
     }
     if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
@@ -93,6 +99,7 @@ int cmd_scan(const std::vector<std::string> &args) {
     sp::ScanOptions options;
     options.threads = threads;
     options.include_meta = !no_meta;
+    options.with_psycho = !no_psycho;
 
     auto t0 = std::chrono::steady_clock::now();
     sp::Manifest manifest = sp::scan_directory(dir, options);
@@ -426,6 +433,35 @@ int cmd_describe(const std::vector<std::string> &args) {
 }
 
 // ---- M10 profile subcommands (extension-2 §4.3) ----
+
+// Per-file psychoacoustic metrics as JSON (extension-3 M13). Diagnostic surface: the
+// psycho_oracle_match.sh gate compares these numbers against tests/golden/psycho_reference
+// within the §5 tolerances; describe/lint integration follows in M14.
+int cmd_psycho(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        std::fprintf(stderr, "usage: soundpalette psycho <file> [<file>...]\n");
+        return 2;
+    }
+    nlohmann::json out = nlohmann::json::object();
+    for (const std::string &path : args) {
+        std::string err;
+        auto buffer = sp::decode_file(path, err);
+        if (!buffer.has_value()) {
+            std::fprintf(stderr, "soundpalette: %s: %s\n", path.c_str(), err.c_str());
+            return 2;
+        }
+        sp::PsychoFeatures p = sp::compute_psycho(*buffer, sp::active_mapping_config());
+        out[path] = {{"ref_spl", round4(p.ref_spl)},
+                     {"sones_n5", round4(p.sones_n5)},
+                     {"sones_mean", round4(p.sones_mean)},
+                     {"sharpness_acum", round4(p.sharpness_acum)},
+                     {"roughness_asper", round4(p.roughness_asper)},
+                     {"fluctuation_vacil", round4(p.fluctuation_vacil)},
+                     {"experimental_fluctuation", p.experimental_fluctuation}};
+    }
+    std::fprintf(stdout, "%s\n", out.dump(2).c_str());
+    return 0;
+}
 
 int cmd_profile(const std::vector<std::string> &args) {
     if (args.empty()) {
@@ -1223,6 +1259,8 @@ int main(int argc, char **argv) {
             return cmd_scan(args);
         } else if (subcommand == "print-mapping") {
             return cmd_print_mapping(args);
+        } else if (subcommand == "psycho") {
+            return cmd_psycho(args);
         } else if (subcommand == "profile") {
             return cmd_profile(args);
         } else if (subcommand == "propose") {

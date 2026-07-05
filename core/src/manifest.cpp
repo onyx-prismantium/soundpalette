@@ -63,7 +63,8 @@ std::string sha256_of_file(const std::filesystem::path &path) {
     return hex_lower(digest, SHA256_BLOCK_SIZE);
 }
 
-FileEntry process_one(const std::filesystem::path &root, const std::filesystem::path &abs_path) {
+FileEntry process_one(const std::filesystem::path &root, const std::filesystem::path &abs_path,
+                      bool with_psycho) {
     FileEntry entry;
     entry.path = to_forward_slashes(std::filesystem::relative(abs_path, root));
     entry.sha256 = sha256_of_file(abs_path);
@@ -83,6 +84,9 @@ FileEntry process_one(const std::filesystem::path &root, const std::filesystem::
     entry.loudness = measure_loudness(*buffer);
     entry.features = extract_features(*buffer, entry.loudness);
     entry.visual = map_v1(entry.features, entry.loudness, path_seed(entry.path));
+    if (with_psycho) {
+        entry.psycho = compute_psycho(*buffer, active_mapping_config());
+    }
 
     return entry;
 }
@@ -130,7 +134,7 @@ Manifest scan_directory(const std::filesystem::path &root, const ScanOptions &op
             if (i >= targets.size()) {
                 break;
             }
-            out.push_back(process_one(root, targets[i]));
+            out.push_back(process_one(root, targets[i], options.with_psycho));
             if (options.on_progress) {
                 options.on_progress(done_count.fetch_add(1) + 1, targets.size());
             }
@@ -165,7 +169,7 @@ bool has_supported_audio_extension(const std::filesystem::path &path) {
 }
 
 FileEntry analyze_file(const std::filesystem::path &root, const std::filesystem::path &abs_path) {
-    return process_one(root, abs_path);
+    return process_one(root, abs_path, true);
 }
 
 void recompute_stats(Manifest &manifest) {

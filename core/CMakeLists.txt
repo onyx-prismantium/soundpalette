@@ -51,6 +51,10 @@ add_library(soundpalette_core STATIC
     src/profile.cpp
     src/presets.cpp
     src/deviation.cpp
+    src/psycho/loudness_iso532_1.cpp
+    src/psycho/sharpness_din45692.cpp
+    src/psycho/modulation_frontend.cpp
+    src/psycho/psycho.cpp
     src/pca.cpp
     src/lint.cpp
     $<TARGET_OBJECTS:soundpalette_vendor_audio>

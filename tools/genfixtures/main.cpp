@@ -268,9 +268,8 @@ bool generate_catfx(const std::filesystem::path &outdir) {
 int main(int argc, char **argv) {
     if (argc < 2) {
         std::fprintf(
-            stderr,
-            "usage: genfixtures <outdir> [--perf200] [--extra <dir>] [--profile-set <dir>] "
-            "[--psycho <dir>]\n");
+            stderr, "usage: genfixtures <outdir> [--perf200] [--extra <dir>] [--profile-set <dir>] "
+                    "[--psycho <dir>]\n");
         return 2;
     }
     std::filesystem::path outdir = argv[1];

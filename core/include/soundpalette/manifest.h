@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "soundpalette/mapping.h"
+#include "soundpalette/psycho.h"
 
 namespace sp {
 
@@ -21,6 +22,9 @@ struct FileEntry {
     Loudness loudness;
     Features features;
     Visual visual;
+    // Extension-3 §5: psychoacoustic block, computed on the original-gain buffer under the
+    // §4 ref_spl convention. Skipped (all zeros) when ScanOptions.with_psycho is false.
+    PsychoFeatures psycho;
 };
 
 struct DimStats {
@@ -47,6 +51,7 @@ struct Manifest {
 struct ScanOptions {
     int threads = 0; // 0 => std::thread::hardware_concurrency()
     bool include_meta = true;
+    bool with_psycho = true; // scan --no-psycho skips the psychoacoustic block (extension-3)
     // Optional per-file progress hook (done, total). Called concurrently from worker threads;
     // the callback must be thread-safe. Used by the GUI's "analyzed i/n" status (§10).
     std::function<void(std::size_t, std::size_t)> on_progress;

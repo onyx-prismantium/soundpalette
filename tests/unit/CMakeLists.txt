@@ -13,6 +13,7 @@ add_executable(sp_unit_tests
     test_glob.cpp
     test_profile.cpp
     test_presets.cpp
+    test_psycho.cpp
     test_deviation.cpp
     test_pca.cpp
 )

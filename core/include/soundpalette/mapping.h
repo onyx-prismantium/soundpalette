@@ -82,6 +82,11 @@ struct MappingConfig {
     double spike_count_base = 4.0;
     double spike_count_span = 10.0;
 
+    // Psychoacoustic calibration (extension-3 §4): a -23 LUFS signal is assumed to play at
+    // ref_spl dB SPL. Allowed range 60-85; changing it invalidates every psycho block, so it
+    // is stamped into manifests/profiles and mismatches are refused, never remapped.
+    double ref_spl = 75.0;
+
     // Silent-file fixed visual (§7).
     double silent_hue_deg = 0.0;
     double silent_sat = 0.0;
