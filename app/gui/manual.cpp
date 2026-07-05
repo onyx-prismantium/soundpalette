@@ -129,6 +129,11 @@ void draw_manual(AppState &state) {
         "borderline. Halos always pair color with a line style so color is never the only cue. "
         "The sidebar toggles halos and z labels independently; 'dim conforming' fades in-palette "
         "sounds and 'outliers only' filters the grid to flagged files.");
+    ImGui::TextWrapped(
+        "Genre presets (Profile > Load preset) are designed profiles: hand-authored priors for "
+        "Sci-Fi, Horror, Fantasy, and Retro 8-bit with deliberately generous tolerances - "
+        "guardrails, not measurements. The footer marks them [designed]. A profile created from "
+        "your own sounds is always the stricter, more honest reference.");
 
     ImGui::SeparatorText("Views");
     ImGui::TextWrapped(

@@ -15,6 +15,7 @@
 #include "miniaudio.h"
 
 #include "soundpalette/glyph.h"
+#include "soundpalette/presets.h"
 #include "soundpalette/version.h"
 
 namespace spapp {
@@ -80,6 +81,26 @@ void draw_menu_bar(AppState &state) {
                                            : std::string("invalid profile: ") + picked;
                 NFD_FreePathU8(picked);
             }
+        }
+        if (ImGui::BeginMenu("Load preset")) {
+            // Designed genre guardrails from core (presets.h); ordinary Profiles end to end.
+            for (const sp::PresetInfo &info : sp::builtin_preset_list()) {
+                if (ImGui::MenuItem(info.name.c_str())) {
+                    std::optional<sp::Profile> p = sp::builtin_preset(info.slug);
+                    if (p.has_value()) {
+                        state.profile = std::move(*p);
+                        state.profile_source_path.clear();
+                        state.profile_loaded = true;
+                        recompute_badges(state);
+                        rebuild_order(state);
+                        state.status_message = "preset loaded: " + info.name;
+                    }
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("%s", info.description.c_str());
+                }
+            }
+            ImGui::EndMenu();
         }
         if (ImGui::MenuItem("Create from folder...", nullptr, false,
                             !state.smoke_mode && !state.manifest.files.empty())) {
@@ -158,9 +179,12 @@ void draw_status_bar(AppState &state) {
         if (state.profile_loaded) {
             ImGui::SameLine();
             // Profile-region green (a lighter #639922) so the loaded profile stands out.
-            ImGui::TextColored(ImVec4(0.58f, 0.85f, 0.35f, 1.0f), "| profile: %s (%d cat)",
+            // Designed presets carry their provenance into the footer: authored priors,
+            // not corpus measurements.
+            ImGui::TextColored(ImVec4(0.58f, 0.85f, 0.35f, 1.0f), "| profile: %s%s (%d cat)",
                                state.profile.name.empty() ? "(baseline)"
                                                           : state.profile.name.c_str(),
+                               state.profile.created_from_type == "designed" ? " [designed]" : "",
                                static_cast<int>(state.profile.categories.size()));
         }
         if (!state.view_note.empty()) {

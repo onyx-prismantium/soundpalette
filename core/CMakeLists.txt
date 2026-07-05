@@ -49,6 +49,7 @@ add_library(soundpalette_core STATIC
     src/recipe.cpp
     src/propose.cpp
     src/profile.cpp
+    src/presets.cpp
     src/deviation.cpp
     src/pca.cpp
     src/lint.cpp

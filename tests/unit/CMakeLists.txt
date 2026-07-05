@@ -12,6 +12,7 @@ add_executable(sp_unit_tests
     test_propose.cpp
     test_glob.cpp
     test_profile.cpp
+    test_presets.cpp
     test_deviation.cpp
     test_pca.cpp
 )

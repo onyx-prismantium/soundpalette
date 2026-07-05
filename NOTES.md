@@ -482,3 +482,33 @@ byte-identical; zero warnings; format-clean.
 Gate verified: `ctest -R "pca|ellipse"` 4/4; both M11 smokes exit 0 with PNGs > 20 kB
 (halos 90 560 B, constellation 72 917 B); full ctest 41/41; all thirteen integration scripts
 PASS; MCP 13/13; golden byte-identical; zero warnings; format-clean. engine_version 0.3.0.
+
+# Genre presets (post-v0.3.1, user-directed 2026-07-05)
+
+Built-in designed genre profiles (Sci-Fi, Horror, Fantasy, Retro 8-bit), decided with Andreas:
+**designed now, derive later**. Every preset is an authored prior, not a corpus measurement —
+generous stds (guardrails, not strict lints), diagonal covariance (no correlation claimed),
+`created_from.type: "designed"` carried through the JSON, `profile show`, and the GUI footer
+(`[designed]` tag). Presets are ordinary Profiles end to end, so a corpus-derived profile can
+replace any of them without code changes.
+
+- Core: `presets.h/presets.cpp` (`builtin_preset_list()` / `builtin_preset(slug)`), stats
+  authored against a measured anchor: a 2.7k-file commercial game SFX pack scanned locally
+  (bright .57±.26, warm .40±.36, ton .86±.22, atk .32±.30, tail .57±.21, loud .46±.26,
+  jitter .31±.12). The pack is proprietary — used only as a local calibration/validation
+  reference, never committed, and no preset ships its measured stats.
+- CLI: `profile preset list`, `profile preset export <slug> [--out f]` — exports compose with
+  every existing `--profile` flag. GUI: Profile > Load preset submenu with description
+  tooltips.
+- Validation (local, that same pack): Fantasy 6% red (organic pack conforms, reds are
+  noise-flat textures), Horror 33%, Sci-Fi 40%, Retro 8-bit 94% (soft attacks + long ambient
+  tails are the antithesis of chip audio). Worst-dim breakdowns match each genre's rationale;
+  clean separation Fantasy << Horror/Sci-Fi << Retro.
+- Tests: `-R presets` 4/4 (lookup, stat sanity, JSON round-trip, direction: a canonical chip
+  blip conforms to Retro 8-bit and strays red from Horror); `preset_lint.sh` integration
+  (list/export determinism/designed provenance/lint pipeline).
+
+Also noted while loading that pack (2 728 files, 2.9 s scan): the constellation "lines" a
+user will see on large diverse sets are the mapping's clamp rails (212 files at loud01=0,
+i.e. quieter than -40 LUFS; 158 at tail01=1, tails past 3 s) — by design, tuner normalization
+windows can spread them; percentile auto-ranging noted as a v2 idea.

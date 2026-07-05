@@ -23,6 +23,7 @@
 #include "soundpalette/lint.h"
 #include "soundpalette/manifest.h"
 #include "soundpalette/mapping.h"
+#include "soundpalette/presets.h"
 #include "soundpalette/profile.h"
 #include "soundpalette/propose.h"
 #include "soundpalette/recipe.h"
@@ -428,7 +429,7 @@ int cmd_describe(const std::vector<std::string> &args) {
 
 int cmd_profile(const std::vector<std::string> &args) {
     if (args.empty()) {
-        std::fprintf(stderr, "usage: soundpalette profile <create|show> ...\n");
+        std::fprintf(stderr, "usage: soundpalette profile <create|show|preset> ...\n");
         return 2;
     }
     const std::string &verb = args[0];
@@ -462,6 +463,45 @@ int cmd_profile(const std::vector<std::string> &args) {
                          c.file_count < 5 ? "  [warning: fewer than 5 files]" : "");
         }
         return 0;
+    }
+
+    if (verb == "preset") {
+        // Built-in designed genre presets (guardrail priors, not corpus stats). `export`
+        // materializes one as an ordinary .sppal.json so it composes with every --profile flag.
+        if (args.size() >= 2 && args[1] == "list") {
+            for (const sp::PresetInfo &info : sp::builtin_preset_list()) {
+                std::fprintf(stdout, "%-12s %s — %s\n", info.slug.c_str(), info.name.c_str(),
+                             info.description.c_str());
+            }
+            return 0;
+        }
+        if (args.size() >= 3 && args[1] == "export") {
+            const std::string &slug = args[2];
+            std::string out = slug + ".sppal.json";
+            for (std::size_t i = 3; i + 1 < args.size(); ++i) {
+                if (args[i] == "--out") {
+                    out = args[i + 1];
+                }
+            }
+            std::optional<sp::Profile> p = sp::builtin_preset(slug);
+            if (!p.has_value()) {
+                std::fprintf(stderr,
+                             "soundpalette: unknown preset '%s' (see profile preset list)\n",
+                             slug.c_str());
+                return 2;
+            }
+            std::ofstream f(out, std::ios::binary);
+            if (!f) {
+                std::fprintf(stderr, "soundpalette: cannot write %s\n", out.c_str());
+                return 2;
+            }
+            f << sp::profile_to_json(*p) << "\n";
+            std::fprintf(stdout, "wrote %s\n", out.c_str());
+            return 0;
+        }
+        std::fprintf(stderr,
+                     "usage: soundpalette profile preset list | preset export <slug> [--out f]\n");
+        return 2;
     }
 
     if (verb != "create") {
