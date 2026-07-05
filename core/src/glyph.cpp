@@ -175,7 +175,26 @@ std::string halo_fragment(const Deviation &dev, const Visual &v, double cx, doub
 
 } // namespace
 
-std::string sheet_svg(const Manifest &manifest, int columns, const Profile &profile) {
+namespace {
+
+// §7 legend strip: the sheet explains its own glyph grammar in perceptual units.
+constexpr double kLegendHeightPx = 18.0;
+std::string legend_fragment(double width, double y, double ref_spl) {
+    std::ostringstream ss;
+    ss << "<rect x=\"0\" y=\"" << fmt(y) << "\" width=\"" << fmt(width) << "\" height=\""
+       << fmt(kLegendHeightPx) << "\" fill=\"#161616\" />\n";
+    ss << "<text x=\"6\" y=\"" << fmt(y + 12.5)
+       << "\" font-family=\"monospace\" font-size=\"9\" fill=\"#aaaaaa\">"
+       << "area = loudness (sones) &#183; lightness = sharpness (acum) &#183; ragged edge = "
+          "roughness (asper) &#183; slow waves = fluctuation (vacil) &#183; ref_spl "
+       << fmt(ref_spl) << " dB SPL</text>\n";
+    return ss.str();
+}
+
+} // namespace
+
+std::string sheet_svg(const Manifest &manifest, int columns, const Profile &profile,
+                      bool with_legend) {
     constexpr double kCellPx = 120.0;
     constexpr double kLabelHeightPx = 11.0;
     constexpr double kGlyphCenterYFraction = 0.42;
@@ -185,7 +204,8 @@ std::string sheet_svg(const Manifest &manifest, int columns, const Profile &prof
         static_cast<int>((manifest.files.size() + static_cast<std::size_t>(columns) - 1) /
                          static_cast<std::size_t>(columns));
     const double width = columns * kCellPx;
-    const double height = std::max(rows, 1) * kCellPx;
+    const double grid_height = std::max(rows, 1) * kCellPx;
+    const double height = grid_height + (with_legend ? kLegendHeightPx : 0.0);
 
     std::ostringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -223,11 +243,14 @@ std::string sheet_svg(const Manifest &manifest, int columns, const Profile &prof
         ss << "</g>\n";
     }
 
+    if (with_legend) {
+        ss << legend_fragment(width, grid_height, manifest.ref_spl);
+    }
     ss << "</svg>\n";
     return ss.str();
 }
 
-std::string sheet_svg(const Manifest &manifest, int columns) {
+std::string sheet_svg(const Manifest &manifest, int columns, bool with_legend) {
     constexpr double kCellPx = 120.0;
     constexpr double kLabelHeightPx = 11.0;
     constexpr double kGlyphCenterYFraction = 0.42; // leaves room for the label beneath
@@ -237,12 +260,14 @@ std::string sheet_svg(const Manifest &manifest, int columns) {
         static_cast<int>((manifest.files.size() + static_cast<std::size_t>(columns) - 1) /
                          static_cast<std::size_t>(columns));
     const double width = columns * kCellPx;
-    const double height = std::max(rows, 1) * kCellPx;
+    const double grid_height = std::max(rows, 1) * kCellPx;
+    const double height = grid_height + (with_legend ? kLegendHeightPx : 0.0);
 
     std::ostringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     ss << "<!-- soundpalette schema_version=" << manifest.schema_version
-       << " mapping_version=" << manifest.mapping_version << " -->\n";
+       << " mapping_version=" << manifest.mapping_version << " ref_spl=" << fmt(manifest.ref_spl)
+       << " -->\n";
     ss << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" << fmt(width) << "\" height=\""
        << fmt(height) << "\" viewBox=\"0 0 " << fmt(width) << " " << fmt(height) << "\">\n";
     ss << "<rect x=\"0\" y=\"0\" width=\"" << fmt(width) << "\" height=\"" << fmt(height)
@@ -270,6 +295,9 @@ std::string sheet_svg(const Manifest &manifest, int columns) {
         ss << "</g>\n";
     }
 
+    if (with_legend) {
+        ss << legend_fragment(width, grid_height, manifest.ref_spl);
+    }
     ss << "</svg>\n";
     return ss.str();
 }

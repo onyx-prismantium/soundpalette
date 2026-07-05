@@ -30,8 +30,23 @@ jobs:
 
       - name: Generate test fixtures (deterministic, PLAN.md §11 + extension §7)
         run: |
-          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9 --profile-set fixtures_m10
+          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9 --profile-set fixtures_m10 --psycho fixtures_psycho
           bash tests/integration/make_lossy.sh tests/golden/fixtures
+
+      - name: Psychoacoustic oracle check (extension-3 M12; dev-time only)
+        run: |
+          python3 -m venv .venv-psycho
+          . .venv-psycho/bin/activate
+          pip install -q -r tools/psycho_oracle/requirements.txt
+          python tools/psycho_oracle/compute_reference.py fixtures_psycho tests/golden/fixtures \
+            --out /tmp/psycho_reference_ci.json
+          python3 - <<'EOF'
+          import json
+          a = json.load(open('/tmp/psycho_reference_ci.json'))["files"]
+          b = json.load(open('tests/golden/psycho_reference.json'))["files"]
+          assert a == b, "oracle values drifted from the committed reference"
+          print("oracle reference reproduces byte-for-byte")
+          EOF
 
       - name: Unit tests
         run: ctest --test-dir build --output-on-failure
@@ -99,8 +114,23 @@ jobs:
       - name: Generate test fixtures
         shell: bash
         run: |
-          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9 --profile-set fixtures_m10
+          ./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9 --profile-set fixtures_m10 --psycho fixtures_psycho
           bash tests/integration/make_lossy.sh tests/golden/fixtures
+
+      - name: Psychoacoustic oracle check (extension-3 M12; dev-time only)
+        run: |
+          python3 -m venv .venv-psycho
+          . .venv-psycho/bin/activate
+          pip install -q -r tools/psycho_oracle/requirements.txt
+          python tools/psycho_oracle/compute_reference.py fixtures_psycho tests/golden/fixtures \
+            --out /tmp/psycho_reference_ci.json
+          python3 - <<'EOF'
+          import json
+          a = json.load(open('/tmp/psycho_reference_ci.json'))["files"]
+          b = json.load(open('tests/golden/psycho_reference.json'))["files"]
+          assert a == b, "oracle values drifted from the committed reference"
+          print("oracle reference reproduces byte-for-byte")
+          EOF
 
       - name: Unit tests
         run: ctest --test-dir build --output-on-failure

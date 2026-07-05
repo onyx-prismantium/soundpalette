@@ -55,6 +55,28 @@ void draw_tuner(AppState &state) {
         changed |= slider("jitter flat w", &t.jitter_flat_weight, defaults.jitter_flat_weight);
         changed |= slider("jitter rough w", &t.jitter_rough_weight, defaults.jitter_rough_weight);
     }
+    if (ImGui::CollapsingHeader("Perceptual (v2)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= slider("loud sone div", &t.loud_sone_div, defaults.loud_sone_div);
+        changed |= slider("bright acum lo", &t.bright_acum_lo, defaults.bright_acum_lo);
+        changed |= slider("bright acum hi", &t.bright_acum_hi, defaults.bright_acum_hi);
+        changed |= slider("jitter asper lo", &t.jitter_asper_lo, defaults.jitter_asper_lo);
+        changed |= slider("jitter asper hi", &t.jitter_asper_hi, defaults.jitter_asper_hi);
+        changed |= slider("fluct vacil lo", &t.fluct_vacil_lo, defaults.fluct_vacil_lo);
+        changed |= slider("fluct vacil hi", &t.fluct_vacil_hi, defaults.fluct_vacil_hi);
+        changed |= slider("size sone base", &t.size_sone_base_px, defaults.size_sone_base_px);
+        changed |= slider("size sone scale", &t.size_sone_scale_px, defaults.size_sone_scale_px);
+        changed |= slider("fluct wave amp", &t.fluct_wave_amp, defaults.fluct_wave_amp);
+        changed |= slider("jnd loud ratio", &t.jnd_loud_ratio, defaults.jnd_loud_ratio);
+        changed |= slider("jnd fraction", &t.jnd_fraction, defaults.jnd_fraction);
+        // ref_spl re-CALIBRATES the analysis, not the mapping: changing it invalidates every
+        // psycho block, so it is shown read-only with the §7 rescan note.
+        ImGui::BeginDisabled(true);
+        double ref = t.ref_spl;
+        ImGui::SetNextItemWidth(-10.0f * ImGui::GetFontSize());
+        ImGui::InputDouble("ref_spl dB", &ref, 0.0, 0.0, "%.1f");
+        ImGui::EndDisabled();
+        ImGui::TextDisabled("(rescan to apply a different ref_spl)");
+    }
     if (ImGui::CollapsingHeader("Visual attributes")) {
         changed |= slider("hue base deg", &t.hue_base_deg, defaults.hue_base_deg);
         changed |= slider("hue warm span", &t.hue_warm_span_deg, defaults.hue_warm_span_deg);

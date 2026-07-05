@@ -190,6 +190,39 @@ registration format):
 
 Add `--bin <path-to-soundpalette>` if the CLI is not at `<repo>/build/cli/soundpalette`.
 
+## Perceptual metrics (mapping v2)
+
+Since mapping v2, the loudness, brightness, grit, and fluctuation dimensions come from real
+psychoacoustic models rather than spectral proxies: ISO 532-1 (Zwicker) loudness in **sones**
+(time-varying, reported as N5 — the loudness exceeded 5 % of the time), DIN 45692 sharpness in
+**acum**, Daniel & Weber roughness in **asper**, and fluctuation strength in **vacil**
+(experimental). Every surface speaks these units: `describe` appends them to its sentence,
+`lint` phrases deviations in just-noticeable differences ("sharpness +1.9 acum (~8 JND)"),
+the inspector shows anchored scale bars, and the SVG sheet carries a legend strip
+("area = loudness (sones) · lightness = sharpness (acum) · …", suppress with `--no-legend`).
+Glyph **area is proportional to loudness** — double the sones, double the area.
+
+### Calibration convention
+
+Sones require an absolute playback level; digital files do not carry one. SoundPalette adopts
+a declared monitoring reference: a signal measuring −23 LUFS is assumed to play at `ref_spl`
+dB SPL (default **75.0**, configurable in `MappingConfig`, allowed range 60–85). The value is
+stamped into every manifest and profile; comparisons across mismatched `ref_spl` or
+`mapping_version` are refused with a message telling you to rescan/regenerate. `scan
+--no-psycho` skips the block when you only need the spectral features.
+
+### Honest limits
+
+These models compute **sensation** (bottom-up auditory response under a declared monitoring
+level), not **meaning** — whether a sound reads as menacing or cute is learned and
+context-bound, and SoundPalette does not claim it. Loudness depends on the calibration
+convention; different `ref_spl` choices yield different sones by design. Analysis is monaural
+(binaural loudness is out of scope). Roughness follows Daniel & Weber, whose published
+implementations vary by ~10–20 % — hence the wider tolerance. Fluctuation strength is flagged
+experimental. `warm01`/`ton01` remain semantic-tier descriptors (research-backed correlations,
+no ISO unit). JND constants are order-of-magnitude figures from the literature, exposed as
+TUNABLE, not certified thresholds.
+
 ## Development
 
 - `PLAN.md` — normative spec: DSP formulas (§6), mapping constants (§7), manifest schema (§8),

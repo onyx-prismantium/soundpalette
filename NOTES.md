@@ -512,3 +512,80 @@ Also noted while loading that pack (2 728 files, 2.9 s scan): the constellation 
 user will see on large diverse sets are the mapping's clamp rails (212 files at loud01=0,
 i.e. quieter than -40 LUFS; 158 at tail01=1, tails past 3 s) — by design, tuner normalization
 windows can spread them; percentile auto-ranging noted as a v2 idea.
+
+# Extension plan 3 (SoundPalette_extension3.md): M12–M14, tagged v0.5.0
+
+## Preflight (2026-07-05)
+Tree clean at v0.4.0; 45/45 unit, 14/14 integration, MCP 13/13. Oracle env: pip has package
+internet; `.venv-psycho` with mosqito==1.2.1 (Apache-2.0), numpy 2.5.1, scipy 1.18.0, plus
+matplotlib 3.11.0 (transitive import required by mosqito 1.2.1 at module load). Pins in
+DEPENDENCIES.md "development-time oracles". **MoSQITo 1.2.1 does not export fluctuation
+strength** → per §5 the fluctuation oracle rows are omitted and the definitional gates stand
+alone (1 vacil anchor + cross-checks).
+
+## M12 — oracle
+Six calibrated fixtures via `genfixtures --psycho` (exact-RMS: dB SPL = RMS dBFS + 98 at
+ref_spl 75). compute_reference.py asserts the §5 definitional rows against MoSQITo's own
+output before writing; all seven pass (1.006 sone @40 dB, 10 dB ratio 2.013, 1.068 acum,
+1.019 asper, 4 Hz-AM/pure-tone quiet rows, sharpness direction). Reference committed with
+tool versions; CI re-computes it and diffs byte-for-byte.
+
+## M13 — C++ engine (implementation choices, tolerances as arbiter per §5)
+- Stationary DIN 45631 core matches MoSQITo's numerically (0.9270 vs 0.9267 sone on a clean
+  synthetic 40 dB band level — same published tables).
+- Band synthesis: multi-resolution causal STFT (8192/2048/1024 by fc) through an analytic
+  3rd-order-Butterworth third-octave weighting instead of a true IIR filterbank. Two findings
+  the tolerances forced: (1) the standard's filters LEAK deliberately (a tone excites its
+  neighbours at −19 dB; the equal-loudness tables were calibrated that way; rectangular bins
+  undershoot tones 8–15 %); (2) window sidelobes must stay below the intended filter skirts
+  (Hann@512 leaked more than the Butterworth wings and inflated tones ~5 % → mid bands use
+  2048).
+- Temporal chain: asymmetric band-intensity integration (slow charge ~2/BW with an 80 ms
+  floor, fast 8 ms discharge) + series two-stage loudness-time function (attack 40/40 ms,
+  release 60/90 ms), tuned by sweeping against the oracle's N5 targets over dumped drive
+  tracks. The oracle's measured onset curve (peak/steady 0.375@5 ms … 0.94@200 ms) and
+  two-stage release justified the architecture; no oracle code consulted, numbers only.
+- Roughness/fluctuation: shared modulation front-end on the 28 third-octave band envelopes
+  (RBJ-cascade filterbank), Welch modulation spectra, adjacent-band envelope correlation
+  (Daniel & Weber's k factors), fixed resonance weightings at 70 Hz / 4 Hz instead of the
+  per-channel best-modulation-frequency family, 28 carriers instead of 47 half-bark channels.
+  Output constants calibrated on the definitional anchors (that is how the units are
+  defined). Known divergence: impulsive clicks read ~0 asper here vs ~0.9 in frame-based
+  D&W implementations (ungated; arguably better for one-shot SFX). One-shot SFX read high
+  fluctuation (a single decaying envelope has low-frequency modulation energy) — flagged
+  experimental exactly for this kind of honesty gap.
+- Gates: all §5 rows green — stationary loudness/sharpness ±5 % (worst 2.4 %), transient N5
+  ±10 % (click 1.079, decay 1.020, dark 0.911), AM roughness ±15 %/0.05, direction,
+  determinism. perf: 200 files 2.7 s psycho-on / 0.36 s off (budgets 45/10 s).
+
+## M14 — mapping v2 + surfaces
+- 7→8 dims everywhere (Cov8, deviations, PCA, constellation, describe, presets). Manifest
+  schema 2 (strict superset; per-file psycho block + top-level ref_spl). §0 mismatch refusal
+  via profile_compat_error() at every load site; v1 baselines/profiles refused with a rescan
+  message; export-svg refuses schema-1 manifests.
+- fixable_outlier regenerated for the v2 premise: band-passed 4 kHz noise (wide, Q .8 ×2).
+  The old LP-6k construction relied on the centroid-based bright01; under v2 its sharpness z
+  was 2.39 (< T) while ton01 kept an unresolvable −3.2 z that v1's shelf fixed only as a side
+  effect. The narrow first attempt (5 kHz Q 2) defeated the 4 kHz shelf entirely — a shelf
+  only moves sharpness when it can tilt the OCCUPIED spectrum.
+- Solver: gain op inverse re-derived for sones (10 dB per doubling + damped absolute-target
+  correction from re-analyzed sones); bright/warm slopes kept (bright fix passes through the
+  same shelf; harmonize_demo.sh green unchanged).
+- Genre presets re-anchored on v2 stats of the local 2.7k reference pack (bright .38±.19,
+  loud .75±.20, jitter .69±.38, fluct .82±.30 anchor).
+- Goldens regenerated deliberately (schema 2 + legend strip + sones-sized glyphs);
+  spot-checked psycho keys, 8-dim stats, legend text, ref_spl in the SVG comment.
+- assets/mapping_v2.json replaces mapping_v1.json (print-mapping output).
+
+**M14 GUI manual checklist** (Xvfb + xdotool screenshots, 2026-07-05):
+- [x] Inspector "Perception": four anchored scale bars (sones/acum/asper/vacil), folder
+      min-max track, ±1σ shading, anchor tick, value + unit, ref_spl + experimental note.
+- [x] Tuner "Perceptual (v2)": §6 constants + JND constants remap live; ref_spl read-only
+      with "(rescan to apply)".
+- [x] Legend strip on export (and --no-legend suppresses); metadata comment carries ref_spl.
+- [x] Manual updated to v2 (units in the glyph legend, breathing-drone example); glyph wave
+      geometry visible on real sounds; footer shows "mapping v2".
+- [x] describe sentence carries units; lint text carries JND phrasing (new gates
+      describe_units.sh, lint_jnd.sh).
+
+Gate: 55/55 unit, 18/18 integration, MCP 13/13, smokes green. engine_version 0.5.0.

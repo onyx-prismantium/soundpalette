@@ -28,7 +28,7 @@ cmake --build build
 Fixtures are generated, not committed (deterministic — see PLAN.md §11):
 
 ```bash
-./build/tools/genfixtures/genfixtures tests/golden/fixtures
+./build/tools/genfixtures/genfixtures tests/golden/fixtures --psycho fixtures_psycho
 bash tests/integration/make_lossy.sh tests/golden/fixtures
 ```
 
@@ -47,6 +47,13 @@ Extension milestones (SoundPalette_extension1.md, M8/M9): generate the extra fix
 `./build/tools/genfixtures/genfixtures tests/golden/fixtures --extra fixtures_m9`. The MCP
 server gate is `bash tests/integration/mcp_smoke.sh` (needs node >= 18; runs npm ci/build/test
 in `mcp/`). The recipe-engine gates are `harmonize_demo.sh` and `provenance.sh`.
+
+Extension 3 (SoundPalette_extension3.md, M12–M14): psycho fixtures via `--psycho
+fixtures_psycho` (needed by `ctest -R psycho`); oracle regeneration is a deliberate act:
+`.venv-psycho` + `tools/psycho_oracle/compute_reference.py` (pins in
+tools/psycho_oracle/requirements.txt); gates `ctest -R psycho`, `psycho_oracle_match.sh`,
+`describe_units.sh`, `lint_jnd.sh`; mapping v2 artifacts (schema 2 manifests, ref_spl) refuse
+v1 inputs — regenerate rather than mix.
 
 Extension 2 (SoundPalette_extension2.md, M10/M11): fixtures via `--profile-set fixtures_m10`;
 unit gates `-R "glob|profile|deviation|seam"` and `-R "pca|ellipse"`; scripts

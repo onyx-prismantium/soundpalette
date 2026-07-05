@@ -6,5 +6,5 @@
 #include "soundpalette/version.h"
 
 TEST_CASE("version string is well-formed") {
-    CHECK(std::string(sp::kVersionString) == "0.4.0");
+    CHECK(std::string(sp::kVersionString) == "0.5.0");
 }

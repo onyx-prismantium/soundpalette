@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- soundpalette schema_version=2 mapping_version=2 -->
-<svg xmlns="http://www.w3.org/2000/svg" width="960.000" height="480.000" viewBox="0 0 960.000 480.000">
-<rect x="0" y="0" width="960.000" height="480.000" fill="#1e1e1e" />
+<!-- soundpalette schema_version=2 mapping_version=2 ref_spl=75.000 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="960.000" height="498.000" viewBox="0 0 960.000 498.000">
+<rect x="0" y="0" width="960.000" height="498.000" fill="#1e1e1e" />
 <g>
 <polygon points="126.044,50.400 108.312,63.345 114.925,82.111 94.832,85.232 88.863,100.393 72.899,98.539 60.000,100.436 45.940,102.873 35.224,93.313 16.864,93.536 16.895,75.287 -3.047,67.293 9.988,50.400 -3.466,33.394 17.217,25.699 16.902,7.302 35.038,7.164 46.155,-1.269 60.000,0.962 72.756,2.794 88.861,0.411 95.351,15.049 115.575,18.314 108.190,37.487" fill="hsl(220.000,44.616%,78.000%)" />
 <circle cx="70.424" cy="50.400" r="7.945" fill="hsl(220.000,44.616%,78.000%)" fill-opacity="0.500" />
@@ -263,4 +263,6 @@
 <circle cx="628.174" cy="410.400" r="1.515" fill="hsl(220.000,85.000%,35.655%)" fill-opacity="0.070" />
 <text x="540.000" y="476.700" font-size="11.000" font-family="sans-serif" fill="#cccccc" text-anchor="middle">sine997_cal.wav</text>
 </g>
+<rect x="0" y="480.000" width="960.000" height="18.000" fill="#161616" />
+<text x="6" y="492.500" font-family="monospace" font-size="9" fill="#aaaaaa">area = loudness (sones) &#183; lightness = sharpness (acum) &#183; ragged edge = roughness (asper) &#183; slow waves = fluctuation (vacil) &#183; ref_spl 75.000 dB SPL</text>
 </svg>

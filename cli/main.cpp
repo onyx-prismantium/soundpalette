@@ -266,6 +266,82 @@ int cmd_lint(const std::vector<std::string> &args) {
     };
     std::vector<Row> rows;
     rows.reserve(candidate.files.size());
+
+    // Family medians of the perceptual metrics for the §7 JND phrasing.
+    auto median_of = [](std::vector<double> v) {
+        if (v.empty()) {
+            return 0.0;
+        }
+        std::sort(v.begin(), v.end());
+        const std::size_t n = v.size();
+        return n % 2 == 1 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
+    };
+    std::vector<double> med_sones, med_acum, med_asper, med_vacil;
+    for (const sp::FileEntry &e : candidate.files) {
+        if (e.error.empty() && !e.loudness.silent) {
+            med_sones.push_back(e.psycho.sones_n5);
+            med_acum.push_back(e.psycho.sharpness_acum);
+            med_asper.push_back(e.psycho.roughness_asper);
+            med_vacil.push_back(e.psycho.fluctuation_vacil);
+        }
+    }
+    const sp::MappingConfig &mc = sp::active_mapping_config();
+    const double fam_sones = std::max(median_of(med_sones), 1e-6);
+    const double fam_acum = std::max(median_of(med_acum), mc.bright_acum_lo);
+    const double fam_asper = std::max(median_of(med_asper), mc.jitter_asper_lo);
+    const double fam_vacil = std::max(median_of(med_vacil), mc.fluct_vacil_lo);
+    // Perceptual clauses for the offending psycho dims (§7): loudness in JND-of-ratio
+    // (count = ln(ratio)/ln(jnd_loud_ratio)), the others in JND-of-fraction of the family
+    // median (count = |delta| / (jnd_fraction * median)). Returns text; fills the json map.
+    auto jnd_clauses = [&](const Row &r, nlohmann::ordered_json *jnd_json) {
+        std::string text;
+        const sp::PsychoFeatures &p = r.entry->psycho;
+        auto add = [&text](const char *fmt, double a, double b) {
+            char buf[96];
+            std::snprintf(buf, sizeof(buf), fmt, a, b);
+            if (!text.empty()) {
+                text += " ";
+            }
+            text += buf;
+        };
+        auto offending = [&](int d) {
+            // Emit a clause for the dims that actually drive the flag.
+            return std::fabs(r.dev.z[static_cast<std::size_t>(d)]) >= 0.8 * profile.threshold;
+        };
+        if (offending(5)) { // loud01 <- sones
+            const double ratio = std::max(p.sones_n5, 1e-6) / fam_sones;
+            const double jnd = std::log(std::max(ratio, 1e-9)) / std::log(mc.jnd_loud_ratio);
+            add("loudness %.1fx family median (~%.0f JND)", ratio, std::fabs(jnd));
+            if (jnd_json != nullptr) {
+                (*jnd_json)["loudness"] = std::round(jnd * 10.0) / 10.0;
+            }
+        }
+        if (offending(0)) { // bright01 <- acum
+            const double delta = p.sharpness_acum - fam_acum;
+            const double jnd = delta / (mc.jnd_fraction * fam_acum);
+            add("sharpness %+.1f acum (~%.0f JND)", delta, std::fabs(jnd));
+            if (jnd_json != nullptr) {
+                (*jnd_json)["sharpness"] = std::round(jnd * 10.0) / 10.0;
+            }
+        }
+        if (offending(6)) { // jitter01 <- asper
+            const double delta = p.roughness_asper - fam_asper;
+            const double jnd = delta / (mc.jnd_fraction * fam_asper);
+            add("roughness %+.2f asper (~%.0f JND)", delta, std::fabs(jnd));
+            if (jnd_json != nullptr) {
+                (*jnd_json)["roughness"] = std::round(jnd * 10.0) / 10.0;
+            }
+        }
+        if (offending(7)) { // fluct01 <- vacil
+            const double delta = p.fluctuation_vacil - fam_vacil;
+            const double jnd = delta / (mc.jnd_fraction * fam_vacil);
+            add("fluctuation %+.2f vacil (~%.0f JND)", delta, std::fabs(jnd));
+            if (jnd_json != nullptr) {
+                (*jnd_json)["fluctuation"] = std::round(jnd * 10.0) / 10.0;
+            }
+        }
+        return text;
+    };
     for (const sp::FileEntry &e : candidate.files) {
         if (e.error.empty() && !e.loudness.silent) {
             rows.push_back({&e, sp::compute_deviation(e, profile)});
@@ -307,6 +383,9 @@ int cmd_lint(const std::vector<std::string> &args) {
             o["max_z"] = round4(r->dev.max_z);
             o["worst_dim"] = kDims[r->dev.worst_dim];
             o["dims_over"] = dims_over_of(*r);
+            nlohmann::ordered_json jnd = nlohmann::ordered_json::object();
+            jnd_clauses(*r, &jnd);
+            o["jnd"] = std::move(jnd);
             j["outliers"].push_back(std::move(o));
             ++listed;
         }
@@ -351,13 +430,16 @@ int cmd_lint(const std::vector<std::string> &args) {
             dims += d;
         }
         const double worst_z = r->dev.z[static_cast<std::size_t>(r->dev.worst_dim)];
+        const std::string jnd = jnd_clauses(*r, nullptr);
         if (with_categories) {
-            std::fprintf(stdout, "OUTLIER %s cat=%s worst=%s z=%+.2f dims=%s\n",
-                         r->entry->path.c_str(), r->dev.category.c_str(), kDims[r->dev.worst_dim],
-                         worst_z, dims.c_str());
+            std::fprintf(stdout, "OUTLIER %s cat=%s %s[z %+.2f] worst=%s dims=%s\n",
+                         r->entry->path.c_str(), r->dev.category.c_str(),
+                         jnd.empty() ? "" : (jnd + " ").c_str(), worst_z, kDims[r->dev.worst_dim],
+                         dims.c_str());
         } else {
-            std::fprintf(stdout, "OUTLIER %s worst=%s z=%+.2f dims=%s\n", r->entry->path.c_str(),
-                         kDims[r->dev.worst_dim], worst_z, dims.c_str());
+            std::fprintf(stdout, "OUTLIER %s %s[z %+.2f] worst=%s dims=%s\n",
+                         r->entry->path.c_str(), jnd.empty() ? "" : (jnd + " ").c_str(), worst_z,
+                         kDims[r->dev.worst_dim], dims.c_str());
         }
         ++shown;
     }
@@ -390,6 +472,15 @@ int cmd_describe(const std::vector<std::string> &args) {
         return 2;
     }
     std::string sentence = sp::describe_words(e.features, e.loudness, e.psycho);
+    if (!e.loudness.silent) {
+        // §7: the sentence carries the perceptual units so a human can read them.
+        char units[96];
+        std::snprintf(units, sizeof(units), " %.1f sones, %.1f acum, %.2f asper.",
+                      e.psycho.sones_n5, e.psycho.sharpness_acum, e.psycho.roughness_asper);
+        sentence.pop_back(); // replace the trailing '.' with the units clause
+        sentence += ";";
+        sentence += units;
+    }
 
     if (!json_out) {
         std::fprintf(stdout, "%s\n", sentence.c_str());
@@ -438,6 +529,19 @@ int cmd_describe(const std::vector<std::string> &args) {
     }
     j["dims"] = std::move(jd);
     j["words"] = std::move(jw);
+    j["psycho"] = {{"ref_spl", round4(e.psycho.ref_spl)},
+                   {"sones_n5", round4(e.psycho.sones_n5)},
+                   {"sones_mean", round4(e.psycho.sones_mean)},
+                   {"sharpness_acum", round4(e.psycho.sharpness_acum)},
+                   {"roughness_asper", round4(e.psycho.roughness_asper)},
+                   {"fluctuation_vacil", round4(e.psycho.fluctuation_vacil)},
+                   {"experimental_fluctuation", e.psycho.experimental_fluctuation}};
+    // §7 fixed definitional anchor strings: the units are defined as reference signals.
+    j["anchors"] = {
+        {"1 sone", "level of a 1 kHz tone at 40 dB SPL"},
+        {"1 acum", "sharpness of narrowband noise at 1 kHz, 60 dB"},
+        {"1 asper", "roughness of a 1 kHz tone, 60 dB, fully amplitude-modulated at 70 Hz"},
+        {"1 vacil", "same but modulated at 4 Hz"}};
     j["sentence"] = sentence;
 
     std::fputs(j.dump(2).c_str(), stdout);
@@ -992,6 +1096,7 @@ int cmd_harmonize(const std::vector<std::string> &args) {
 
 int cmd_export_svg(const std::vector<std::string> &args) {
     std::string manifest_path;
+    bool with_legend = true;
     std::string out;
     std::string profile_path;
     int columns = 8;
@@ -1004,6 +1109,8 @@ int cmd_export_svg(const std::vector<std::string> &args) {
             columns = std::stoi(args[++i]);
         } else if (a == "--profile" && i + 1 < args.size()) {
             profile_path = args[++i];
+        } else if (a == "--no-legend") {
+            with_legend = false;
         } else if (a.rfind("--", 0) != 0 && manifest_path.empty()) {
             manifest_path = a;
         }
@@ -1017,7 +1124,7 @@ int cmd_export_svg(const std::vector<std::string> &args) {
 
     if (manifest_path.empty() || out.empty()) {
         std::fprintf(stderr, "usage: soundpalette export-svg <palette.json> --out sheet.svg "
-                             "[--columns 8]\n");
+                             "[--columns 8] [--profile p.sppal.json] [--no-legend]\n");
         return 2;
     }
 
@@ -1099,9 +1206,9 @@ int cmd_export_svg(const std::vector<std::string> &args) {
             std::fprintf(stderr, "soundpalette: %s\n", perr.c_str());
             return 2;
         }
-        svg = sp::sheet_svg(manifest, columns, profile);
+        svg = sp::sheet_svg(manifest, columns, profile, with_legend);
     } else {
-        svg = sp::sheet_svg(manifest, columns);
+        svg = sp::sheet_svg(manifest, columns, with_legend);
     }
     std::ofstream out_f(out, std::ios::binary);
     if (!out_f) {

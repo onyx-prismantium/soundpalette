@@ -13,7 +13,7 @@ namespace spapp {
 namespace {
 
 // One manual row: an example glyph rendered into a fixed cell, description text beside it.
-// The Visual values are hand-picked to match mapping v1 (§7) for the described sound.
+// The Visual values are hand-picked to match mapping v2 (§7 + extension-3 §6).
 void example_row(const sp::Visual &v, const char *title, const char *text, float cell) {
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
@@ -54,9 +54,11 @@ void draw_manual(AppState &state) {
     ImGui::SeparatorText("Background");
     ImGui::TextWrapped(
         "SoundPalette treats a game's sound effects like a color palette. Every audio file is "
-        "analyzed for seven perceptual dimensions - brightness, warmth, tonality, attack, decay "
-        "tail, loudness, and noisiness - and a fixed, versioned mapping (mapping v1) turns them "
-        "into a glyph. Because the mapping never changes between runs, a cohesive sound identity "
+        "analyzed for eight perceptual dimensions - sharpness, warmth, tonality, attack, decay "
+        "tail, loudness, roughness, and fluctuation (the loudness, sharpness, roughness, and "
+        "fluctuation dims are real psychoacoustic units: sones, acum, asper, vacil) - and a "
+        "fixed, versioned mapping (mapping v2) turns them into a glyph. Because the mapping never "
+        "changes between runs, a cohesive sound identity "
         "looks like a cohesive palette, and off-brand sounds stick out at a glance. The same "
         "analysis drives the CLI's 'palette lint' gate, so what you see here is what CI checks.");
 
@@ -67,23 +69,31 @@ void draw_manual(AppState &state) {
     ImGui::TextWrapped("Hue <- warmth: cold, thin sounds sit at blue (220 deg); warmth rotates "
                        "the hue through green and yellow toward orange/red.");
     ImGui::Bullet();
-    ImGui::TextWrapped("Lightness <- brightness (spectral centroid): dark rumbles render dark, "
-                       "airy or hissy sounds render light.");
+    ImGui::TextWrapped("Lightness <- sharpness (DIN 45692, in acum): dull rumbles render dark, "
+                       "sharp hissy sounds render light. 1 acum = narrowband noise at 1 kHz, "
+                       "60 dB.");
     ImGui::Bullet();
     ImGui::TextWrapped("Saturation <- tonality: pitched, tonal material is vivid; noise-like "
                        "material washes out toward gray.");
     ImGui::Bullet();
-    ImGui::TextWrapped("Size <- loudness (integrated LUFS): louder files draw bigger glyphs.");
+    ImGui::TextWrapped("Size <- loudness (ISO 532-1, in sones): glyph AREA is proportional to "
+                       "loudness - double the sones, double the area. 1 sone = a 1 kHz tone at "
+                       "40 dB SPL under the ref_spl monitoring convention.");
     ImGui::Bullet();
     ImGui::TextWrapped("Spikes <- attack: fast attacks grow spikes (more and longer as the "
                        "attack sharpens); soft attacks stay round.");
     ImGui::Bullet();
-    ImGui::TextWrapped("Edge jitter <- noisiness + roughness: flat, gritty spectra make the "
-                       "outline wobble (deterministic per file - the same file always jitters "
-                       "the same way).");
+    ImGui::TextWrapped("Edge jitter <- roughness (Daniel & Weber, in asper): gritty, rattling "
+                       "sounds make the outline ragged (deterministic per file). 1 asper = a "
+                       "1 kHz tone, 60 dB, fully amplitude-modulated at 70 Hz.");
     ImGui::Bullet();
     ImGui::TextWrapped("Tail <- decay tail: fading circles trail to the right; the longer the "
                        "decay, the wider the trail.");
+    ImGui::Bullet();
+    ImGui::TextWrapped("Slow waves <- fluctuation strength (in vacil, experimental): slow "
+                       "envelope movement bends the outline into three broad lobes - distinct "
+                       "from jitter's fine grain. 1 vacil = the 70 Hz reference modulated at "
+                       "4 Hz instead.");
 
     ImGui::SeparatorText("Example glyphs");
     const float cell = 96.0f * s;
@@ -112,6 +122,12 @@ void draw_manual(AppState &state) {
                     "Low brightness renders it dark and low loudness keeps it small. Warmth "
                     "still shows in the yellow-orange hue; a moderately sharp attack adds a few "
                     "short spikes.",
+                    cell);
+        sp::Visual drone = make_visual(90.0, 50.0, 42.0, 34.0, 0.0, 0, 0.1, 0.6, 6);
+        drone.fluct01 = 0.9;
+        example_row(drone, "Breathing drone", // fluct01 .9 (v2)
+                    "Strong slow modulation bends the outline into three broad waves - the "
+                    "fluctuation signature (vacil), visually distinct from jitter's fine grain.",
                     cell);
         example_row(make_visual(0.0, 0.0, 60.0, 8.0, 0.0, 0, 0.0, 0.0, 5),
                     "Silent file", // fixed silent visual (§7)
