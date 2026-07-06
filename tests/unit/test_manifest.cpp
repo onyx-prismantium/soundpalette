@@ -59,8 +59,8 @@ void check_file_entry(const json &fe) {
     CHECK(features.at("flatness").get<double>() <= 1.0);
 
     const json &visual = fe.at("visual");
-    for (const char *key : {"hue_deg", "sat", "light", "size_px", "spike01", "spikes", "jitter01",
-                            "tail01", "seed"}) {
+    for (const char *key : {"hue_deg", "sat", "light", "size_px", "ton01", "spike01", "spikes",
+                            "jitter01", "tail01", "seed"}) {
         REQUIRE(visual.contains(key));
     }
     CHECK(visual.at("hue_deg").get<double>() >= 0.0);

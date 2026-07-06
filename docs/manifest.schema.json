@@ -234,6 +234,7 @@
             "sat",
             "light",
             "size_px",
+            "ton01",
             "spike01",
             "spikes",
             "jitter01",
@@ -259,6 +260,12 @@
             "size_px": {
               "type": "number",
               "minimum": 0
+            },
+            "ton01": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "blob rays: 1 = tonal/straight, 0 = noisy/wavy"
             },
             "spike01": {
               "type": "number",

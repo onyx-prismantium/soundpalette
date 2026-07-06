@@ -100,6 +100,7 @@ Visual map_v2(const Features &features, const Loudness &loudness, const PsychoFe
         v.sat = c.silent_sat;
         v.light = c.silent_light;
         v.size_px = c.silent_size_px;
+        v.ton01 = 0.0;
         v.spike01 = 0.0;
         v.spikes = 0;
         v.jitter01 = 0.0;
@@ -120,12 +121,14 @@ Visual map_v2(const Features &features, const Loudness &loudness, const PsychoFe
     const double jitter01 = dims[6];
     const double fluct01 = dims[7];
 
-    // Blob (upper half): the analytic story only. Size and lightness are fixed — loudness
-    // and sharpness moved into the psycho line.
+    // Blob (upper half): the analytic story only. Size, saturation, and lightness are
+    // fixed — loudness and sharpness live in the psycho line, tonality in the rays above
+    // the blob (straight = tonal, wavy = noisy; saturation was too subtle to read).
     v.hue_deg = c.hue_base_deg - c.hue_warm_span_deg * warm01;
-    v.sat = c.sat_base + c.sat_ton_span * ton01;
+    v.sat = c.blob_sat;
     v.light = c.blob_light;
     v.size_px = c.blob_size_px;
+    v.ton01 = ton01;
     // Line (lower half): perceptual dims.
     v.loud01 = loud01;
     v.sharp01 = bright01;
@@ -164,6 +167,7 @@ std::string mapping_config_to_json(const MappingConfig &c) {
     root["fluct01"] = std::move(fluct2);
     json blob = json::object();
     blob["size_px"] = c.blob_size_px;
+    blob["sat"] = c.blob_sat;
     blob["light"] = c.blob_light;
     root["blob"] = std::move(blob);
     json line = json::object();

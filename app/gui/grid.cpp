@@ -21,10 +21,11 @@ constexpr int kTailCircles = 5;   // §7 decay tail
 const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
                             "tail01",   "loud01", "jitter01", "fluct01"};
 
-// Glyphs are authored at size_px up to 64 (radius) with spikes up to +45 %; scale so the
-// largest possible glyph plus its tail fits the cell.
+// Scale so the largest possible glyph envelope fits the cell: with blob_size_px 20 the
+// widest extent is the mirrored tail (~49 authored px from center) and the tallest is the
+// ray tips (~41 px above the blob center).
 float glyph_scale(float cell_px) {
-    return (cell_px * 0.5f - 6.0f) / (64.0f * 1.45f);
+    return (cell_px * 0.5f - 6.0f) / 55.0f;
 }
 
 } // namespace
@@ -44,18 +45,30 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
     unsigned int fill = hsl_to_rgba(v.hue_deg, v.sat, v.light, 1.0);
     draw->AddConcavePolyFilled(pts.data(), static_cast<int>(pts.size()), fill);
 
-    // Decay tail (§7): 5 circles to the right, shrinking/fading, spread tail01 * 2.2 * size.
+    // Tonality rays: straight fan = tonal, wobbling fan = noise-like (same geometry as the
+    // SVG sheet via glyph_rays).
+    for (const std::vector<std::array<float, 2>> &ray : sp::glyph_rays(v)) {
+        for (const std::array<float, 2> &p : ray) {
+            draw->PathLineTo(ImVec2(blob_center.x + p[0] * scale, blob_center.y + p[1] * scale));
+        }
+        draw->PathStroke(fill, 0, std::max(1.0f, 1.6f * scale));
+    }
+
+    // Decay tail (§7, ray revision): 5 circles on EACH side, starting at the blob edge,
+    // shrinking/fading, spread tail01 * 1.15 * size per side.
     if (v.tail01 >= 0.05) {
-        const double spread = v.tail01 * 2.2 * v.size_px;
+        const double spread = v.tail01 * 1.15 * v.size_px;
         for (int i = 0; i < kTailCircles; ++i) {
             double t = static_cast<double>(i) / (kTailCircles - 1);
-            double x =
-                blob_center.x + ((i + 1) / static_cast<double>(kTailCircles)) * spread * scale;
-            double radius = 0.16 * v.size_px * (1.0 - 0.8 * t) * scale;
-            double opacity = 0.5 + (0.07 - 0.5) * t;
-            draw->AddCircleFilled(ImVec2(static_cast<float>(x), blob_center.y),
-                                  static_cast<float>(radius),
-                                  hsl_to_rgba(v.hue_deg, v.sat, v.light, opacity));
+            double dx =
+                (v.size_px + ((i + 1) / static_cast<double>(kTailCircles)) * spread) * scale;
+            double radius = 0.30 * v.size_px * (1.0 - 0.75 * t) * scale;
+            double opacity = 0.55 + (0.10 - 0.55) * t;
+            unsigned int col = hsl_to_rgba(v.hue_deg, v.sat, v.light, opacity);
+            draw->AddCircleFilled(ImVec2(blob_center.x - static_cast<float>(dx), blob_center.y),
+                                  static_cast<float>(radius), col);
+            draw->AddCircleFilled(ImVec2(blob_center.x + static_cast<float>(dx), blob_center.y),
+                                  static_cast<float>(radius), col);
         }
     }
 

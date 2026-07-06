@@ -64,6 +64,7 @@ void draw_tuner(AppState &state) {
         changed |= slider("fluct vacil lo", &t.fluct_vacil_lo, defaults.fluct_vacil_lo);
         changed |= slider("fluct vacil hi", &t.fluct_vacil_hi, defaults.fluct_vacil_hi);
         changed |= slider("blob size px", &t.blob_size_px, defaults.blob_size_px);
+        changed |= slider("blob sat", &t.blob_sat, defaults.blob_sat);
         changed |= slider("blob light", &t.blob_light, defaults.blob_light);
         changed |=
             slider("line w/sone px", &t.line_width_per_sone_px, defaults.line_width_per_sone_px);

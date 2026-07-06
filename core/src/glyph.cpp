@@ -58,8 +58,9 @@ std::string hsl_color(const Visual &v) {
     return hsl_ints(v.hue_deg, v.sat, v.light);
 }
 
-// The glyph polygon + decay-tail circles, positioned with center (cx, cy). No outer <svg> tag;
-// shared by glyph_svg() (wrapped standalone) and sheet_svg() (positioned within the grid).
+// The glyph polygon + tonality rays + decay-tail circles, positioned with center (cx, cy).
+// No outer <svg> tag; shared by glyph_svg() (wrapped standalone) and sheet_svg() (positioned
+// within the grid).
 std::string glyph_fragment(const Visual &v, double cx, double cy) {
     std::ostringstream ss;
     std::vector<std::array<float, 2>> pts = glyph_outline(v);
@@ -73,17 +74,34 @@ std::string glyph_fragment(const Visual &v, double cx, double cy) {
     }
     ss << "\" fill=\"" << hsl_color(v) << "\" />\n";
 
-    // Decay tail: 5 circles to the right, radius shrinking from 0.16*size_px, opacity fading
-    // from 0.5 to 0.07, horizontal spread tail01*2.2*size_px (§7). Omitted when tail01 < 0.05.
+    // Tonality rays: straight fan = tonal, wobbling fan = noise-like.
+    for (const std::vector<std::array<float, 2>> &ray : glyph_rays(v)) {
+        ss << "<polyline points=\"";
+        for (std::size_t i = 0; i < ray.size(); ++i) {
+            if (i > 0) {
+                ss << " ";
+            }
+            ss << fmt(cx + ray[i][0]) << "," << fmt(cy + ray[i][1]);
+        }
+        ss << "\" fill=\"none\" stroke=\"" << hsl_color(v)
+           << "\" stroke-width=\"1.6\" stroke-linecap=\"round\" />\n";
+    }
+
+    // Decay tail: 5 circles on EACH side, starting at the blob edge (inside the blob they
+    // were invisible), radius shrinking from 0.30*size_px, opacity fading 0.55 -> 0.10,
+    // horizontal spread tail01*1.15*size_px per side. Omitted when tail01 < 0.05.
     if (v.tail01 >= 0.05) {
-        const double spread = v.tail01 * 2.2 * v.size_px;
+        const double spread = v.tail01 * 1.15 * v.size_px;
         for (int i = 0; i < kTailCircleCount; ++i) {
             double t = static_cast<double>(i) / (kTailCircleCount - 1); // 0..1
-            double x = cx + ((i + 1) / static_cast<double>(kTailCircleCount)) * spread;
-            double radius = 0.16 * v.size_px * (1.0 - 0.8 * t);
-            double opacity = 0.5 + (0.07 - 0.5) * t;
-            ss << "<circle cx=\"" << fmt(x) << "\" cy=\"" << fmt(cy) << "\" r=\"" << fmt(radius)
-               << "\" fill=\"" << hsl_color(v) << "\" fill-opacity=\"" << fmt(opacity) << "\" />\n";
+            double dx = v.size_px + ((i + 1) / static_cast<double>(kTailCircleCount)) * spread;
+            double radius = 0.30 * v.size_px * (1.0 - 0.75 * t);
+            double opacity = 0.55 + (0.10 - 0.55) * t;
+            for (double side : {-1.0, 1.0}) {
+                ss << "<circle cx=\"" << fmt(cx + side * dx) << "\" cy=\"" << fmt(cy) << "\" r=\""
+                   << fmt(radius) << "\" fill=\"" << hsl_color(v) << "\" fill-opacity=\""
+                   << fmt(opacity) << "\" />\n";
+            }
         }
     }
 
@@ -135,19 +153,27 @@ std::string error_mark_fragment(double cx, double cy, double size) {
 } // namespace
 
 std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points) {
-    std::vector<std::array<float, 2>> pts(static_cast<std::size_t>(base_points));
+    // Star silhouette: cosine^3 lobes make narrow points, and the radius dips between them
+    // so a fast attack carves valleys instead of just bumping the outline — at spike01 = 1
+    // the point-to-valley ratio is 1.45 : 0.70, a star the eye catches immediately, while
+    // slow attacks stay perfectly round. Sampling snaps to a multiple of the spike count so
+    // every point lands exactly on a lobe maximum.
+    int n = base_points;
+    if (v.spikes > 0) {
+        n = ((base_points + v.spikes - 1) / v.spikes) * v.spikes;
+        n = std::max(n, v.spikes * 16);
+    }
+    std::vector<std::array<float, 2>> pts(static_cast<std::size_t>(n));
 
-    // Split-glyph revision: the blob carries the analytic story only (spikes = attack);
-    // roughness and fluctuation moved to the psycho line, so the outline is clean.
-    for (int i = 0; i < base_points; ++i) {
-        double theta = i * 2.0 * kPi / base_points;
+    for (int i = 0; i < n; ++i) {
+        double theta = i * 2.0 * kPi / n;
 
-        double spike_term = 0.0;
+        double shape = 0.0;
         if (v.spikes > 0) {
-            spike_term = v.spike01 * 0.45 * std::max(0.0, std::cos(v.spikes * theta));
+            const double lobe = std::max(0.0, std::cos(v.spikes * theta));
+            shape = lobe * lobe * lobe;
         }
-
-        double r = v.size_px * (1.0 + spike_term);
+        double r = v.size_px * (1.0 + v.spike01 * (0.45 * shape - 0.30 * (1.0 - shape)));
 
         pts[static_cast<std::size_t>(i)] = {static_cast<float>(r * std::cos(theta)),
                                             static_cast<float>(r * std::sin(theta))};
@@ -156,12 +182,48 @@ std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points
     return pts;
 }
 
+std::vector<std::vector<std::array<float, 2>>> glyph_rays(const Visual &v) {
+    if (v.silent) {
+        return {};
+    }
+    // Five rays fanned +-50 deg around straight up, starting just off the blob edge. The
+    // waviness is a perpendicular sine whose amplitude scales with noisiness (1 - ton01):
+    // tonal material shows a clean straight fan, noise shows wobbling rays.
+    constexpr int kRays = 5;
+    constexpr int kSegments = 12;
+    constexpr double kFanHalfDeg = 50.0;
+    const double start_r = 1.12 * v.size_px;
+    const double length = 0.75 * v.size_px;
+    const double wave_amp = (1.0 - std::clamp(v.ton01, 0.0, 1.0)) * 0.18 * v.size_px;
+    constexpr double kWaveCycles = 2.2;
+
+    std::vector<std::vector<std::array<float, 2>>> rays(kRays);
+    for (int r = 0; r < kRays; ++r) {
+        const double angle_deg = -90.0 - kFanHalfDeg + (2.0 * kFanHalfDeg * r) / (kRays - 1);
+        const double a = angle_deg * kPi / 180.0;
+        const double dir_x = std::cos(a), dir_y = std::sin(a);
+        const double perp_x = -dir_y, perp_y = dir_x;
+        std::vector<std::array<float, 2>> &pts = rays[static_cast<std::size_t>(r)];
+        pts.resize(kSegments + 1);
+        for (int i = 0; i <= kSegments; ++i) {
+            const double t = static_cast<double>(i) / kSegments;
+            const double d = start_r + t * length;
+            // Alternate the wave phase per ray so the fan wobbles, not marches, in step.
+            const double w =
+                wave_amp * std::sin(2.0 * kPi * kWaveCycles * t) * (r % 2 ? -1.0 : 1.0);
+            pts[static_cast<std::size_t>(i)] = {static_cast<float>(dir_x * d + perp_x * w),
+                                                static_cast<float>(dir_y * d + perp_y * w)};
+        }
+    }
+    return rays;
+}
+
 std::string glyph_svg(const Visual &v, double cell_px) {
     std::ostringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     ss << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" << fmt(cell_px) << "\" height=\""
        << fmt(cell_px) << "\" viewBox=\"0 0 " << fmt(cell_px) << " " << fmt(cell_px) << "\">\n";
-    ss << glyph_fragment(v, cell_px / 2.0, cell_px * 0.34);
+    ss << glyph_fragment(v, cell_px / 2.0, cell_px * 0.35);
     if (!v.silent) {
         ss << psycho_line_fragment(v, cell_px * 0.08, cell_px * 0.92, cell_px * 0.74);
     }
@@ -175,7 +237,9 @@ namespace {
 std::string halo_fragment(const Deviation &dev, const Visual &v, double cx, double cy,
                           double cell_x, double cell_y, double cell_px) {
     std::ostringstream ss;
-    const double radius = std::min(cell_px * 0.46, v.size_px * 1.5 + 6.0);
+    // The blob is smaller since the ray revision but its rays/tail reach further, so the
+    // ring is sized to the full glyph envelope rather than the blob radius.
+    const double radius = std::min(cell_px * 0.46, v.size_px * 2.5 + 6.0);
     if (dev.band == DevBand::red) {
         ss << "<circle cx=\"" << fmt(cx) << "\" cy=\"" << fmt(cy) << "\" r=\"" << fmt(radius)
            << "\" fill=\"none\" stroke=\"#E24B4A\" stroke-width=\"3\" data-dev=\"red\" />\n";
@@ -203,7 +267,8 @@ std::string legend_fragment(double width, double y, double ref_spl) {
        << fmt(kLegendHeightPx) << "\" fill=\"#161616\" />\n";
     ss << "<text x=\"6\" y=\"" << fmt(y + 12.5)
        << "\" font-family=\"monospace\" font-size=\"9\" fill=\"#aaaaaa\">"
-       << "blob: hue = warmth &#183; saturation = tonality &#183; spikes = attack &#183; "
+       << "blob: hue = warmth &#183; rays = tonality (straight = tonal, wavy = noisy) &#183; "
+          "star spikes = attack &#183; "
           "trail = decay &#124; line: width = loudness (sones) &#183; color blue&#8594;red = "
           "sharpness (acum) &#183; wave height = roughness (asper) &#183; wave count = "
           "fluctuation (vacil) &#183; ref_spl "
@@ -217,7 +282,7 @@ std::string sheet_svg(const Manifest &manifest, int columns, const Profile &prof
                       bool with_legend) {
     constexpr double kCellPx = 120.0;
     constexpr double kLabelHeightPx = 11.0;
-    constexpr double kGlyphCenterYFraction = 0.30;
+    constexpr double kGlyphCenterYFraction = 0.35;
 
     columns = std::max(columns, 1);
     const int rows =
@@ -277,7 +342,7 @@ std::string sheet_svg(const Manifest &manifest, int columns, const Profile &prof
 std::string sheet_svg(const Manifest &manifest, int columns, bool with_legend) {
     constexpr double kCellPx = 120.0;
     constexpr double kLabelHeightPx = 11.0;
-    constexpr double kGlyphCenterYFraction = 0.30; // leaves room for the label beneath
+    constexpr double kGlyphCenterYFraction = 0.35; // leaves room for the label beneath
 
     columns = std::max(columns, 1);
     const int rows =

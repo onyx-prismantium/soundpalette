@@ -17,7 +17,8 @@
     "vacil_hi": 1.0
   },
   "blob": {
-    "size_px": 26.0,
+    "size_px": 20.0,
+    "sat": 70.0,
     "light": 55.0
   },
   "line": {

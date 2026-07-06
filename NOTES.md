@@ -631,3 +631,35 @@ example table survives as "Putting it together". Manual default size 640×640.
 Verified: clean build, 55/55 ctest, headless smoke with `--view manual` screenshot inspected
 (strips + gradient bars render, sections in order). README updated: split-glyph reading table,
 stale v1 intro wording (size/lightness/edge-jitter) and 7-dim references corrected to 8.
+
+# Glyph legibility revision — rays, stars, symmetric tails (user-directed 2026-07-06)
+
+Three readability problems Andreas called out, all in the blob's encodings:
+- **Tonality as saturation didn't work** (too subtle to read). Replaced: a fan of five rays
+  above the blob — perfectly straight when tonal, sinusoidally wobbling when noise-like.
+  Visual gains `ton01`; `sat` is now fixed (`blob_sat` 70, TUNABLE, in the tuner + mapping
+  json "blob" group). Geometry lives in core `glyph_rays()` shared by the GUI renderer and
+  the SVG sheet, deterministic (covered in mapping/determinism alongside the outline).
+- **Attack spikes read as "rather round"**. The outline is now a star: cosine^3 lobes make
+  narrow points and the radius dips between them (point 1.45x : valley 0.70x at spike01 = 1
+  — carved contrast instead of smooth bumps). Outline sampling snaps to a multiple of the
+  spike count so lobe peaks are hit exactly (default base_points 24 → 48; stars use
+  >= spikes*16). Threshold/count formulas unchanged.
+- **Decay-tail circles were barely visible**: they started at the blob CENTER (short tails
+  hid entirely inside the blob) and were tiny (0.16*size). Now they start at the blob edge,
+  run symmetrically on BOTH sides (comet wings), radius 0.30*size shrinking, opacity
+  0.55→0.10, spread tail01*1.15*size per side.
+
+Layout: blob_size_px 26 → 20 to make vertical room for the rays; sheet/single-SVG glyph
+center 0.30/0.34 → 0.35 of the cell (max ray tip ~1.4 px below the cell top, max star bottom
+~7 px clear of the line's max envelope at 120 px cells). GUI glyph_scale envelope 64*1.45 →
+55 authored px, so on-screen glyphs got ~30 % bigger. SVG halo radius re-derived for the
+wider envelope (size*2.5+6). Legend strip, manual sections 2–4, README table, inspector
+Visual rows ("rays ton01", "star points"), manifest schema doc all updated; manifest visual
+block gains ton01 (schema stays 2, split-glyph precedent); export-svg parser defaults
+missing ton01 to 0.5 for old manifests. docs/screenshot.png recaptured.
+
+Goldens (palette.json, sheet.svg) and assets/mapping_v2.json regenerated deliberately for
+the new Visual field + geometry. Verified: 55/55 unit, 18/18 integration (incl. MCP smoke),
+grid + manual + sheet_png screenshots inspected at 2x zoom — noise (zigzag rays) vs sine
+(straight fan), click star vs pad round, and mirrored tails all read at a glance.

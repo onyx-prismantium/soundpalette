@@ -139,8 +139,8 @@ void draw_inspector(AppState &state) {
     if (ImGui::CollapsingHeader("Visual", ImGuiTreeNodeFlags_DefaultOpen)) {
         const sp::Visual &v = e.visual;
         ImGui::Text("blob hue    %.1f deg (warmth)", v.hue_deg);
-        ImGui::Text("blob sat    %.1f %% (tonality)", v.sat);
-        ImGui::Text("spike01     %.2f (%d spikes)", v.spike01, v.spikes);
+        ImGui::Text("rays ton01  %.2f (1 = straight)", v.ton01);
+        ImGui::Text("spike01     %.2f (%d star points)", v.spike01, v.spikes);
         ImGui::Text("tail01      %.2f", v.tail01);
         ImGui::Text("line loud01 %.2f (width)", v.loud01);
         ImGui::Text("line sharp  %.2f (blue->red)", v.sharp01);

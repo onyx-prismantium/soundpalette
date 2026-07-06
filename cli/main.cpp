@@ -1189,6 +1189,7 @@ int cmd_export_svg(const std::vector<std::string> &args) {
             fe.visual.sat = vj.value("sat", 0.0);
             fe.visual.light = vj.value("light", 0.0);
             fe.visual.size_px = vj.value("size_px", 0.0);
+            fe.visual.ton01 = vj.value("ton01", 0.5);
             fe.visual.spike01 = vj.value("spike01", 0.0);
             fe.visual.spikes = vj.value("spikes", 0);
             fe.visual.jitter01 = vj.value("jitter01", 0.0);

@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include <cmath>
+
 #include "soundpalette/glyph.h"
 #include "soundpalette/mapping.h"
 
@@ -117,13 +119,13 @@ TEST_CASE("mapping/monotonic") {
                 CHECK(in_unit_range(v.jitter01));
                 CHECK(in_unit_range(v.tail01));
                 CHECK(in_unit_range(v.fluct01));
-                CHECK(v.sat >= 25.0);
-                CHECK(v.sat <= 85.0);
+                CHECK(in_unit_range(v.ton01));
+                CHECK(v.sat == 70.0); // fixed blob saturation (tonality moved to the rays)
                 CHECK(v.light >= 28.0);
                 CHECK(v.light <= 78.0);
                 CHECK(in_unit_range(v.loud01));
                 CHECK(in_unit_range(v.sharp01));
-                CHECK(v.size_px == 26.0); // fixed blob size
+                CHECK(v.size_px == 20.0); // fixed blob size
             }
         }
     }
@@ -139,6 +141,7 @@ TEST_CASE("mapping/monotonic") {
         CHECK(v.spikes == 0);
         CHECK(v.jitter01 == 0.0);
         CHECK(v.tail01 == 0.0);
+        CHECK(v.ton01 == 0.0);
         CHECK(v.silent);
         CHECK(v.loud01 == 0.0);
         CHECK(v.seed == 42);
@@ -164,12 +167,42 @@ TEST_CASE("mapping/determinism") {
 
     auto a = sp::glyph_outline(v);
     auto b = sp::glyph_outline(v);
-    REQUIRE(a.size() == 24);
+    // Star sampling snaps to a multiple of the spike count so every point is hit exactly.
+    REQUIRE(a.size() % static_cast<std::size_t>(v.spikes) == 0);
+    REQUIRE(a.size() >= static_cast<std::size_t>(v.spikes) * 16);
     REQUIRE(a.size() == b.size());
     for (std::size_t i = 0; i < a.size(); ++i) {
         CHECK(a[i][0] == b[i][0]);
         CHECK(a[i][1] == b[i][1]);
     }
+
+    // Tonality rays are deterministic too, and straighter rays for higher ton01.
+    sp::Visual noisy = v;
+    noisy.ton01 = 0.0;
+    sp::Visual tonal = v;
+    tonal.ton01 = 1.0;
+    auto rays_a = sp::glyph_rays(noisy);
+    auto rays_b = sp::glyph_rays(noisy);
+    REQUIRE(rays_a.size() == 5);
+    REQUIRE(rays_a.size() == rays_b.size());
+    for (std::size_t r = 0; r < rays_a.size(); ++r) {
+        REQUIRE(rays_a[r].size() == rays_b[r].size());
+        for (std::size_t i = 0; i < rays_a[r].size(); ++i) {
+            CHECK(rays_a[r][i][0] == rays_b[r][i][0]);
+            CHECK(rays_a[r][i][1] == rays_b[r][i][1]);
+        }
+    }
+    // The straight (tonal) center ray is a perfect vertical line; the noisy one is not.
+    auto rays_tonal = sp::glyph_rays(tonal);
+    const auto &center_tonal = rays_tonal[2];
+    const auto &center_noisy = rays_a[2];
+    bool tonal_straight = true, noisy_straight = true;
+    for (std::size_t i = 0; i < center_tonal.size(); ++i) {
+        tonal_straight = tonal_straight && std::abs(center_tonal[i][0]) < 1e-4f;
+        noisy_straight = noisy_straight && std::abs(center_noisy[i][0]) < 1e-4f;
+    }
+    CHECK(tonal_straight);
+    CHECK(!noisy_straight);
 
     // Split-glyph revision: the blob outline is clean (spikes only) — roughness moved to
     // the psycho line — so a different seed leaves identical parameters identical.

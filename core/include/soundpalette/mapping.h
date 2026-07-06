@@ -13,22 +13,24 @@ struct PsychoFeatures; // psycho.h; by-reference here to avoid a header cycle
 
 // Visual attributes the analysis maps to (§7 + extension-3 §6, split-glyph revision).
 // The glyph is split horizontally: the UPPER half is the analytic blob (hue = warmth,
-// saturation = tonality, spikes = attack, trailing circles = decay; fixed size/lightness),
+// rays above = tonality — straight when tonal, wavy when noisy — spikes = attack as a
+// star silhouette, trailing circles both sides = decay; fixed size/saturation/lightness),
 // the LOWER half is the psychoacoustic line (stroke width = loudness in sones, color blue->
 // red = sharpness, sine amplitude = roughness, sine frequency = fluctuation — both with
 // enforced visible minimums so neither hides the other).
 struct Visual {
     double hue_deg = 0.0;  // blob: warmth
-    double sat = 0.0;      // blob: tonality
+    double sat = 0.0;      // blob: fixed (blob_sat)
     double light = 0.0;    // blob: fixed (blob_light)
     double size_px = 0.0;  // blob: fixed (blob_size_px)
+    double ton01 = 0.0;    // blob: ray waviness (1 = tonal/straight, 0 = noisy/wavy)
     double spike01 = 0.0;  // blob: attack
     double tail01 = 0.0;   // blob: decay trail
     double loud01 = 0.0;   // line: stroke width
     double sharp01 = 0.0;  // line: color blue->red
     double jitter01 = 0.0; // line: sine amplitude (roughness)
     double fluct01 = 0.0;  // line: sine frequency (fluctuation)
-    bool silent = false;   // silent files draw the fixed gray dot only, no line
+    bool silent = false;   // silent files draw the fixed gray dot only, no line/rays
     int spikes = 0;
     std::uint64_t seed = 0;
 };
@@ -106,9 +108,10 @@ struct MappingConfig {
     double fluct_vacil_lo = 0.02;
     double fluct_vacil_hi = 1.0;
 
-    // Split-glyph constants. Blob (upper half): fixed size and lightness — loudness and
-    // sharpness live in the line now.
-    double blob_size_px = 26.0;
+    // Split-glyph constants. Blob (upper half): fixed size, saturation, and lightness —
+    // loudness and sharpness live in the line, tonality in the rays above the blob.
+    double blob_size_px = 20.0;
+    double blob_sat = 70.0;
     double blob_light = 55.0;
     // Psycho line (lower half). Width is linear in sones, so the line's AREA stays honest
     // to loudness (length is fixed). Sine amplitude = roughness, sine frequency (cycle

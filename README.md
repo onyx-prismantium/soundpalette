@@ -211,9 +211,9 @@ perceived character in real units. One parameter per visual channel:
 | # | Parameter | Visual | Low → high |
 |---|---|---|---|
 | 1 | Warmth | blob hue | blue (220°, cold/thin) → red-orange (20°, warm/bassy) — the hue path literally runs cold to hot |
-| 2 | Tonality | blob saturation | washed-out gray (noise-like) → vivid (pitched/tonal); a gray blob means *noise*, not "no warmth" |
-| 3 | Attack | blob spikes | perfectly round (slow attack) → many long spikes (instant attack) |
-| 4 | Decay tail | trailing circles | none (dry one-shot) → wide fading trail (long ring-out) |
+| 2 | Tonality | rays above the blob | wobbling, flickering rays (noise-like) → a clean straight fan (pitched/tonal) |
+| 3 | Attack | star spikes | perfectly round (slow attack) → a many-pointed star with carved valleys (instant attack) |
+| 4 | Decay tail | trailing circles | none (dry one-shot) → wide fading wings on both sides (long ring-out) |
 | 5 | Loudness (sones) | line width | hairline → thick slab; width is linear in sones, so the line's **area doubles when perceived loudness doubles** |
 | 6 | Sharpness (acum) | line color | deep blue (dull, muffled) → red (harsh, hissy) |
 | 7 | Roughness (asper) | wave height | near-flat (steady) → tall swings (rattly, distorted) |

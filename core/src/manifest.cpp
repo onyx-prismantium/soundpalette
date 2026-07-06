@@ -275,6 +275,7 @@ std::string manifest_to_json(const Manifest &manifest) {
         visual["sat"] = round4(e.visual.sat);
         visual["light"] = round4(e.visual.light);
         visual["size_px"] = round4(e.visual.size_px);
+        visual["ton01"] = round4(e.visual.ton01);
         visual["spike01"] = round4(e.visual.spike01);
         visual["spikes"] = e.visual.spikes;
         visual["jitter01"] = round4(e.visual.jitter01);

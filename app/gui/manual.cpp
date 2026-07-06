@@ -32,14 +32,15 @@ void example_row(const sp::Visual &v, const char *title, const char *text, float
     ImGui::TextWrapped("%s", text);
 }
 
-sp::Visual make_visual(double hue, double sat, double spike01, int spikes, double tail01,
+sp::Visual make_visual(double hue, double ton01, double spike01, int spikes, double tail01,
                        double loud01, double sharp01, double rough01, double fluct01,
                        std::uint64_t seed) {
     sp::Visual v;
     v.hue_deg = hue;
-    v.sat = sat;
+    v.sat = 70.0;     // blob saturation is fixed in the ray design
     v.light = 55.0;   // blob lightness is fixed in the split design
-    v.size_px = 26.0; // blob size is fixed
+    v.size_px = 20.0; // blob size is fixed
+    v.ton01 = ton01;
     v.spike01 = spike01;
     v.spikes = spikes;
     v.tail01 = tail01;
@@ -54,7 +55,7 @@ sp::Visual make_visual(double hue, double sat, double spike01, int spikes, doubl
 // Neutral baseline for the spectrum strips: everything mid/quiet so the one swept parameter
 // is the only thing that changes between the five glyphs.
 sp::Visual spectrum_base() {
-    return make_visual(120.0, 55.0, 0.0, 0, 0.30, 0.5, 0.45, 0.15, 0.25, 11);
+    return make_visual(120.0, 0.65, 0.0, 0, 0.30, 0.5, 0.45, 0.15, 0.25, 11);
 }
 
 // Low/high captions under a strip or gradient bar, right label aligned to the strip's edge.
@@ -62,8 +63,7 @@ void strip_labels(ImVec2 origin, float width, const char *lo, const char *hi) {
     ImGui::TextDisabled("%s", lo);
     ImGui::SameLine();
     ImVec2 size = ImGui::CalcTextSize(hi);
-    ImGui::SetCursorScreenPos(
-        ImVec2(origin.x + width - size.x, ImGui::GetCursorScreenPos().y));
+    ImGui::SetCursorScreenPos(ImVec2(origin.x + width - size.x, ImGui::GetCursorScreenPos().y));
     ImGui::TextDisabled("%s", hi);
 }
 
@@ -78,8 +78,7 @@ void spectrum_strip(const char *lo, const char *hi, float cell, MakeVisualAt at)
     for (int i = 0; i < kSteps; ++i) {
         const double t = static_cast<double>(i) / (kSteps - 1);
         draw_glyph(draw, at(t),
-                   ImVec2(origin.x + (static_cast<float>(i) + 0.5f) * cell,
-                          origin.y + 0.5f * cell),
+                   ImVec2(origin.x + (static_cast<float>(i) + 0.5f) * cell, origin.y + 0.5f * cell),
                    cell);
     }
     ImGui::Dummy(ImVec2(cell * kSteps, cell));
@@ -134,12 +133,13 @@ void draw_manual(AppState &state) {
     ImGui::SeparatorText("How to read a glyph");
     ImGui::TextWrapped(
         "The glyph is split horizontally. The UPPER half is the analytic blob - spectral "
-        "character, four parameters: warmth (hue), tonality (saturation), attack (spikes), "
-        "decay tail (trail). The LOWER half is the psychoacoustic line - perceived character "
-        "in real units, four parameters: loudness (width, sones), sharpness (color, acum), "
-        "roughness (wave height, asper), fluctuation (wave count, vacil). Each parameter has "
-        "its own section below; every strip sweeps exactly one parameter from low to high "
-        "while the rest stay fixed, drawn through the same mapping the grid uses.");
+        "character, four parameters: warmth (hue), tonality (rays above the blob), attack "
+        "(star spikes), decay tail (trail both sides). The LOWER half is the psychoacoustic "
+        "line - perceived character in real units, four parameters: loudness (width, sones), "
+        "sharpness (color, acum), roughness (wave height, asper), fluctuation (wave count, "
+        "vacil). Each parameter has its own section below; every strip sweeps exactly one "
+        "parameter from low to high while the rest stay fixed, drawn through the same mapping "
+        "the grid uses.");
 
     // ---- Blob (upper half) --------------------------------------------------------------
     ImGui::SeparatorText("1. Warmth -> blob hue");
@@ -160,28 +160,27 @@ void draw_manual(AppState &state) {
     gradient_bar(c.hue_base_deg, c.hue_base_deg - c.hue_warm_span_deg, 75.0, 75.0, c.blob_light,
                  lo_buf, hi_buf, strip_w, bar_h);
 
-    ImGui::SeparatorText("2. Tonality -> blob saturation");
+    ImGui::SeparatorText("2. Tonality -> rays above the blob");
     ImGui::TextWrapped(
-        "Tonality comes from spectral flatness: pitched, tonal material (chimes, hums, "
-        "musical stingers) is vivid; noise-like material (wind, static, impacts) washes out "
-        "toward gray. The hue itself is untouched - only how much color survives. A gray blob "
-        "does not mean 'no warmth', it means 'noise'.");
-    spectrum_strip("noise-like / gray", "tonal / vivid", cell, [&](double t) {
+        "Tonality comes from spectral flatness. A fan of five rays rises from the blob: "
+        "pitched, tonal material (chimes, hums, musical stingers) shines perfectly straight "
+        "rays; noise-like material (wind, static, impacts) makes them wobble. Think of it as "
+        "the sound's radiance - organized sound radiates cleanly, noise flickers.");
+    spectrum_strip("noise-like / wavy rays", "tonal / straight rays", cell, [&](double t) {
         sp::Visual v = spectrum_base();
-        v.sat = c.sat_base + c.sat_ton_span * t;
+        v.ton01 = t;
         return v;
     });
-    gradient_bar(120.0, 120.0, c.sat_base, c.sat_base + c.sat_ton_span, c.blob_light,
-                 "noisy (washed out)", "tonal (saturated)", strip_w, bar_h);
 
-    ImGui::SeparatorText("3. Attack -> blob spikes");
+    ImGui::SeparatorText("3. Attack -> star spikes");
     ImGui::TextWrapped(
         "Attack is how fast the sound reaches its peak (%.0f ms to %.0f ms, log scale). Soft "
-        "attacks stay perfectly round; once the attack crosses the spike threshold, spikes "
-        "appear and grow in both count and length as it sharpens. Clicks and hits bristle; "
-        "pads and swells stay smooth.",
+        "attacks stay perfectly round; once the attack crosses the spike threshold, the blob "
+        "turns into a star - the points grow while the outline between them is carved inward, "
+        "so a hard transient is unmistakable at a glance. Clicks and hits are stars; pads and "
+        "swells stay round.",
         c.atk_lo_s * 1000.0, c.atk_hi_s * 1000.0);
-    spectrum_strip("slow attack / round", "instant attack / spiky", cell, [&](double t) {
+    spectrum_strip("slow attack / round", "instant attack / star", cell, [&](double t) {
         sp::Visual v = spectrum_base();
         v.spike01 = t;
         v.spikes = t > c.spike_threshold
@@ -192,9 +191,10 @@ void draw_manual(AppState &state) {
 
     ImGui::SeparatorText("4. Decay tail -> blob trail");
     ImGui::TextWrapped(
-        "The decay tail is how long the sound rings out (%.2f s to %.1f s, log scale). Five "
-        "fading circles trail to the right of the blob; the longer the decay, the wider the "
-        "spread. Dry one-shots have no trail; long reverbs and cymbal washes trail far.",
+        "The decay tail is how long the sound rings out (%.2f s to %.1f s, log scale). Fading "
+        "circles spread symmetrically from both sides of the blob, starting at its edge; the "
+        "longer the decay, the wider the wings. Dry one-shots have no trail; long reverbs and "
+        "cymbal washes spread far.",
         c.tail_lo_s, c.tail_hi_s);
     spectrum_strip("dry / no trail", "long decay / wide trail", cell, [&](double t) {
         sp::Visual v = spectrum_base();
@@ -209,17 +209,19 @@ void draw_manual(AppState &state) {
         "(1 sone = a 1 kHz tone at 40 dB SPL). The line's width is linear in sones, so its "
         "AREA doubles when perceived loudness doubles - a hairline whisper next to a thick "
         "slab is an honest ratio, not a suggestion.");
-    spectrum_strip("silent-ish (hairline)",
-                   [&] {
-                       std::snprintf(hi_buf, sizeof hi_buf, "~%.0f sones (max width)",
-                                     c.loud_sone_div * c.loud_sone_div);
-                       return hi_buf;
-                   }(),
-                   cell, [&](double t) {
-                       sp::Visual v = spectrum_base();
-                       v.loud01 = t;
-                       return v;
-                   });
+    spectrum_strip(
+        "silent-ish (hairline)",
+        [&] {
+            std::snprintf(hi_buf, sizeof hi_buf, "~%.0f sones (max width)",
+                          c.loud_sone_div * c.loud_sone_div);
+            return hi_buf;
+        }(),
+        cell,
+        [&](double t) {
+            sp::Visual v = spectrum_base();
+            v.loud01 = t;
+            return v;
+        });
 
     ImGui::SeparatorText("6. Sharpness -> line color (acum)");
     ImGui::TextWrapped(
@@ -235,8 +237,8 @@ void draw_manual(AppState &state) {
     });
     std::snprintf(lo_buf, sizeof lo_buf, "%.1f acum (dull)", c.bright_acum_lo);
     std::snprintf(hi_buf, sizeof hi_buf, "%.1f acum (sharp)", c.bright_acum_hi);
-    gradient_bar(c.sharp_hue_lo_deg, c.sharp_hue_hi_deg, 85.0, 85.0, 55.0, lo_buf, hi_buf,
-                 strip_w, bar_h);
+    gradient_bar(c.sharp_hue_lo_deg, c.sharp_hue_hi_deg, 85.0, 85.0, 55.0, lo_buf, hi_buf, strip_w,
+                 bar_h);
 
     ImGui::SeparatorText("7. Roughness -> wave height (asper)");
     ImGui::TextWrapped(
@@ -272,35 +274,36 @@ void draw_manual(AppState &state) {
     if (ImGui::BeginTable("##examples", 2, ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableSetupColumn("glyph", ImGuiTableColumnFlags_WidthFixed, ex_cell);
         ImGui::TableSetupColumn("text", ImGuiTableColumnFlags_WidthStretch);
-        example_row(make_visual(40.0, 82.0, 0.0, 0, 0.85, 0.55, 0.25, 0.05, 0.35, 1),
+        example_row(make_visual(40.0, 0.95, 0.0, 0, 0.85, 0.55, 0.25, 0.05, 0.35, 1),
                     "Warm tonal pad",
-                    "Blob: orange hue (warm), vivid (tonal), round (slow attack), wide tail "
-                    "trail (long decay). Line: medium width, blue-green (dull), nearly flat "
-                    "wave (smooth) with a gentle ripple count.",
+                    "Blob: orange hue (warm), straight rays (tonal), round (slow attack), wide "
+                    "symmetric trail (long decay). Line: medium width, blue-green (dull), "
+                    "nearly flat wave (smooth) with a gentle ripple count.",
                     ex_cell);
-        example_row(make_visual(190.0, 55.0, 0.9, 13, 0.15, 0.8, 0.85, 0.2, 0.2, 2),
+        example_row(make_visual(190.0, 0.5, 0.9, 13, 0.15, 0.8, 0.85, 0.2, 0.2, 2),
                     "Bright percussive hit",
-                    "Blob: cyan-blue (cold), many long spikes (instant attack), no tail. Line: "
-                    "thick (loud) and red (sharp), few shallow waves - percussion is neither "
-                    "rough nor fluctuating.",
+                    "Blob: cyan-blue (cold), a many-pointed star (instant attack), no tail. "
+                    "Line: thick (loud) and red (sharp), few shallow waves - percussion is "
+                    "neither rough nor fluctuating.",
                     ex_cell);
-        example_row(make_visual(120.0, 31.0, 0.4, 8, 0.3, 0.6, 0.5, 0.9, 0.25, 3),
+        example_row(make_visual(120.0, 0.1, 0.4, 8, 0.3, 0.6, 0.5, 0.9, 0.25, 3),
                     "Rough texture / grit",
-                    "Blob: desaturated gray-green (noisy). Line: tall swings (high asper) at a "
-                    "low cycle count - roughness without slow fluctuation.",
+                    "Blob: green with wobbling rays (noisy). Line: tall swings (high asper) at "
+                    "a low cycle count - roughness without slow fluctuation.",
                     ex_cell);
-        example_row(make_visual(60.0, 61.0, 0.5, 9, 0.25, 0.3, 0.1, 0.1, 0.15, 4),
-                    "Quiet dark thud",
-                    "Blob: yellow-orange (warm), a few short spikes. Line: thin (quiet) and "
-                    "deep blue (dull), almost calm - the minimum ripple keeps it readable.",
+        example_row(make_visual(60.0, 0.6, 0.5, 9, 0.25, 0.3, 0.1, 0.1, 0.15, 4), "Quiet dark thud",
+                    "Blob: yellow-orange (warm), gently starred (moderate attack). Line: thin "
+                    "(quiet) and deep blue (dull), almost calm - the minimum ripple keeps it "
+                    "readable.",
                     ex_cell);
-        example_row(make_visual(90.0, 50.0, 0.0, 0, 0.6, 0.5, 0.35, 0.1, 0.95, 6),
+        example_row(make_visual(90.0, 0.45, 0.0, 0, 0.6, 0.5, 0.35, 0.1, 0.95, 6),
                     "Breathing drone",
                     "Blob: round, mid-warm. Line: MANY wave cycles at modest height - strong "
                     "slow fluctuation (vacil) without much roughness. Compare with the grit "
                     "row: same wave, opposite parameter.",
                     ex_cell);
         sp::Visual silent = make_visual(0.0, 0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 5);
+        silent.sat = 0.0;
         silent.light = 60.0;
         silent.size_px = 8.0;
         silent.silent = true;
