@@ -153,10 +153,10 @@ std::string error_mark_fragment(double cx, double cy, double size) {
 } // namespace
 
 std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points) {
-    // Star silhouette: cosine^3 lobes make narrow points, and the radius dips between them
-    // so a fast attack carves valleys instead of just bumping the outline — at spike01 = 1
-    // the point-to-valley ratio is 1.45 : 0.70, a star the eye catches immediately, while
-    // slow attacks stay perfectly round. Sampling snaps to a multiple of the spike count so
+    // Star silhouette: cosine^1.5 lobes make broad triangular points, and the radius dips
+    // deeply between them so the extreme end is a true star, not spikes on a round blob —
+    // at spike01 = 1 the point-to-valley ratio is 1.50 : 0.45 (~3.3 : 1), while slow
+    // attacks stay perfectly round. Sampling snaps to a multiple of the spike count so
     // every point lands exactly on a lobe maximum.
     int n = base_points;
     if (v.spikes > 0) {
@@ -171,9 +171,9 @@ std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points
         double shape = 0.0;
         if (v.spikes > 0) {
             const double lobe = std::max(0.0, std::cos(v.spikes * theta));
-            shape = lobe * lobe * lobe;
+            shape = std::pow(lobe, 1.5);
         }
-        double r = v.size_px * (1.0 + v.spike01 * (0.45 * shape - 0.30 * (1.0 - shape)));
+        double r = v.size_px * (1.0 + v.spike01 * (0.50 * shape - 0.55 * (1.0 - shape)));
 
         pts[static_cast<std::size_t>(i)] = {static_cast<float>(r * std::cos(theta)),
                                             static_cast<float>(r * std::sin(theta))};

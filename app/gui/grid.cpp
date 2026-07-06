@@ -14,7 +14,7 @@ namespace spapp {
 
 namespace {
 
-constexpr float kCellPx = 132.0f; // glyph area at 100 % scale; §9's 120 px SVG cell + margin
+constexpr float kCellPx = 118.0f; // glyph area at 100 % scale; tightened so glyphs sit closer
 constexpr float kLabelPx = 16.0f; // filename line beneath the glyph, at 100 % scale
 constexpr int kTailCircles = 5;   // §7 decay tail
 
@@ -23,57 +23,64 @@ const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
 
 // Scale so the largest possible glyph envelope fits the cell: with blob_size_px 20 the
 // widest extent is the mirrored tail (~49 authored px from center) and the tallest is the
-// ray tips (~41 px above the blob center).
+// ray tips (~41 px above the blob center). The 2 px margin keeps neighboring glyphs from
+// touching even at full tail spread while packing the grid tight.
 float glyph_scale(float cell_px) {
-    return (cell_px * 0.5f - 6.0f) / 55.0f;
+    return (cell_px * 0.5f - 2.0f) / 55.0f;
 }
 
 } // namespace
 
 // Also used by the manual's example glyphs (manual.cpp). Split glyph: analytic blob in the
 // upper half of the cell, psychoacoustic line in the lower half (silent files: dot only).
-void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px) {
+// A single part draws centered in the cell instead of at its half's offset.
+void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px,
+                GlyphPart part) {
     const float scale = glyph_scale(cell_px);
-    const ImVec2 blob_center(center.x, center.y - 0.16f * cell_px);
+    const ImVec2 blob_center(center.x, part == GlyphPart::blob ? center.y + 0.05f * cell_px
+                                                               : center.y - 0.14f * cell_px);
 
-    std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
-    std::vector<ImVec2> pts(outline.size());
-    for (std::size_t i = 0; i < outline.size(); ++i) {
-        pts[i] =
-            ImVec2(blob_center.x + outline[i][0] * scale, blob_center.y + outline[i][1] * scale);
-    }
-    unsigned int fill = hsl_to_rgba(v.hue_deg, v.sat, v.light, 1.0);
-    draw->AddConcavePolyFilled(pts.data(), static_cast<int>(pts.size()), fill);
-
-    // Tonality rays: straight fan = tonal, wobbling fan = noise-like (same geometry as the
-    // SVG sheet via glyph_rays).
-    for (const std::vector<std::array<float, 2>> &ray : sp::glyph_rays(v)) {
-        for (const std::array<float, 2> &p : ray) {
-            draw->PathLineTo(ImVec2(blob_center.x + p[0] * scale, blob_center.y + p[1] * scale));
+    if (part != GlyphPart::line) {
+        std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
+        std::vector<ImVec2> pts(outline.size());
+        for (std::size_t i = 0; i < outline.size(); ++i) {
+            pts[i] = ImVec2(blob_center.x + outline[i][0] * scale,
+                            blob_center.y + outline[i][1] * scale);
         }
-        draw->PathStroke(fill, 0, std::max(1.0f, 1.6f * scale));
-    }
+        unsigned int fill = hsl_to_rgba(v.hue_deg, v.sat, v.light, 1.0);
+        draw->AddConcavePolyFilled(pts.data(), static_cast<int>(pts.size()), fill);
 
-    // Decay tail (§7, ray revision): 5 circles on EACH side, starting at the blob edge,
-    // shrinking/fading, spread tail01 * 1.15 * size per side.
-    if (v.tail01 >= 0.05) {
-        const double spread = v.tail01 * 1.15 * v.size_px;
-        for (int i = 0; i < kTailCircles; ++i) {
-            double t = static_cast<double>(i) / (kTailCircles - 1);
-            double dx =
-                (v.size_px + ((i + 1) / static_cast<double>(kTailCircles)) * spread) * scale;
-            double radius = 0.30 * v.size_px * (1.0 - 0.75 * t) * scale;
-            double opacity = 0.55 + (0.10 - 0.55) * t;
-            unsigned int col = hsl_to_rgba(v.hue_deg, v.sat, v.light, opacity);
-            draw->AddCircleFilled(ImVec2(blob_center.x - static_cast<float>(dx), blob_center.y),
-                                  static_cast<float>(radius), col);
-            draw->AddCircleFilled(ImVec2(blob_center.x + static_cast<float>(dx), blob_center.y),
-                                  static_cast<float>(radius), col);
+        // Tonality rays: straight fan = tonal, wobbling fan = noise-like (same geometry as
+        // the SVG sheet via glyph_rays).
+        for (const std::vector<std::array<float, 2>> &ray : sp::glyph_rays(v)) {
+            for (const std::array<float, 2> &p : ray) {
+                draw->PathLineTo(
+                    ImVec2(blob_center.x + p[0] * scale, blob_center.y + p[1] * scale));
+            }
+            draw->PathStroke(fill, 0, std::max(1.0f, 1.6f * scale));
+        }
+
+        // Decay tail (§7, ray revision): 5 circles on EACH side, starting at the blob edge,
+        // shrinking/fading, spread tail01 * 1.15 * size per side.
+        if (v.tail01 >= 0.05) {
+            const double spread = v.tail01 * 1.15 * v.size_px;
+            for (int i = 0; i < kTailCircles; ++i) {
+                double t = static_cast<double>(i) / (kTailCircles - 1);
+                double dx =
+                    (v.size_px + ((i + 1) / static_cast<double>(kTailCircles)) * spread) * scale;
+                double radius = 0.30 * v.size_px * (1.0 - 0.75 * t) * scale;
+                double opacity = 0.55 + (0.10 - 0.55) * t;
+                unsigned int col = hsl_to_rgba(v.hue_deg, v.sat, v.light, opacity);
+                draw->AddCircleFilled(ImVec2(blob_center.x - static_cast<float>(dx), blob_center.y),
+                                      static_cast<float>(radius), col);
+                draw->AddCircleFilled(ImVec2(blob_center.x + static_cast<float>(dx), blob_center.y),
+                                      static_cast<float>(radius), col);
+            }
         }
     }
 
-    if (v.silent) {
-        return; // the fixed gray dot above is the whole story
+    if (v.silent || part == GlyphPart::blob) {
+        return; // silent: the fixed gray dot above is the whole story
     }
 
     // Psycho line (lower half): width = loudness (linear in sones -> honest line area),
@@ -94,7 +101,7 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
 
     const float x0 = center.x - 0.42f * cell_px;
     const float x1 = center.x + 0.42f * cell_px;
-    const float ly = center.y + 0.30f * cell_px;
+    const float ly = part == GlyphPart::line ? center.y : center.y + 0.30f * cell_px;
     const int n = 48;
     for (int i = 0; i <= n; ++i) {
         const float t = static_cast<float>(i) / n;

@@ -663,3 +663,21 @@ Goldens (palette.json, sheet.svg) and assets/mapping_v2.json regenerated deliber
 the new Visual field + geometry. Verified: 55/55 unit, 18/18 integration (incl. MCP smoke),
 grid + manual + sheet_png screenshots inspected at 2x zoom — noise (zigzag rays) vs sine
 (straight fan), click star vs pad round, and mirrored tails all read at a glance.
+
+## Glyph revision follow-ups (user feedback, 2026-07-06)
+
+- **True star at the extreme**: the outline formula moved from cosine^3 narrow needles with
+  a mild dip (1.45 : 0.70) to cosine^1.5 broad triangular points with a deep dip —
+  1.50 : 0.45 (~3.3 : 1) at spike01 = 1, so the extreme is a star, not spikes on a round
+  blob. Constants chosen from a rendered side-by-side sweep of four candidate shapes.
+- **Manual strips show only the changing half**: draw_glyph gained a GlyphPart (full/blob/
+  line) parameter; sections 1–4 draw the blob alone, 5–8 the line alone, each centered in
+  its cell, line rows at half height. The example table still draws full glyphs.
+- **Tighter grid**: GUI cell 132 → 118 px with the glyph-scale margin cut 6 → 2 px and the
+  blob offset rebalanced (−0.16 → −0.14 cell), so glyphs sit noticeably closer (6 columns
+  where 5 fit before) at near-identical size, still without intersecting at max tail/star/
+  wave envelopes. SVG sheet cell stays the §9-spec 120 px.
+
+golden sheet.svg regenerated (outline geometry only; palette.json byte-identical). 55/55
+unit, golden_scan + svg_valid re-run green, manual + grid screenshots inspected;
+docs/screenshot.png recaptured with the tighter grid.

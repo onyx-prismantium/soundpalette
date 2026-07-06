@@ -143,7 +143,11 @@ void draw_manual(AppState &state);
 void draw_about(AppState &state);
 
 // grid.cpp: glyph + decay tail into a cell_px-square cell, shared with the manual's examples.
-void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px);
+// The manual's spectrum strips draw only the half a section talks about (centered in the
+// cell); the grid and the example rows draw the full split glyph.
+enum class GlyphPart { full, blob, line };
+void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px,
+                GlyphPart part = GlyphPart::full);
 
 // harmonize_panel.cpp (M9, extension §6.5).
 bool load_baseline(AppState &state, const std::string &path); // manifest OR .sppal.json

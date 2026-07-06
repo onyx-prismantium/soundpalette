@@ -69,19 +69,23 @@ void strip_labels(ImVec2 origin, float width, const char *lo, const char *hi) {
 
 // Five glyphs sweeping a single parameter from t = 0 to 1 (everything else at the baseline),
 // through the same draw_glyph the grid uses — so the strip is the mapping, not an artist's
-// impression of it.
+// impression of it. Only the half the section talks about is drawn (blob sections show the
+// blob, line sections the line), so the one thing that changes is the only thing on screen;
+// line-only strips take a shorter row since the wave has no vertical fan to make room for.
 template <typename MakeVisualAt>
-void spectrum_strip(const char *lo, const char *hi, float cell, MakeVisualAt at) {
+void spectrum_strip(const char *lo, const char *hi, float cell, GlyphPart part, MakeVisualAt at) {
     constexpr int kSteps = 5;
+    const float row_h = part == GlyphPart::line ? 0.5f * cell : cell;
     ImVec2 origin = ImGui::GetCursorScreenPos();
     ImDrawList *draw = ImGui::GetWindowDrawList();
     for (int i = 0; i < kSteps; ++i) {
         const double t = static_cast<double>(i) / (kSteps - 1);
-        draw_glyph(draw, at(t),
-                   ImVec2(origin.x + (static_cast<float>(i) + 0.5f) * cell, origin.y + 0.5f * cell),
-                   cell);
+        draw_glyph(
+            draw, at(t),
+            ImVec2(origin.x + (static_cast<float>(i) + 0.5f) * cell, origin.y + 0.5f * row_h), cell,
+            part);
     }
-    ImGui::Dummy(ImVec2(cell * kSteps, cell));
+    ImGui::Dummy(ImVec2(cell * kSteps, row_h));
     strip_labels(origin, cell * kSteps, lo, hi);
 }
 
@@ -149,7 +153,7 @@ void draw_manual(AppState &state) {
         "orange toward red as warmth grows - the hue path literally runs cold to hot. A bright "
         "UI blip sits blue; a deep explosion or bass swell sits orange/red.",
         c.hue_base_deg);
-    spectrum_strip("cold / thin", "warm / bassy", cell, [&](double t) {
+    spectrum_strip("cold / thin", "warm / bassy", cell, GlyphPart::blob, [&](double t) {
         sp::Visual v = spectrum_base();
         v.hue_deg = c.hue_base_deg - c.hue_warm_span_deg * t;
         return v;
@@ -166,11 +170,12 @@ void draw_manual(AppState &state) {
         "pitched, tonal material (chimes, hums, musical stingers) shines perfectly straight "
         "rays; noise-like material (wind, static, impacts) makes them wobble. Think of it as "
         "the sound's radiance - organized sound radiates cleanly, noise flickers.");
-    spectrum_strip("noise-like / wavy rays", "tonal / straight rays", cell, [&](double t) {
-        sp::Visual v = spectrum_base();
-        v.ton01 = t;
-        return v;
-    });
+    spectrum_strip("noise-like / wavy rays", "tonal / straight rays", cell, GlyphPart::blob,
+                   [&](double t) {
+                       sp::Visual v = spectrum_base();
+                       v.ton01 = t;
+                       return v;
+                   });
 
     ImGui::SeparatorText("3. Attack -> star spikes");
     ImGui::TextWrapped(
@@ -180,14 +185,16 @@ void draw_manual(AppState &state) {
         "so a hard transient is unmistakable at a glance. Clicks and hits are stars; pads and "
         "swells stay round.",
         c.atk_lo_s * 1000.0, c.atk_hi_s * 1000.0);
-    spectrum_strip("slow attack / round", "instant attack / star", cell, [&](double t) {
-        sp::Visual v = spectrum_base();
-        v.spike01 = t;
-        v.spikes = t > c.spike_threshold
-                       ? static_cast<int>(std::lround(c.spike_count_base + c.spike_count_span * t))
-                       : 0;
-        return v;
-    });
+    spectrum_strip(
+        "slow attack / round", "instant attack / star", cell, GlyphPart::blob, [&](double t) {
+            sp::Visual v = spectrum_base();
+            v.spike01 = t;
+            v.spikes =
+                t > c.spike_threshold
+                    ? static_cast<int>(std::lround(c.spike_count_base + c.spike_count_span * t))
+                    : 0;
+            return v;
+        });
 
     ImGui::SeparatorText("4. Decay tail -> blob trail");
     ImGui::TextWrapped(
@@ -196,11 +203,12 @@ void draw_manual(AppState &state) {
         "longer the decay, the wider the wings. Dry one-shots have no trail; long reverbs and "
         "cymbal washes spread far.",
         c.tail_lo_s, c.tail_hi_s);
-    spectrum_strip("dry / no trail", "long decay / wide trail", cell, [&](double t) {
-        sp::Visual v = spectrum_base();
-        v.tail01 = t;
-        return v;
-    });
+    spectrum_strip("dry / no trail", "long decay / wide trail", cell, GlyphPart::blob,
+                   [&](double t) {
+                       sp::Visual v = spectrum_base();
+                       v.tail01 = t;
+                       return v;
+                   });
 
     // ---- Psycho line (lower half) -------------------------------------------------------
     ImGui::SeparatorText("5. Loudness -> line width (sones)");
@@ -216,7 +224,7 @@ void draw_manual(AppState &state) {
                           c.loud_sone_div * c.loud_sone_div);
             return hi_buf;
         }(),
-        cell,
+        cell, GlyphPart::line,
         [&](double t) {
             sp::Visual v = spectrum_base();
             v.loud01 = t;
@@ -230,7 +238,7 @@ void draw_manual(AppState &state) {
         "muffled sounds, through cyan, green, and yellow, to red for harsh, hissy ones. Note "
         "this is the LINE's color scale - the blob's hue above encodes warmth, a different "
         "dimension with its own (similar-looking) spectrum.");
-    spectrum_strip("dull (blue line)", "sharp (red line)", cell, [&](double t) {
+    spectrum_strip("dull (blue line)", "sharp (red line)", cell, GlyphPart::line, [&](double t) {
         sp::Visual v = spectrum_base();
         v.sharp01 = t;
         return v;
@@ -247,7 +255,7 @@ void draw_manual(AppState &state) {
         "distortion. Rough sounds swing the line harder: taller waves at whatever cycle count "
         "fluctuation sets.");
     std::snprintf(hi_buf, sizeof hi_buf, ">= %.1f asper (tall swings)", c.jitter_asper_hi);
-    spectrum_strip("steady (near-flat)", hi_buf, cell, [&](double t) {
+    spectrum_strip("steady (near-flat)", hi_buf, cell, GlyphPart::line, [&](double t) {
         sp::Visual v = spectrum_base();
         v.jitter01 = t;
         return v;
@@ -259,7 +267,7 @@ void draw_manual(AppState &state) {
         "at 4 Hz instead) is slow envelope movement - tremolo, breathing, wobble. More "
         "fluctuation adds more wave cycles along the line.");
     std::snprintf(hi_buf, sizeof hi_buf, ">= %.1f vacil (many cycles)", c.fluct_vacil_hi);
-    spectrum_strip("static (few cycles)", hi_buf, cell, [&](double t) {
+    spectrum_strip("static (few cycles)", hi_buf, cell, GlyphPart::line, [&](double t) {
         sp::Visual v = spectrum_base();
         v.fluct01 = t;
         return v;
