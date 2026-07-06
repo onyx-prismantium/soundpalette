@@ -611,3 +611,23 @@ resvg (the MCP sheet_png rasterizer) renders as BLACK — silently broken since 
 browsers were lenient so it never showed. hsl components are now integer-rounded (visually
 lossless). Also the export-svg manifest parser now reads the full Visual (fluct01/loud01/
 sharp01/silent) — previously the sheet regenerated lines from zeroed fields.
+
+# Manual rework — per-parameter sections (user-directed 2026-07-06)
+
+The in-app manual (Manual menu) was reorganized so users see what each dimension looks like,
+not just read about it. Each of the eight parameters now has its own numbered section
+("1. Warmth -> blob hue" … "8. Fluctuation -> wave count") containing:
+- a **spectrum strip**: five glyphs sweeping only that parameter t = 0→1 against a neutral
+  baseline, drawn through the same draw_glyph + active MappingConfig the grid uses — the
+  strip IS the mapping, not an artist's impression, and follows the tuner live;
+- for the color-coded dims, a **gradient bar** of the literal HSL color path with numeric
+  endpoint labels: warmth (hue 220°→20° cold-to-hot), tonality (saturation wash-out at fixed
+  hue), sharpness (line color 220°→0° thermal path). The sharpness section explicitly warns
+  that blob hue (warmth) and line color (sharpness) are two different, similar-looking scales.
+Section text pulls live constants (hue base/span, atk/tail ranges in ms/s, sone/acum/asper/
+vacil anchors) via active_mapping_config(), so numbers never drift from the mapping. The old
+example table survives as "Putting it together". Manual default size 640×640.
+
+Verified: clean build, 55/55 ctest, headless smoke with `--view manual` screenshot inspected
+(strips + gradient bars render, sections in order). README updated: split-glyph reading table,
+stale v1 intro wording (size/lightness/edge-jitter) and 7-dim references corrected to 8.

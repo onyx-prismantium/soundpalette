@@ -2,12 +2,13 @@
 
 SoundPalette treats a game's sound effects the way art direction treats color: **as a palette**.
 
-It scans a folder of audio files (`.wav` `.flac` `.ogg` `.mp3`), extracts perceptual audio
-features — brightness, attack, decay tail, noisiness, warmth, loudness, grit — and maps them
-through a fixed, versioned mapping to visual attributes: hue, lightness, saturation, size,
-spikiness, edge jitter, tail length. Every sound becomes a glyph in a grid. A cohesive sound
-identity shows up as a cohesive palette; off-brand sounds are visible at a glance — and can be
-flagged automatically in CI.
+It scans a folder of audio files (`.wav` `.flac` `.ogg` `.mp3`), extracts eight perceptual
+dimensions — warmth, tonality, attack, decay tail, plus true psychoacoustic loudness (sones),
+sharpness (acum), roughness (asper), and fluctuation strength (vacil) — and maps them through
+a fixed, versioned mapping to a two-part glyph: an analytic blob above, a psychoacoustic line
+below (see [Reading a glyph](#reading-a-glyph)). Every sound becomes a glyph in a grid. A
+cohesive sound identity shows up as a cohesive palette; off-brand sounds are visible at a
+glance — and can be flagged automatically in CI.
 
 ![SoundPalette app](docs/screenshot.png)
 
@@ -84,8 +85,8 @@ soundpalette lint sfx/ --baseline sfx/palette-baseline.json --threshold 2.5
 #   OUTLIER ui/laser_zap.wav worst=bright01 z=+5.12 dims=bright01,ton01
 ```
 
-Lint compares each file against the baseline's stats in the seven-dimensional mapping space
-`[bright01, warm01, ton01, atk01, tail01, loud01, jitter01]` (z-score per dimension, std
+Lint compares each file against the baseline's stats in the eight-dimensional mapping space
+`[bright01, warm01, ton01, atk01, tail01, loud01, jitter01, fluct01]` (z-score per dimension, std
 floored at 0.02). Tune `--threshold` to your set's natural spread: tight, homogeneous packs
 can afford 2.5; small or heterogeneous sets may need 3–4 (see `tests/integration/lint_outlier.sh`
 for a worked example).
@@ -106,7 +107,7 @@ xvfb-run -a ./build/app/soundpalette-app --smoke out.png --dir path/to/sfx
 ## Profiles
 
 A **palette profile** (`.sppal.json`) is your sound identity as a portable file: per-dimension
-statistics plus the full 7x7 covariance, optionally split into per-category sub-profiles
+statistics plus the full 8x8 covariance, optionally split into per-category sub-profiles
 (ui / combat / ambience ...) matched by path globs (`ui/**`, `**/ui_*`). Create one from a
 folder, an existing manifest, or a curated selection:
 
@@ -134,12 +135,12 @@ ctrl+click selection) and every off-palette sound gets a **deviation halo**: sol
 for hard outliers, dashed amber for borderline — line style always pairs with color, so the
 signal survives colorblind viewing — plus an optional `z` label. Toggles: dim conforming
 (strays pop), outliers only, sort by deviation. The inspector shows the file's category and
-all seven z-scores against the shaded +-T band.
+all eight z-scores against the shaded +-T band.
 
 ![Deviation halos](docs/halos.png)
 
 The **Constellation** tab plots the loaded set against the profile's honest 1-sigma/2-sigma
-covariance ellipses, with axis pickers over the seven dimensions plus deterministic PCA, a
+covariance ellipses, with axis pickers over the eight dimensions plus deterministic PCA, a
 per-category region selector, and a dashed distance line from the selected outlier to the
 1-sigma boundary.
 
@@ -201,12 +202,33 @@ psychoacoustic models rather than spectral proxies: ISO 532-1 (Zwicker) loudness
 the inspector shows anchored scale bars, and the SVG sheet carries a legend strip
 (suppress with `--no-legend`).
 
-The glyph itself is **split horizontally**: the upper half is the analytic blob (hue =
-warmth, saturation = tonality, spikes = attack, trailing circles = decay; fixed size), and
-the lower half is the psychoacoustic line — stroke **width = loudness** (linear in sones, so
-the line's area doubles when loudness doubles), **color blue→red = sharpness**, sine
-**amplitude = roughness**, sine **frequency = fluctuation**. Both wave parameters keep an
-enforced visible minimum so neither hides the other.
+### Reading a glyph
+
+The glyph is **split horizontally**. The upper half is the **analytic blob** — spectral
+character, fixed size and lightness. The lower half is the **psychoacoustic line** —
+perceived character in real units. One parameter per visual channel:
+
+| # | Parameter | Visual | Low → high |
+|---|---|---|---|
+| 1 | Warmth | blob hue | blue (220°, cold/thin) → red-orange (20°, warm/bassy) — the hue path literally runs cold to hot |
+| 2 | Tonality | blob saturation | washed-out gray (noise-like) → vivid (pitched/tonal); a gray blob means *noise*, not "no warmth" |
+| 3 | Attack | blob spikes | perfectly round (slow attack) → many long spikes (instant attack) |
+| 4 | Decay tail | trailing circles | none (dry one-shot) → wide fading trail (long ring-out) |
+| 5 | Loudness (sones) | line width | hairline → thick slab; width is linear in sones, so the line's **area doubles when perceived loudness doubles** |
+| 6 | Sharpness (acum) | line color | deep blue (dull, muffled) → red (harsh, hissy) |
+| 7 | Roughness (asper) | wave height | near-flat (steady) → tall swings (rattly, distorted) |
+| 8 | Fluctuation (vacil) | wave count | few cycles (static) → many cycles (tremolo, breathing) |
+
+Two similar-looking color scales coexist on purpose: the **blob's hue is warmth** (spectral
+energy balance), the **line's color is sharpness** (perceived harshness) — a warm sound can
+still be sharp. Both wave parameters keep an enforced visible minimum so neither hides the
+other: rough-but-steady reads as few tall waves, fluctuating-but-smooth as many flat ripples.
+Silent files draw a small fixed gray dot and no line.
+
+The in-app **Manual** (menu bar) documents each parameter with a live spectrum strip — five
+glyphs sweeping just that dimension through the real mapping — and, for the color-coded ones,
+a gradient bar of the actual color path, so the legend can never drift from what the grid
+draws.
 
 ### Calibration convention
 
