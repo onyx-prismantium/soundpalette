@@ -96,7 +96,10 @@ for a worked example).
 `soundpalette-app` shows the palette live: sort by hue/brightness/size/attack/tail/name,
 filter by name, click a glyph to hear it, hover for its feature breakdown, and drag the
 **mapping tuner** sliders to re-derive the entire grid's visuals in real time (no re-analysis).
-Export the tuned mapping as JSON.
+Export the tuned mapping as JSON. Sidebar **parameter checkboxes** isolate encodings for
+reading one dimension at a time: an unchecked parameter draws neutral (gray color, zero
+shape) across the grid — uncheck everything and the glyphs disappear; the analysis itself
+is untouched.
 
 Headless self-test (used by CI):
 

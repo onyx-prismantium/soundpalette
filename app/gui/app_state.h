@@ -43,6 +43,12 @@ struct AppState {
     // UI.
     SortMode sort_mode = SortMode::kName;
     char filter_text[256] = {0};
+    // Parameter checkboxes (sidebar, below the filter): unchecking a parameter neutralizes
+    // its visual encoding in the grid — a viewing aid only, analysis and lint are untouched.
+    // Order matches the manual's sections 1-8.
+    bool show_warmth = true, show_tonality = true, show_attack = true, show_tail = true;
+    bool show_loudness = true, show_sharpness = true, show_roughness = true,
+         show_fluctuation = true;
     int selected = -1;      // index into manifest.files, -1 = none
     std::vector<int> order; // display order (indices into manifest.files) after sort+filter
     // Folder sections: each subfolder of the scan root becomes a titled area in the grid
@@ -146,8 +152,25 @@ void draw_about(AppState &state);
 // The manual's spectrum strips draw only the half a section talks about (centered in the
 // cell); the grid and the example rows draw the full split glyph.
 enum class GlyphPart { full, blob, line };
+
+// Render-time parameter mask (sidebar checkboxes). An unchecked parameter draws as neutral:
+// warmth -> gray blob, tonality -> no rays, attack -> round, tail -> no trail, loudness ->
+// hairline, sharpness -> gray line, roughness/fluctuation -> minimum wave. A half whose four
+// parameters are all off is not drawn at all, so a fully unchecked glyph disappears. The
+// manual always draws unmasked — it documents the mapping, not the current view.
+struct GlyphMask {
+    bool warmth = true, tonality = true, attack = true, tail = true;
+    bool loudness = true, sharpness = true, roughness = true, fluctuation = true;
+    bool blob_shown() const {
+        return warmth || tonality || attack || tail;
+    }
+    bool line_shown() const {
+        return loudness || sharpness || roughness || fluctuation;
+    }
+};
+
 void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px,
-                GlyphPart part = GlyphPart::full);
+                GlyphPart part = GlyphPart::full, const GlyphMask &mask = {});
 
 // harmonize_panel.cpp (M9, extension §6.5).
 bool load_baseline(AppState &state, const std::string &path); // manifest OR .sppal.json

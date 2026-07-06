@@ -681,3 +681,17 @@ grid + manual + sheet_png screenshots inspected at 2x zoom — noise (zigzag ray
 golden sheet.svg regenerated (outline geometry only; palette.json byte-identical). 55/55
 unit, golden_scan + svg_valid re-run green, manual + grid screenshots inspected;
 docs/screenshot.png recaptured with the tighter grid.
+
+## Sidebar parameter checkboxes (user request, 2026-07-06)
+
+Eight checkboxes below the Filter (PushID-scoped — "attack"/"tail" collide with the sort
+radio buttons otherwise, found live via ImGui's ID-conflict warning). All checked by
+default; unchecking neutralizes that encoding across every rendered glyph, live:
+warmth → gray blob, tonality → no rays, attack → round outline, tail → no trail,
+loudness → hairline, sharpness → gray line, roughness/fluctuation → wave minimum.
+A half whose four parameters are all unchecked is not drawn, so a fully unchecked glyph
+disappears. Implemented as a render-time GlyphMask on a copy of the Visual in draw_glyph
+(grid + dim-conforming ghost honor it; the manual always draws unmasked because it
+documents the mapping, and the SVG sheet is untouched). Analysis, manifests, lint,
+deviations, and the inspector never see the mask. Verified under Xvfb by toggling through
+warmth-off / blob-off / gray-hairline / all-off and inspecting screenshots each step.

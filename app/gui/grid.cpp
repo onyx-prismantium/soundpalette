@@ -33,44 +33,70 @@ float glyph_scale(float cell_px) {
 
 // Also used by the manual's example glyphs (manual.cpp). Split glyph: analytic blob in the
 // upper half of the cell, psychoacoustic line in the lower half (silent files: dot only).
-// A single part draws centered in the cell instead of at its half's offset.
-void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px,
-                GlyphPart part) {
+// A single part draws centered in the cell instead of at its half's offset. The mask
+// (sidebar parameter checkboxes) neutralizes unchecked encodings at render time.
+void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell_px, GlyphPart part,
+                const GlyphMask &mask) {
     const float scale = glyph_scale(cell_px);
     const ImVec2 blob_center(center.x, part == GlyphPart::blob ? center.y + 0.05f * cell_px
                                                                : center.y - 0.14f * cell_px);
 
-    if (part != GlyphPart::line) {
-        std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
+    // Neutralize unchecked parameters on a render-local copy; the manifest Visual and
+    // everything computed from it (lint, inspector, deviations) stay untouched.
+    sp::Visual m = v;
+    if (!mask.warmth) {
+        m.sat = 0.0; // gray blob: color carries no information
+    }
+    if (!mask.attack) {
+        m.spike01 = 0.0;
+        m.spikes = 0;
+    }
+    if (!mask.tail) {
+        m.tail01 = 0.0;
+    }
+    if (!mask.loudness) {
+        m.loud01 = 0.0; // hairline
+    }
+    if (!mask.roughness) {
+        m.jitter01 = 0.0;
+    }
+    if (!mask.fluctuation) {
+        m.fluct01 = 0.0;
+    }
+
+    if (part != GlyphPart::line && mask.blob_shown()) {
+        std::vector<std::array<float, 2>> outline = sp::glyph_outline(m);
         std::vector<ImVec2> pts(outline.size());
         for (std::size_t i = 0; i < outline.size(); ++i) {
             pts[i] = ImVec2(blob_center.x + outline[i][0] * scale,
                             blob_center.y + outline[i][1] * scale);
         }
-        unsigned int fill = hsl_to_rgba(v.hue_deg, v.sat, v.light, 1.0);
+        unsigned int fill = hsl_to_rgba(m.hue_deg, m.sat, m.light, 1.0);
         draw->AddConcavePolyFilled(pts.data(), static_cast<int>(pts.size()), fill);
 
         // Tonality rays: straight fan = tonal, wobbling fan = noise-like (same geometry as
         // the SVG sheet via glyph_rays).
-        for (const std::vector<std::array<float, 2>> &ray : sp::glyph_rays(v)) {
-            for (const std::array<float, 2> &p : ray) {
-                draw->PathLineTo(
-                    ImVec2(blob_center.x + p[0] * scale, blob_center.y + p[1] * scale));
+        if (mask.tonality) {
+            for (const std::vector<std::array<float, 2>> &ray : sp::glyph_rays(m)) {
+                for (const std::array<float, 2> &p : ray) {
+                    draw->PathLineTo(
+                        ImVec2(blob_center.x + p[0] * scale, blob_center.y + p[1] * scale));
+                }
+                draw->PathStroke(fill, 0, std::max(1.0f, 1.6f * scale));
             }
-            draw->PathStroke(fill, 0, std::max(1.0f, 1.6f * scale));
         }
 
         // Decay tail (§7, ray revision): 5 circles on EACH side, starting at the blob edge,
         // shrinking/fading, spread tail01 * 1.15 * size per side.
-        if (v.tail01 >= 0.05) {
-            const double spread = v.tail01 * 1.15 * v.size_px;
+        if (m.tail01 >= 0.05) {
+            const double spread = m.tail01 * 1.15 * m.size_px;
             for (int i = 0; i < kTailCircles; ++i) {
                 double t = static_cast<double>(i) / (kTailCircles - 1);
                 double dx =
-                    (v.size_px + ((i + 1) / static_cast<double>(kTailCircles)) * spread) * scale;
-                double radius = 0.30 * v.size_px * (1.0 - 0.75 * t) * scale;
+                    (m.size_px + ((i + 1) / static_cast<double>(kTailCircles)) * spread) * scale;
+                double radius = 0.30 * m.size_px * (1.0 - 0.75 * t) * scale;
                 double opacity = 0.55 + (0.10 - 0.55) * t;
-                unsigned int col = hsl_to_rgba(v.hue_deg, v.sat, v.light, opacity);
+                unsigned int col = hsl_to_rgba(m.hue_deg, m.sat, m.light, opacity);
                 draw->AddCircleFilled(ImVec2(blob_center.x - static_cast<float>(dx), blob_center.y),
                                       static_cast<float>(radius), col);
                 draw->AddCircleFilled(ImVec2(blob_center.x + static_cast<float>(dx), blob_center.y),
@@ -79,7 +105,7 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
         }
     }
 
-    if (v.silent || part == GlyphPart::blob) {
+    if (v.silent || part == GlyphPart::blob || !mask.line_shown()) {
         return; // silent: the fixed gray dot above is the whole story
     }
 
@@ -87,17 +113,18 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
     // color blue->red = sharpness, sine amplitude = roughness, frequency = fluctuation;
     // enforced minimums keep both wave parameters visible (same math as the SVG sheet).
     const sp::MappingConfig &c = sp::active_mapping_config();
-    const double sones = (v.loud01 * c.loud_sone_div) * (v.loud01 * c.loud_sone_div);
+    const double sones = (m.loud01 * c.loud_sone_div) * (m.loud01 * c.loud_sone_div);
     const float cell_norm = cell_px / 120.0f; // constants are authored at the 120 px SVG cell
     const float width =
         static_cast<float>(std::clamp(c.line_width_min_px + c.line_width_per_sone_px * sones,
                                       c.line_width_min_px, c.line_width_max_px)) *
         cell_norm;
     const float amp = static_cast<float>(c.line_amp_min_px +
-                                         v.jitter01 * (c.line_amp_max_px - c.line_amp_min_px)) *
+                                         m.jitter01 * (c.line_amp_max_px - c.line_amp_min_px)) *
                       cell_norm;
-    const double cycles = c.line_cycles_min + v.fluct01 * (c.line_cycles_max - c.line_cycles_min);
-    const double hue = c.sharp_hue_lo_deg + v.sharp01 * (c.sharp_hue_hi_deg - c.sharp_hue_lo_deg);
+    const double cycles = c.line_cycles_min + m.fluct01 * (c.line_cycles_max - c.line_cycles_min);
+    const double hue = c.sharp_hue_lo_deg + m.sharp01 * (c.sharp_hue_hi_deg - c.sharp_hue_lo_deg);
+    const double line_sat = mask.sharpness ? 85.0 : 0.0; // gray line: color carries nothing
 
     const float x0 = center.x - 0.42f * cell_px;
     const float x1 = center.x + 0.42f * cell_px;
@@ -109,7 +136,7 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
             ImVec2(x0 + t * (x1 - x0),
                    ly - amp * static_cast<float>(std::sin(2.0 * 3.14159265358979 * cycles * t))));
     }
-    draw->PathStroke(hsl_to_rgba(hue, 85.0, 55.0, 1.0), 0, std::max(1.0f, width));
+    draw->PathStroke(hsl_to_rgba(hue, line_sat, 55.0, 1.0), 0, std::max(1.0f, width));
 }
 
 namespace {
@@ -263,19 +290,34 @@ void draw_grid(AppState &state) {
                             draw_halo(draw, *dev, state.profile.threshold, center, cell * 0.46f, s);
                         }
                         if (state.dim_conforming && conforming) {
-                            const sp::Visual &v = e.visual;
-                            std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
-                            std::vector<ImVec2> pts(outline.size());
-                            const float gs = glyph_scale(cell);
-                            for (std::size_t k = 0; k < outline.size(); ++k) {
-                                pts[k] = ImVec2(center.x + outline[k][0] * gs,
-                                                center.y + outline[k][1] * gs);
+                            // The faded ghost honors the parameter checkboxes too.
+                            sp::Visual v = e.visual;
+                            if (!state.show_warmth) {
+                                v.sat = 0.0;
                             }
-                            draw->AddConcavePolyFilled(
-                                pts.data(), static_cast<int>(pts.size()),
-                                hsl_to_rgba(v.hue_deg, v.sat, v.light, 0.35));
+                            if (!state.show_attack) {
+                                v.spike01 = 0.0;
+                                v.spikes = 0;
+                            }
+                            if (state.show_warmth || state.show_tonality || state.show_attack ||
+                                state.show_tail) {
+                                std::vector<std::array<float, 2>> outline = sp::glyph_outline(v);
+                                std::vector<ImVec2> pts(outline.size());
+                                const float gs = glyph_scale(cell);
+                                for (std::size_t k = 0; k < outline.size(); ++k) {
+                                    pts[k] = ImVec2(center.x + outline[k][0] * gs,
+                                                    center.y + outline[k][1] * gs);
+                                }
+                                draw->AddConcavePolyFilled(
+                                    pts.data(), static_cast<int>(pts.size()),
+                                    hsl_to_rgba(v.hue_deg, v.sat, v.light, 0.35));
+                            }
                         } else {
-                            draw_glyph(draw, e.visual, center, cell);
+                            const GlyphMask mask{state.show_warmth,    state.show_tonality,
+                                                 state.show_attack,    state.show_tail,
+                                                 state.show_loudness,  state.show_sharpness,
+                                                 state.show_roughness, state.show_fluctuation};
+                            draw_glyph(draw, e.visual, center, cell, GlyphPart::full, mask);
                         }
                         // z labels are independent of the halo toggle (either works alone).
                         if (dev != nullptr && state.show_z_labels &&

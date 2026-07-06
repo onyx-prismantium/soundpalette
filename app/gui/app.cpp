@@ -157,6 +157,22 @@ void draw_sidebar(AppState &state) {
     if (ImGui::InputText("##filter", state.filter_text, sizeof(state.filter_text))) {
         rebuild_order(state);
     }
+    // Parameter checkboxes: unchecking neutralizes that encoding in the grid (gray color /
+    // zero shape); a glyph with everything unchecked disappears. Render-time only — the
+    // analysis, lint, and inspector numbers are untouched. PushID: "attack" and "tail"
+    // exist as sort radio buttons in this window too.
+    ImGui::Separator();
+    ImGui::TextUnformatted("Parameters");
+    ImGui::PushID("param_boxes");
+    ImGui::Checkbox("warmth", &state.show_warmth);
+    ImGui::Checkbox("tonality", &state.show_tonality);
+    ImGui::Checkbox("attack", &state.show_attack);
+    ImGui::Checkbox("tail", &state.show_tail);
+    ImGui::Checkbox("loudness", &state.show_loudness);
+    ImGui::Checkbox("sharpness", &state.show_sharpness);
+    ImGui::Checkbox("roughness", &state.show_roughness);
+    ImGui::Checkbox("fluctuation", &state.show_fluctuation);
+    ImGui::PopID();
     if (state.profile_loaded) {
         ImGui::Separator();
         ImGui::TextUnformatted("Deviation");

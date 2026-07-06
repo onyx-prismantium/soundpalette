@@ -340,7 +340,10 @@ void draw_manual(AppState &state) {
     ImGui::TextWrapped(
         "Grid: one glyph per file, grouped into folder sections, with per-cell playback "
         "transport. Click selects, Ctrl+click builds a multi-selection for Profile > Create "
-        "from current selection.");
+        "from current selection. The sidebar's Parameters checkboxes isolate encodings: "
+        "unchecking a parameter draws it neutral (gray color, zero shape) across the whole "
+        "grid, and a glyph with everything unchecked disappears - handy for reading one "
+        "dimension at a time. Analysis, lint, and the inspector are unaffected.");
     ImGui::TextWrapped(
         "Constellation: the loaded set plotted against the profile's 1-sigma (solid green) and "
         "2-sigma (dashed) region. Pick any two dimensions or PCA axes; filter by category. "
