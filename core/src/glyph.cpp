@@ -86,19 +86,20 @@ std::string glyph_fragment(const Visual &v, double cx, double cy) {
            << "\" stroke-width=\"1.6\" stroke-linecap=\"round\" />\n";
     }
 
-    // Decay tail (trail revision): five fading crescent moons on EACH side, horns and
-    // concave side facing the blob, starting at its edge. Geometry shared with the GUI
-    // via glyph_tail (empty when tail01 < 0.05).
-    for (const TailMoon &moon : glyph_tail(v)) {
-        ss << "<polygon points=\"";
-        for (std::size_t i = 0; i < moon.pts.size(); ++i) {
+    // Decay tail (C revision): five fading stroked arcs on EACH side, opening toward
+    // the blob, starting at its edge. Geometry shared with the GUI via glyph_tail
+    // (empty when tail01 < 0.05).
+    for (const TailArc &arc : glyph_tail(v)) {
+        ss << "<polyline points=\"";
+        for (std::size_t i = 0; i < arc.pts.size(); ++i) {
             if (i > 0) {
                 ss << " ";
             }
-            ss << fmt(cx + moon.pts[i][0]) << "," << fmt(cy + moon.pts[i][1]);
+            ss << fmt(cx + arc.pts[i][0]) << "," << fmt(cy + arc.pts[i][1]);
         }
-        ss << "\" fill=\"" << hsl_color(v) << "\" fill-opacity=\"" << fmt(moon.opacity)
-           << "\" />\n";
+        ss << "\" fill=\"none\" stroke=\"" << hsl_color(v) << "\" stroke-opacity=\""
+           << fmt(arc.opacity) << "\" stroke-width=\"" << fmt(arc.width)
+           << "\" stroke-linecap=\"round\" />\n";
     }
 
     return ss.str();
@@ -243,72 +244,50 @@ std::vector<std::vector<std::array<float, 2>>> glyph_rays(const Visual &v) {
     return rays;
 }
 
-std::vector<TailMoon> glyph_tail(const Visual &v) {
+std::vector<TailArc> glyph_tail(const Visual &v) {
     if (v.tail01 < 0.05) {
         return {};
     }
-    // Five crescent moons per side on the horizontal axis, starting at the blob edge:
+    // Five stroked arcs per side on the horizontal axis, starting at the blob edge:
     // sizes shrink from 0.30*size_px, opacity fades 0.55 -> 0.10, spread
-    // tail01*1.15*size_px per side. Each is a classic crescent: the outer circle arc
-    // spans +-120 deg around the away-facing direction (so the horns wrap back toward
-    // the glyph), and the inner arc cuts through both horn tips with its deepest point
-    // 0.55 r from the moon center — concave side facing the glyph (proportions picked
-    // from a rendered variant sweep).
-    constexpr int kMoonsPerSide = 5;
+    // tail01*1.15*size_px per side. Each arc is the crescent moons' outer circle arc —
+    // +-120 deg around the away-facing direction, so the opening faces the glyph: a "("
+    // chain on the left, ")" on the right. The stroke width (0.35 r, round caps) stands
+    // in for the crescent's 0.45 r max fill thickness, which tapered to the horns.
+    // Open polylines are strokes, not concave fills: same silhouette family, none of
+    // the per-frame triangulation cost that made the tail toggle sluggish.
+    constexpr int kArcsPerSide = 5;
     constexpr int kArcSegments = 24;
     constexpr double kHornDeg = 120.0;
-    constexpr double kInnerBulge = 0.55;
+    constexpr double kWidthFactor = 0.35;
     const double spread = v.tail01 * 1.15 * v.size_px;
 
-    std::vector<TailMoon> moons;
-    moons.reserve(kMoonsPerSide * 2);
-    for (int i = 0; i < kMoonsPerSide; ++i) {
-        const double t = static_cast<double>(i) / (kMoonsPerSide - 1); // 0..1
-        const double dx = v.size_px + ((i + 1) / static_cast<double>(kMoonsPerSide)) * spread;
+    std::vector<TailArc> arcs;
+    arcs.reserve(kArcsPerSide * 2);
+    for (int i = 0; i < kArcsPerSide; ++i) {
+        const double t = static_cast<double>(i) / (kArcsPerSide - 1); // 0..1
+        const double dx = v.size_px + ((i + 1) / static_cast<double>(kArcsPerSide)) * spread;
         const double r = 0.30 * v.size_px * (1.0 - 0.75 * t);
         const float opacity = static_cast<float>(0.55 + (0.10 - 0.55) * t);
-        // Moon-local frame: +x faces away from the glyph. Horn tips sit on the outer
-        // circle at +-kHornDeg; the inner circle passes through both tips and the apex
-        // (kInnerBulge * r, 0): center xc on the axis, radius apex - xc.
+        const float width = static_cast<float>(kWidthFactor * r);
+        // Arc-local frame: +x faces away from the glyph; top end -> equator -> bottom end.
         const double gamma = kHornDeg * kPi / 180.0;
-        const double xt = r * std::cos(gamma);
-        const double yt = r * std::sin(gamma);
-        const double apex = kInnerBulge * r;
-        const double xc = (apex * apex - r * r) / (2.0 * (apex - xt));
-        const double big_r = apex - xc;
-        const double alpha = std::atan2(yt, xt - xc);
-        // Build the right-side crescent once, then derive both sides with IDENTICAL
-        // winding: a plain mirror flips the winding order, and ImGui's concave fill
-        // shades reversed-winding polygons as a filled blob (the SVG fill rule is
-        // winding-agnostic, which hid this).
-        std::vector<std::array<float, 2>> base;
-        base.reserve(2 * kArcSegments);
-        // Outer arc: top horn -> away-facing equator -> bottom horn.
+        TailArc left, right;
+        left.opacity = right.opacity = opacity;
+        left.width = right.width = width;
+        left.pts.reserve(kArcSegments + 1);
+        right.pts.reserve(kArcSegments + 1);
         for (int k = 0; k <= kArcSegments; ++k) {
             const double a = -gamma + k * 2.0 * gamma / kArcSegments;
-            base.push_back({static_cast<float>(dx + r * std::cos(a)),
-                            static_cast<float>(r * std::sin(a))});
+            const float x = static_cast<float>(dx + r * std::cos(a));
+            const float y = static_cast<float>(r * std::sin(a));
+            right.pts.push_back({x, y});
+            left.pts.push_back({-x, y});
         }
-        // Inner arc back up through the apex; the horn tips are already on the outer
-        // arc, so both endpoints are skipped.
-        for (int k = 1; k < kArcSegments; ++k) {
-            const double a = alpha - k * 2.0 * alpha / kArcSegments;
-            base.push_back({static_cast<float>(dx + xc + big_r * std::cos(a)),
-                            static_cast<float>(big_r * std::sin(a))});
-        }
-        TailMoon left;
-        left.opacity = opacity;
-        left.pts.reserve(base.size());
-        for (auto it = base.rbegin(); it != base.rend(); ++it) {
-            left.pts.push_back({-(*it)[0], (*it)[1]});
-        }
-        TailMoon right;
-        right.opacity = opacity;
-        right.pts = std::move(base);
-        moons.push_back(std::move(left));
-        moons.push_back(std::move(right));
+        arcs.push_back(std::move(left));
+        arcs.push_back(std::move(right));
     }
-    return moons;
+    return arcs;
 }
 
 std::string glyph_svg(const Visual &v, double cell_px) {

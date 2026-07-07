@@ -24,15 +24,19 @@ std::vector<std::array<float, 2>> glyph_outline(const Visual &visual, int base_p
 // SVG sheet so both draw identical geometry.
 std::vector<std::vector<std::array<float, 2>>> glyph_rays(const Visual &visual);
 
-// Decay-tail crescent moons (trail revision): five fading crescents per side along the
-// horizontal axis, horns and concave side facing the blob. Each is a closed polygon in
-// glyph-local coordinates with its fill opacity; empty when tail01 < 0.05. Shared by the
-// GUI renderer and the SVG sheet so both draw identical geometry.
-struct TailMoon {
+// Decay-tail arc echoes (C revision): five fading stroked arcs per side along the
+// horizontal axis, concave side facing the blob — a "(" chain left, ")" chain right,
+// the crescent moons' outer arc kept as an open polyline. Stroked, not filled: concave
+// polygon fills re-triangulate per frame and made the tail toggle sluggish. Each arc is
+// an open polyline in glyph-local coordinates with its stroke opacity and width; empty
+// when tail01 < 0.05. Shared by the GUI renderer and the SVG sheet so both draw
+// identical geometry.
+struct TailArc {
     std::vector<std::array<float, 2>> pts;
     float opacity;
+    float width; // stroke width, authored px
 };
-std::vector<TailMoon> glyph_tail(const Visual &visual);
+std::vector<TailArc> glyph_tail(const Visual &visual);
 
 // Standalone single-glyph SVG document (cell_px square), shared by the GUI and docs (§5/§7).
 std::string glyph_svg(const Visual &visual, double cell_px);

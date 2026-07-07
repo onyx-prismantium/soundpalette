@@ -197,8 +197,8 @@ void draw_manual(AppState &state) {
     ImGui::SeparatorText("4. Decay tail -> blob trail");
     ImGui::TextWrapped(
         "The decay tail is how long the sound rings out (%.2f s to %.1f s, log scale). Fading "
-        "crescent moons - horns and concave side toward the blob - spread symmetrically from "
-        "both sides, starting at its edge; the longer the decay, the wider the wings. Dry "
+        "arcs - opening toward the blob, like echoes rippling outward - spread symmetrically "
+        "from both sides, starting at its edge; the longer the decay, the wider the wings. Dry "
         "one-shots have no trail; long reverbs and cymbal washes spread far.",
         c.tail_lo_s, c.tail_hi_s);
     spectrum_strip("dry / no trail", "long decay / wide trail", cell, GlyphPart::blob,

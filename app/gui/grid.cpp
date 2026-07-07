@@ -33,14 +33,14 @@ float glyph_scale(float cell_px) {
 // --- Cached concave fill -----------------------------------------------------------
 // AddConcavePolyFilled re-runs an O(N*R) ear-clipping triangulation every call, i.e.
 // per glyph per frame — with attack on (144-point star outline, ~50 reflex vertices)
-// and tail on (10 concave crescents per glyph) that alone cost ~8 ms per 60 visible
-// glyphs and made the app sluggish. The triangle indices depend only on the polygon's
-// SHAPE, which is invariant under the per-cell translation and uniform scale, so each
-// distinct shape is triangulated once (by ImGui's own triangulator, through a scratch
-// draw list with AA off — the plain fill's index buffer IS the triangulation) and
-// re-emitted every frame below with the exact vertex/fringe layout of the original.
-// Spike-less blobs stay on the plain call: they are convex, ImGui's reflex list stays
-// empty, and the ear test is effectively free.
+// that alone cost ~4.5 ms per 60 visible glyphs and made the app sluggish. The triangle
+// indices depend only on the polygon's SHAPE, which is invariant under the per-cell
+// translation and uniform scale, so each distinct shape is triangulated once (by
+// ImGui's own triangulator, through a scratch draw list with AA off — the plain fill's
+// index buffer IS the triangulation) and re-emitted every frame below with the exact
+// vertex/fringe layout of the original. Spike-less blobs stay on the plain call: they
+// are convex, ImGui's reflex list stays empty, and the ear test is effectively free.
+// (The decay tail used to be the other concave-fill hotspot; it is stroked arcs now.)
 
 std::vector<ImDrawIdx> triangulate_once(ImDrawList *ref, const ImVec2 *pts, int n) {
     ImDrawList tmp(ref->_Data);
@@ -213,24 +213,17 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
             }
         }
 
-        // Decay tail (trail revision): 5 fading crescent moons on EACH side, horns and
-        // concave side facing the blob (same geometry as the SVG sheet via glyph_tail).
-        // Every crescent is the same shape up to translation/scale/mirroring (glyph_tail
-        // derives them all from one base arc pair), so two cached triangulations — left
-        // side and right side — cover every moon of every glyph.
-        static std::vector<ImDrawIdx> moon_tris[2];
-        for (const sp::TailMoon &moon : sp::glyph_tail(m)) {
-            std::vector<ImVec2> mpts(moon.pts.size());
-            for (std::size_t k = 0; k < moon.pts.size(); ++k) {
-                mpts[k] = ImVec2(blob_center.x + moon.pts[k][0] * scale,
-                                 blob_center.y + moon.pts[k][1] * scale);
+        // Decay tail (C revision): 5 fading stroked arcs on EACH side, opening toward
+        // the blob (same geometry as the SVG sheet via glyph_tail). Plain path strokes:
+        // the previous filled crescents re-triangulated per frame and made the tail
+        // toggle sluggish even with the triangulation cached.
+        for (const sp::TailArc &arc : sp::glyph_tail(m)) {
+            for (const std::array<float, 2> &p : arc.pts) {
+                draw->PathLineTo(
+                    ImVec2(blob_center.x + p[0] * scale, blob_center.y + p[1] * scale));
             }
-            std::vector<ImDrawIdx> &tris = moon_tris[moon.pts[0][0] < 0.0f ? 0 : 1];
-            if (tris.empty()) {
-                tris = triangulate_once(draw, mpts.data(), static_cast<int>(mpts.size()));
-            }
-            add_concave_poly_cached(draw, mpts.data(), static_cast<int>(mpts.size()),
-                                    hsl_to_rgba(m.hue_deg, m.sat, m.light, moon.opacity), tris);
+            draw->PathStroke(hsl_to_rgba(m.hue_deg, m.sat, m.light, arc.opacity), 0,
+                             std::max(1.0f, arc.width * scale));
         }
     }
 
