@@ -85,8 +85,8 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
             }
         }
 
-        // Decay tail (trail revision): 5 fading half moons on EACH side, concave side
-        // facing the blob (same geometry as the SVG sheet via glyph_tail).
+        // Decay tail (trail revision): 5 fading crescent moons on EACH side, horns and
+        // concave side facing the blob (same geometry as the SVG sheet via glyph_tail).
         for (const sp::TailMoon &moon : sp::glyph_tail(m)) {
             std::vector<ImVec2> mpts(moon.pts.size());
             for (std::size_t k = 0; k < moon.pts.size(); ++k) {

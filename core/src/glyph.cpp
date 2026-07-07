@@ -86,9 +86,9 @@ std::string glyph_fragment(const Visual &v, double cx, double cy) {
            << "\" stroke-width=\"1.6\" stroke-linecap=\"round\" />\n";
     }
 
-    // Decay tail (trail revision): five fading half moons on EACH side, concave side
-    // facing the blob, starting at its edge. Geometry shared with the GUI via glyph_tail
-    // (empty when tail01 < 0.05).
+    // Decay tail (trail revision): five fading crescent moons on EACH side, horns and
+    // concave side facing the blob, starting at its edge. Geometry shared with the GUI
+    // via glyph_tail (empty when tail01 < 0.05).
     for (const TailMoon &moon : glyph_tail(v)) {
         ss << "<polygon points=\"";
         for (std::size_t i = 0; i < moon.pts.size(); ++i) {
@@ -151,35 +151,48 @@ std::string error_mark_fragment(double cx, double cy, double size) {
 std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points) {
     // Fixed five-point star: two points up (-115 deg, -65 deg) and three down (40, 90,
     // 140 deg; y grows downward), so the horizontal axis stays clear for the decay trail
-    // and the three tonality rays interleave with the upper points. Each point is a
-    // cosine^1.5 lobe of half-width 20 deg; the radius between lobes dips deeply so the
-    // extreme end is a true star, not spikes on a round blob — at spike01 = 1 the
-    // point-to-valley ratio is 1.50 : 0.45 (~3.3 : 1), while slow attacks stay perfectly
-    // round. All point angles are multiples of 2.5 deg, so sampling snaps to a multiple
-    // of 144 and every tip lands exactly on a sample.
+    // and the three tonality rays interleave with the upper points. At spike01 = 1 the
+    // silhouette is a TRUE star — straight edges from each tip (1.50 * size) to sharp
+    // inner vertices (0.55 * size) 25 deg to either side; where neighboring points share
+    // an inner vertex the valley is a sharp V, and across the two wide horizontal gaps
+    // the outline follows the inner-radius arc. spike01 blends the radius profile from a
+    // perfect circle to that star. All tip/vertex angles are multiples of 2.5 deg, so
+    // sampling snaps to a multiple of 144 and every tip and V lands exactly on a sample
+    // (proportions picked from a rendered variant sweep).
     constexpr double kStarAnglesDeg[5] = {-115.0, -65.0, 40.0, 90.0, 140.0};
-    constexpr double kLobeHalfWidthDeg = 20.0;
+    constexpr double kPointHalfWidthDeg = 25.0;
+    constexpr double kTipRadiusFactor = 1.50;
+    constexpr double kInnerRadiusFactor = 0.55;
     int n = base_points;
     if (v.spikes > 0) {
         n = ((base_points + 143) / 144) * 144;
     }
     std::vector<std::array<float, 2>> pts(static_cast<std::size_t>(n));
 
+    const double delta = kPointHalfWidthDeg * kPi / 180.0;
+    const double r_tip = kTipRadiusFactor * v.size_px;
+    const double r_in = kInnerRadiusFactor * v.size_px;
+
     for (int i = 0; i < n; ++i) {
         double theta = i * 2.0 * kPi / n;
 
-        double shape = 0.0;
+        double r = v.size_px;
         if (v.spikes > 0) {
             const double theta_deg = theta * 180.0 / kPi;
             double dist_deg = 180.0;
             for (double p : kStarAnglesDeg) {
                 dist_deg = std::min(dist_deg, std::fabs(std::remainder(theta_deg - p, 360.0)));
             }
-            if (dist_deg < kLobeHalfWidthDeg) {
-                shape = std::pow(std::cos(0.5 * kPi * dist_deg / kLobeHalfWidthDeg), 1.5);
-            }
+            const double d = dist_deg * kPi / 180.0;
+            // Polar form of the straight edge between the tip (r_tip at d = 0) and the
+            // inner vertex (r_in at d = delta); the inner-radius arc elsewhere.
+            const double star_r =
+                d <= delta
+                    ? (r_tip * r_in * std::sin(delta)) /
+                          (r_in * std::sin(delta - d) + r_tip * std::sin(d))
+                    : r_in;
+            r = v.size_px * (1.0 - v.spike01) + star_r * v.spike01;
         }
-        double r = v.size_px * (1.0 + v.spike01 * (0.50 * shape - 0.55 * (1.0 - shape)));
 
         pts[static_cast<std::size_t>(i)] = {static_cast<float>(r * std::cos(theta)),
                                             static_cast<float>(r * std::sin(theta))};
@@ -229,13 +242,17 @@ std::vector<TailMoon> glyph_tail(const Visual &v) {
     if (v.tail01 < 0.05) {
         return {};
     }
-    // Five crescents per side on the horizontal axis, starting at the blob edge: sizes
-    // shrink from 0.30*size_px, opacity fades 0.55 -> 0.10, spread tail01*1.15*size_px
-    // per side. Each crescent is an outer semicircle facing away from the blob plus a
-    // shallower inner arc bulging the same way (0.45 r at the equator), so the face
-    // toward the blob is concave — a half moon waning toward the glyph.
+    // Five crescent moons per side on the horizontal axis, starting at the blob edge:
+    // sizes shrink from 0.30*size_px, opacity fades 0.55 -> 0.10, spread
+    // tail01*1.15*size_px per side. Each is a classic crescent: the outer circle arc
+    // spans +-120 deg around the away-facing direction (so the horns wrap back toward
+    // the glyph), and the inner arc cuts through both horn tips with its deepest point
+    // 0.55 r from the moon center — concave side facing the glyph (proportions picked
+    // from a rendered variant sweep).
     constexpr int kMoonsPerSide = 5;
-    constexpr int kArcSegments = 16;
+    constexpr int kArcSegments = 24;
+    constexpr double kHornDeg = 120.0;
+    constexpr double kInnerBulge = 0.55;
     const double spread = v.tail01 * 1.15 * v.size_px;
 
     std::vector<TailMoon> moons;
@@ -245,27 +262,31 @@ std::vector<TailMoon> glyph_tail(const Visual &v) {
         const double dx = v.size_px + ((i + 1) / static_cast<double>(kMoonsPerSide)) * spread;
         const double r = 0.30 * v.size_px * (1.0 - 0.75 * t);
         const float opacity = static_cast<float>(0.55 + (0.10 - 0.55) * t);
-        // The inner arc's circle passes through both tips (0, +-r) and bulges b past the
-        // tip line: center e = (r^2 - b^2) / 2b behind the tips, radius e + b.
-        const double b = 0.45 * r;
-        const double e = (r * r - b * b) / (2.0 * b);
-        const double big_r = e + b;
-        const double alpha = std::atan2(r, e);
+        // Moon-local frame: +x faces away from the glyph. Horn tips sit on the outer
+        // circle at +-kHornDeg; the inner circle passes through both tips and the apex
+        // (kInnerBulge * r, 0): center xc on the axis, radius apex - xc.
+        const double gamma = kHornDeg * kPi / 180.0;
+        const double xt = r * std::cos(gamma);
+        const double yt = r * std::sin(gamma);
+        const double apex = kInnerBulge * r;
+        const double xc = (apex * apex - r * r) / (2.0 * (apex - xt));
+        const double big_r = apex - xc;
+        const double alpha = std::atan2(yt, xt - xc);
         for (double side : {-1.0, 1.0}) {
             TailMoon moon;
             moon.opacity = opacity;
             moon.pts.reserve(2 * kArcSegments);
-            // Outer semicircle: top tip -> away-facing equator -> bottom tip.
+            // Outer arc: top horn -> away-facing equator -> bottom horn.
             for (int k = 0; k <= kArcSegments; ++k) {
-                const double a = -0.5 * kPi + k * kPi / kArcSegments;
+                const double a = -gamma + k * 2.0 * gamma / kArcSegments;
                 moon.pts.push_back({static_cast<float>(side * (dx + r * std::cos(a))),
                                     static_cast<float>(r * std::sin(a))});
             }
-            // Inner arc back up; the tips are already on the outer arc, so both endpoints
-            // are skipped.
+            // Inner arc back up through the apex; the horn tips are already on the outer
+            // arc, so both endpoints are skipped.
             for (int k = 1; k < kArcSegments; ++k) {
                 const double a = alpha - k * 2.0 * alpha / kArcSegments;
-                moon.pts.push_back({static_cast<float>(side * (dx - e + big_r * std::cos(a))),
+                moon.pts.push_back({static_cast<float>(side * (dx + xc + big_r * std::cos(a))),
                                     static_cast<float>(big_r * std::sin(a))});
             }
             moons.push_back(std::move(moon));

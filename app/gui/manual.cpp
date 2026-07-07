@@ -182,10 +182,9 @@ void draw_manual(AppState &state) {
     ImGui::TextWrapped(
         "Attack is how fast the sound reaches its peak (%.0f ms to %.0f ms, log scale). Soft "
         "attacks stay perfectly round; once the attack crosses the spike threshold, the blob "
-        "turns into a five-pointed star - two points up, three down, the sides left clear for "
-        "the trail - whose points grow while the outline between them is carved inward, so a "
-        "hard transient is unmistakable at a glance. Clicks and hits are stars; pads and "
-        "swells stay round.",
+        "morphs toward a true five-pointed star - straight edges, sharp points, two up and "
+        "three down, the sides left clear for the trail - so a hard transient is unmistakable "
+        "at a glance. Clicks and hits are stars; pads and swells stay round.",
         c.atk_lo_s * 1000.0, c.atk_hi_s * 1000.0);
     spectrum_strip(
         "slow attack / round", "instant attack / star", cell, GlyphPart::blob, [&](double t) {
@@ -198,9 +197,9 @@ void draw_manual(AppState &state) {
     ImGui::SeparatorText("4. Decay tail -> blob trail");
     ImGui::TextWrapped(
         "The decay tail is how long the sound rings out (%.2f s to %.1f s, log scale). Fading "
-        "half moons - concave side toward the blob, like ripples washing outward - spread "
-        "symmetrically from both sides, starting at its edge; the longer the decay, the wider "
-        "the wings. Dry one-shots have no trail; long reverbs and cymbal washes spread far.",
+        "crescent moons - horns and concave side toward the blob - spread symmetrically from "
+        "both sides, starting at its edge; the longer the decay, the wider the wings. Dry "
+        "one-shots have no trail; long reverbs and cymbal washes spread far.",
         c.tail_lo_s, c.tail_hi_s);
     spectrum_strip("dry / no trail", "long decay / wide trail", cell, GlyphPart::blob,
                    [&](double t) {

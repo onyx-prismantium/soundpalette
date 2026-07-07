@@ -719,3 +719,24 @@ warmth-off / blob-off / gray-hairline / all-off and inspecting screenshots each 
 golden palette.json regenerated (spikes values only: 8-14 -> 5); sheet.svg regenerated.
 55/55 unit tests and all integration scripts green; GUI verified under Xvfb (grid
 inspected, gray-hairline mask state screenshot-checked); docs/screenshot.png recaptured.
+
+## True star + crescent moons (user refinement, 2026-07-07)
+
+Follow-up to the fixed-star revision, same day: "an actual five pointed star, not rounded
+spikes on a blob" and "half moons actually like a crescent moon".
+
+- **Star outline**: the cosine lobes are gone. At spike01 = 1 the silhouette is a true
+  straight-edged star — tips at 1.50 * size, sharp inner vertices at 0.55 * size, 25 deg
+  to either side of each tip (polar line form between tip and vertex); neighboring points
+  share a sharp V valley, and the two wide horizontal gaps follow the inner-radius arc.
+  spike01 blends the radius profile from a perfect circle to that star, so the tip/valley
+  envelope (1.50 : 0.55) is unchanged from the grid-margin perspective. Tip and vertex
+  angles are all multiples of 2.5 deg (sampling still snaps to 144).
+- **Trail crescents**: the outer arc now spans +-120 deg around the away direction (horns
+  wrap back toward the glyph) and the inner arc cuts through both horn tips with apex
+  0.55 r — a classic waning-crescent silhouette instead of the fat semicircle-backed
+  half moon. Proportions for both shapes picked from a rendered variant sweep
+  (star Rin 0.38/0.45/0.55 x halfwidth 20/25; crescent gamma 110-125 x bulge 0.40-0.65).
+
+golden palette.json byte-identical (geometry-only change); sheet.svg regenerated.
+55/55 unit + all integration green; GUI smoke inspected; docs/screenshot.png recaptured.
