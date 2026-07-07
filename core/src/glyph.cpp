@@ -10,7 +10,6 @@ namespace sp {
 namespace {
 
 constexpr double kPi = 3.14159265358979323846;
-constexpr int kTailCircleCount = 5;
 
 std::string escape_xml(const std::string &s) {
     std::string out;
@@ -87,22 +86,19 @@ std::string glyph_fragment(const Visual &v, double cx, double cy) {
            << "\" stroke-width=\"1.6\" stroke-linecap=\"round\" />\n";
     }
 
-    // Decay tail: 5 circles on EACH side, starting at the blob edge (inside the blob they
-    // were invisible), radius shrinking from 0.30*size_px, opacity fading 0.55 -> 0.10,
-    // horizontal spread tail01*1.15*size_px per side. Omitted when tail01 < 0.05.
-    if (v.tail01 >= 0.05) {
-        const double spread = v.tail01 * 1.15 * v.size_px;
-        for (int i = 0; i < kTailCircleCount; ++i) {
-            double t = static_cast<double>(i) / (kTailCircleCount - 1); // 0..1
-            double dx = v.size_px + ((i + 1) / static_cast<double>(kTailCircleCount)) * spread;
-            double radius = 0.30 * v.size_px * (1.0 - 0.75 * t);
-            double opacity = 0.55 + (0.10 - 0.55) * t;
-            for (double side : {-1.0, 1.0}) {
-                ss << "<circle cx=\"" << fmt(cx + side * dx) << "\" cy=\"" << fmt(cy) << "\" r=\""
-                   << fmt(radius) << "\" fill=\"" << hsl_color(v) << "\" fill-opacity=\""
-                   << fmt(opacity) << "\" />\n";
+    // Decay tail (trail revision): five fading half moons on EACH side, concave side
+    // facing the blob, starting at its edge. Geometry shared with the GUI via glyph_tail
+    // (empty when tail01 < 0.05).
+    for (const TailMoon &moon : glyph_tail(v)) {
+        ss << "<polygon points=\"";
+        for (std::size_t i = 0; i < moon.pts.size(); ++i) {
+            if (i > 0) {
+                ss << " ";
             }
+            ss << fmt(cx + moon.pts[i][0]) << "," << fmt(cy + moon.pts[i][1]);
         }
+        ss << "\" fill=\"" << hsl_color(v) << "\" fill-opacity=\"" << fmt(moon.opacity)
+           << "\" />\n";
     }
 
     return ss.str();
@@ -153,15 +149,19 @@ std::string error_mark_fragment(double cx, double cy, double size) {
 } // namespace
 
 std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points) {
-    // Star silhouette: cosine^1.5 lobes make broad triangular points, and the radius dips
-    // deeply between them so the extreme end is a true star, not spikes on a round blob —
-    // at spike01 = 1 the point-to-valley ratio is 1.50 : 0.45 (~3.3 : 1), while slow
-    // attacks stay perfectly round. Sampling snaps to a multiple of the spike count so
-    // every point lands exactly on a lobe maximum.
+    // Fixed five-point star: two points up (-115 deg, -65 deg) and three down (40, 90,
+    // 140 deg; y grows downward), so the horizontal axis stays clear for the decay trail
+    // and the three tonality rays interleave with the upper points. Each point is a
+    // cosine^1.5 lobe of half-width 20 deg; the radius between lobes dips deeply so the
+    // extreme end is a true star, not spikes on a round blob — at spike01 = 1 the
+    // point-to-valley ratio is 1.50 : 0.45 (~3.3 : 1), while slow attacks stay perfectly
+    // round. All point angles are multiples of 2.5 deg, so sampling snaps to a multiple
+    // of 144 and every tip lands exactly on a sample.
+    constexpr double kStarAnglesDeg[5] = {-115.0, -65.0, 40.0, 90.0, 140.0};
+    constexpr double kLobeHalfWidthDeg = 20.0;
     int n = base_points;
     if (v.spikes > 0) {
-        n = ((base_points + v.spikes - 1) / v.spikes) * v.spikes;
-        n = std::max(n, v.spikes * 16);
+        n = ((base_points + 143) / 144) * 144;
     }
     std::vector<std::array<float, 2>> pts(static_cast<std::size_t>(n));
 
@@ -170,8 +170,14 @@ std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points
 
         double shape = 0.0;
         if (v.spikes > 0) {
-            const double lobe = std::max(0.0, std::cos(v.spikes * theta));
-            shape = std::pow(lobe, 1.5);
+            const double theta_deg = theta * 180.0 / kPi;
+            double dist_deg = 180.0;
+            for (double p : kStarAnglesDeg) {
+                dist_deg = std::min(dist_deg, std::fabs(std::remainder(theta_deg - p, 360.0)));
+            }
+            if (dist_deg < kLobeHalfWidthDeg) {
+                shape = std::pow(std::cos(0.5 * kPi * dist_deg / kLobeHalfWidthDeg), 1.5);
+            }
         }
         double r = v.size_px * (1.0 + v.spike01 * (0.50 * shape - 0.55 * (1.0 - shape)));
 
@@ -186,10 +192,11 @@ std::vector<std::vector<std::array<float, 2>>> glyph_rays(const Visual &v) {
     if (v.silent) {
         return {};
     }
-    // Five rays fanned +-50 deg around straight up, starting just off the blob edge. The
-    // waviness is a perpendicular sine whose amplitude scales with noisiness (1 - ton01):
-    // tonal material shows a clean straight fan, noise shows wobbling rays.
-    constexpr int kRays = 5;
+    // Three rays fanned +-50 deg around straight up (-140, -90, -40 deg), starting just
+    // off the blob edge; they interleave with the star's upper points at -115 / -65 deg.
+    // The waviness is a perpendicular sine whose amplitude scales with noisiness
+    // (1 - ton01): tonal material shows a clean straight fan, noise shows wobbling rays.
+    constexpr int kRays = 3;
     constexpr int kSegments = 12;
     constexpr double kFanHalfDeg = 50.0;
     const double start_r = 1.12 * v.size_px;
@@ -216,6 +223,55 @@ std::vector<std::vector<std::array<float, 2>>> glyph_rays(const Visual &v) {
         }
     }
     return rays;
+}
+
+std::vector<TailMoon> glyph_tail(const Visual &v) {
+    if (v.tail01 < 0.05) {
+        return {};
+    }
+    // Five crescents per side on the horizontal axis, starting at the blob edge: sizes
+    // shrink from 0.30*size_px, opacity fades 0.55 -> 0.10, spread tail01*1.15*size_px
+    // per side. Each crescent is an outer semicircle facing away from the blob plus a
+    // shallower inner arc bulging the same way (0.45 r at the equator), so the face
+    // toward the blob is concave — a half moon waning toward the glyph.
+    constexpr int kMoonsPerSide = 5;
+    constexpr int kArcSegments = 16;
+    const double spread = v.tail01 * 1.15 * v.size_px;
+
+    std::vector<TailMoon> moons;
+    moons.reserve(kMoonsPerSide * 2);
+    for (int i = 0; i < kMoonsPerSide; ++i) {
+        const double t = static_cast<double>(i) / (kMoonsPerSide - 1); // 0..1
+        const double dx = v.size_px + ((i + 1) / static_cast<double>(kMoonsPerSide)) * spread;
+        const double r = 0.30 * v.size_px * (1.0 - 0.75 * t);
+        const float opacity = static_cast<float>(0.55 + (0.10 - 0.55) * t);
+        // The inner arc's circle passes through both tips (0, +-r) and bulges b past the
+        // tip line: center e = (r^2 - b^2) / 2b behind the tips, radius e + b.
+        const double b = 0.45 * r;
+        const double e = (r * r - b * b) / (2.0 * b);
+        const double big_r = e + b;
+        const double alpha = std::atan2(r, e);
+        for (double side : {-1.0, 1.0}) {
+            TailMoon moon;
+            moon.opacity = opacity;
+            moon.pts.reserve(2 * kArcSegments);
+            // Outer semicircle: top tip -> away-facing equator -> bottom tip.
+            for (int k = 0; k <= kArcSegments; ++k) {
+                const double a = -0.5 * kPi + k * kPi / kArcSegments;
+                moon.pts.push_back({static_cast<float>(side * (dx + r * std::cos(a))),
+                                    static_cast<float>(r * std::sin(a))});
+            }
+            // Inner arc back up; the tips are already on the outer arc, so both endpoints
+            // are skipped.
+            for (int k = 1; k < kArcSegments; ++k) {
+                const double a = alpha - k * 2.0 * alpha / kArcSegments;
+                moon.pts.push_back({static_cast<float>(side * (dx - e + big_r * std::cos(a))),
+                                    static_cast<float>(big_r * std::sin(a))});
+            }
+            moons.push_back(std::move(moon));
+        }
+    }
+    return moons;
 }
 
 std::string glyph_svg(const Visual &v, double cell_px) {

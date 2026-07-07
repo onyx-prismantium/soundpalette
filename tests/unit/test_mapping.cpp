@@ -160,16 +160,28 @@ TEST_CASE("mapping/determinism") {
     v.light = 50.0;
     v.size_px = 40.0;
     v.spike01 = 0.7;
-    v.spikes = 9;
+    v.spikes = 5;
     v.jitter01 = 0.5;
     v.tail01 = 0.3;
     v.seed = sp::path_seed("impact/impact_flesh.wav");
 
     auto a = sp::glyph_outline(v);
     auto b = sp::glyph_outline(v);
-    // Star sampling snaps to a multiple of the spike count so every point is hit exactly.
-    REQUIRE(a.size() % static_cast<std::size_t>(v.spikes) == 0);
-    REQUIRE(a.size() >= static_cast<std::size_t>(v.spikes) * 16);
+    // Star revision: a fixed five-point layout (two up, three down); the sampling hits
+    // every tip angle exactly, so the maximum radius appears at exactly five samples.
+    REQUIRE(a.size() >= 144);
+    {
+        const double tip_r = v.size_px * (1.0 + 0.50 * v.spike01);
+        int tips = 0;
+        for (const auto &p : a) {
+            const double r = std::sqrt(static_cast<double>(p[0]) * p[0] +
+                                       static_cast<double>(p[1]) * p[1]);
+            if (r > tip_r - 1e-3) {
+                ++tips;
+            }
+        }
+        CHECK(tips == 5);
+    }
     REQUIRE(a.size() == b.size());
     for (std::size_t i = 0; i < a.size(); ++i) {
         CHECK(a[i][0] == b[i][0]);
@@ -183,7 +195,7 @@ TEST_CASE("mapping/determinism") {
     tonal.ton01 = 1.0;
     auto rays_a = sp::glyph_rays(noisy);
     auto rays_b = sp::glyph_rays(noisy);
-    REQUIRE(rays_a.size() == 5);
+    REQUIRE(rays_a.size() == 3);
     REQUIRE(rays_a.size() == rays_b.size());
     for (std::size_t r = 0; r < rays_a.size(); ++r) {
         REQUIRE(rays_a[r].size() == rays_b[r].size());
@@ -194,8 +206,8 @@ TEST_CASE("mapping/determinism") {
     }
     // The straight (tonal) center ray is a perfect vertical line; the noisy one is not.
     auto rays_tonal = sp::glyph_rays(tonal);
-    const auto &center_tonal = rays_tonal[2];
-    const auto &center_noisy = rays_a[2];
+    const auto &center_tonal = rays_tonal[1];
+    const auto &center_noisy = rays_a[1];
     bool tonal_straight = true, noisy_straight = true;
     for (std::size_t i = 0; i < center_tonal.size(); ++i) {
         tonal_straight = tonal_straight && std::abs(center_tonal[i][0]) < 1e-4f;

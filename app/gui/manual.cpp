@@ -166,10 +166,11 @@ void draw_manual(AppState &state) {
 
     ImGui::SeparatorText("2. Tonality -> rays above the blob");
     ImGui::TextWrapped(
-        "Tonality comes from spectral flatness. A fan of five rays rises from the blob: "
-        "pitched, tonal material (chimes, hums, musical stingers) shines perfectly straight "
-        "rays; noise-like material (wind, static, impacts) makes them wobble. Think of it as "
-        "the sound's radiance - organized sound radiates cleanly, noise flickers.");
+        "Tonality comes from spectral flatness. A fan of three rays rises from the blob, one "
+        "in each gap around the star's two upper points: pitched, tonal material (chimes, "
+        "hums, musical stingers) shines perfectly straight rays; noise-like material (wind, "
+        "static, impacts) makes them wobble. Think of it as the sound's radiance - organized "
+        "sound radiates cleanly, noise flickers.");
     spectrum_strip("noise-like / wavy rays", "tonal / straight rays", cell, GlyphPart::blob,
                    [&](double t) {
                        sp::Visual v = spectrum_base();
@@ -181,27 +182,25 @@ void draw_manual(AppState &state) {
     ImGui::TextWrapped(
         "Attack is how fast the sound reaches its peak (%.0f ms to %.0f ms, log scale). Soft "
         "attacks stay perfectly round; once the attack crosses the spike threshold, the blob "
-        "turns into a star - the points grow while the outline between them is carved inward, "
-        "so a hard transient is unmistakable at a glance. Clicks and hits are stars; pads and "
+        "turns into a five-pointed star - two points up, three down, the sides left clear for "
+        "the trail - whose points grow while the outline between them is carved inward, so a "
+        "hard transient is unmistakable at a glance. Clicks and hits are stars; pads and "
         "swells stay round.",
         c.atk_lo_s * 1000.0, c.atk_hi_s * 1000.0);
     spectrum_strip(
         "slow attack / round", "instant attack / star", cell, GlyphPart::blob, [&](double t) {
             sp::Visual v = spectrum_base();
             v.spike01 = t;
-            v.spikes =
-                t > c.spike_threshold
-                    ? static_cast<int>(std::lround(c.spike_count_base + c.spike_count_span * t))
-                    : 0;
+            v.spikes = t > c.spike_threshold ? 5 : 0;
             return v;
         });
 
     ImGui::SeparatorText("4. Decay tail -> blob trail");
     ImGui::TextWrapped(
         "The decay tail is how long the sound rings out (%.2f s to %.1f s, log scale). Fading "
-        "circles spread symmetrically from both sides of the blob, starting at its edge; the "
-        "longer the decay, the wider the wings. Dry one-shots have no trail; long reverbs and "
-        "cymbal washes spread far.",
+        "half moons - concave side toward the blob, like ripples washing outward - spread "
+        "symmetrically from both sides, starting at its edge; the longer the decay, the wider "
+        "the wings. Dry one-shots have no trail; long reverbs and cymbal washes spread far.",
         c.tail_lo_s, c.tail_hi_s);
     spectrum_strip("dry / no trail", "long decay / wide trail", cell, GlyphPart::blob,
                    [&](double t) {

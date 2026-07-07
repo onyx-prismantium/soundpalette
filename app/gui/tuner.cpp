@@ -92,9 +92,8 @@ void draw_tuner(AppState &state) {
         changed |= slider("light brt span", &t.light_bright_span, defaults.light_bright_span);
         changed |= slider("size base px", &t.size_base_px, defaults.size_base_px);
         changed |= slider("size loud span", &t.size_loud_span_px, defaults.size_loud_span_px);
+        // Star revision: the point count is fixed at five, so only the threshold tunes.
         changed |= slider("spike thresh", &t.spike_threshold, defaults.spike_threshold);
-        changed |= slider("spike base", &t.spike_count_base, defaults.spike_count_base);
-        changed |= slider("spike span", &t.spike_count_span, defaults.spike_count_span);
     }
     if (ImGui::CollapsingHeader("Silent visual")) {
         changed |= slider("silent hue", &t.silent_hue_deg, defaults.silent_hue_deg);

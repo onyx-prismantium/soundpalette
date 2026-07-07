@@ -695,3 +695,27 @@ disappears. Implemented as a render-time GlyphMask on a copy of the Visual in dr
 documents the mapping, and the SVG sheet is untouched). Analysis, manifests, lint,
 deviations, and the inspector never see the mask. Verified under Xvfb by toggling through
 warmth-off / blob-off / gray-hairline / all-off and inspecting screenshots each step.
+
+## Fixed star, half-moon trail, lighter masked gray (user request, 2026-07-07)
+
+- **Fixed five-point star**: the point count no longer derives from attack —
+  spike_count_base/span are retired (kept in MappingConfig and the mapping JSON for
+  schema stability; their tuner sliders removed) and the mapping sets spikes = 5 above
+  the threshold, 0 below. The layout is fixed: two points up (-115/-65 deg) and three
+  down (40/90/140 deg), cosine^1.5 lobes of half-width 20 deg, same 1.50 : 0.45
+  point-to-valley ratio at spike01 = 1. The horizontal axis is always a valley, so the
+  star never cuts into the decay trail. All point angles are multiples of 2.5 deg;
+  outline sampling snaps to a multiple of 144 so every tip lands on a sample.
+- **Tonality rays 5 -> 3**: same +-50 deg fan (-140/-90/-40 deg), interleaving with the
+  two upper star points (ray, point, ray, point, ray).
+- **Decay trail circles -> half moons**: five fading crescents per side, concave side
+  facing the blob (outer semicircle plus a shallower inner arc bulging 0.45 r), same
+  positions, sizes, opacities, and envelope as the old circles. Geometry moved into a
+  shared core helper (glyph_tail) so the SVG sheet and the GUI draw identical trails.
+- **Masked-gray line lighter**: with sharpness unchecked, the gray psycho line draws at
+  L = 72 % instead of the colored line's 55 %, so the roughness/fluctuation-only
+  hairline separates from the dark background (measured rgb(183,183,183) under Xvfb).
+
+golden palette.json regenerated (spikes values only: 8-14 -> 5); sheet.svg regenerated.
+55/55 unit tests and all integration scripts green; GUI verified under Xvfb (grid
+inspected, gray-hairline mask state screenshot-checked); docs/screenshot.png recaptured.

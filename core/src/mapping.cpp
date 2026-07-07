@@ -133,9 +133,10 @@ Visual map_v2(const Features &features, const Loudness &loudness, const PsychoFe
     v.loud01 = loud01;
     v.sharp01 = bright01;
     v.spike01 = atk01;
-    v.spikes = (atk01 > c.spike_threshold)
-                   ? static_cast<int>(std::lround(c.spike_count_base + c.spike_count_span * atk01))
-                   : 0;
+    // Star revision: the point count and layout are fixed (five points, two up / three
+    // down, defined in glyph_outline) so the trail and rays always have clear space;
+    // attack strength lives in spike01 alone.
+    v.spikes = (atk01 > c.spike_threshold) ? 5 : 0;
     v.jitter01 = jitter01;
     v.tail01 = tail01;
     v.fluct01 = fluct01;

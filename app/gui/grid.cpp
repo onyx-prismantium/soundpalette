@@ -16,7 +16,6 @@ namespace {
 
 constexpr float kCellPx = 118.0f; // glyph area at 100 % scale; tightened so glyphs sit closer
 constexpr float kLabelPx = 16.0f; // filename line beneath the glyph, at 100 % scale
-constexpr int kTailCircles = 5;   // §7 decay tail
 
 const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
                             "tail01",   "loud01", "jitter01", "fluct01"};
@@ -86,22 +85,16 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
             }
         }
 
-        // Decay tail (§7, ray revision): 5 circles on EACH side, starting at the blob edge,
-        // shrinking/fading, spread tail01 * 1.15 * size per side.
-        if (m.tail01 >= 0.05) {
-            const double spread = m.tail01 * 1.15 * m.size_px;
-            for (int i = 0; i < kTailCircles; ++i) {
-                double t = static_cast<double>(i) / (kTailCircles - 1);
-                double dx =
-                    (m.size_px + ((i + 1) / static_cast<double>(kTailCircles)) * spread) * scale;
-                double radius = 0.30 * m.size_px * (1.0 - 0.75 * t) * scale;
-                double opacity = 0.55 + (0.10 - 0.55) * t;
-                unsigned int col = hsl_to_rgba(m.hue_deg, m.sat, m.light, opacity);
-                draw->AddCircleFilled(ImVec2(blob_center.x - static_cast<float>(dx), blob_center.y),
-                                      static_cast<float>(radius), col);
-                draw->AddCircleFilled(ImVec2(blob_center.x + static_cast<float>(dx), blob_center.y),
-                                      static_cast<float>(radius), col);
+        // Decay tail (trail revision): 5 fading half moons on EACH side, concave side
+        // facing the blob (same geometry as the SVG sheet via glyph_tail).
+        for (const sp::TailMoon &moon : sp::glyph_tail(m)) {
+            std::vector<ImVec2> mpts(moon.pts.size());
+            for (std::size_t k = 0; k < moon.pts.size(); ++k) {
+                mpts[k] = ImVec2(blob_center.x + moon.pts[k][0] * scale,
+                                 blob_center.y + moon.pts[k][1] * scale);
             }
+            draw->AddConcavePolyFilled(mpts.data(), static_cast<int>(mpts.size()),
+                                       hsl_to_rgba(m.hue_deg, m.sat, m.light, moon.opacity));
         }
     }
 
@@ -124,7 +117,10 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
                       cell_norm;
     const double cycles = c.line_cycles_min + m.fluct01 * (c.line_cycles_max - c.line_cycles_min);
     const double hue = c.sharp_hue_lo_deg + m.sharp01 * (c.sharp_hue_hi_deg - c.sharp_hue_lo_deg);
-    const double line_sat = mask.sharpness ? 85.0 : 0.0; // gray line: color carries nothing
+    // Gray line: color carries nothing; drawn lighter than the colored line's L=55 so the
+    // hairline (loudness off too) still separates from the dark background.
+    const double line_sat = mask.sharpness ? 85.0 : 0.0;
+    const double line_light = mask.sharpness ? 55.0 : 72.0;
 
     const float x0 = center.x - 0.42f * cell_px;
     const float x1 = center.x + 0.42f * cell_px;
@@ -136,7 +132,7 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
             ImVec2(x0 + t * (x1 - x0),
                    ly - amp * static_cast<float>(std::sin(2.0 * 3.14159265358979 * cycles * t))));
     }
-    draw->PathStroke(hsl_to_rgba(hue, line_sat, 55.0, 1.0), 0, std::max(1.0f, width));
+    draw->PathStroke(hsl_to_rgba(hue, line_sat, line_light, 1.0), 0, std::max(1.0f, width));
 }
 
 namespace {

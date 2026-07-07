@@ -90,7 +90,9 @@ struct MappingConfig {
     double size_base_px = 14.0;
     double size_loud_span_px = 50.0;
 
-    // spikes = (atk01 > spike_threshold) ? round(spike_count_base + spike_count_span*atk01) : 0
+    // spikes = (atk01 > spike_threshold) ? 5 : 0 — star revision: a fixed five-point star
+    // (two up, three down; layout in glyph_outline). count_base/span are retired but kept
+    // for mapping-JSON stability.
     double spike_threshold = 0.35;
     double spike_count_base = 4.0;
     double spike_count_span = 10.0;
