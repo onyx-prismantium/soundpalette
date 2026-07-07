@@ -4,9 +4,11 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <unordered_map>
 #include <vector>
 
 #include <imgui.h>
+#include <imgui_internal.h> // ImRsqrt: the cached fill must fringe exactly like ImGui's
 
 #include "soundpalette/glyph.h"
 
@@ -26,6 +28,132 @@ const char *kDimNames[8] = {"bright01", "warm01", "ton01",    "atk01",
 // touching even at full tail spread while packing the grid tight.
 float glyph_scale(float cell_px) {
     return (cell_px * 0.5f - 2.0f) / 55.0f;
+}
+
+// --- Cached concave fill -----------------------------------------------------------
+// AddConcavePolyFilled re-runs an O(N*R) ear-clipping triangulation every call, i.e.
+// per glyph per frame — with attack on (144-point star outline, ~50 reflex vertices)
+// and tail on (10 concave crescents per glyph) that alone cost ~8 ms per 60 visible
+// glyphs and made the app sluggish. The triangle indices depend only on the polygon's
+// SHAPE, which is invariant under the per-cell translation and uniform scale, so each
+// distinct shape is triangulated once (by ImGui's own triangulator, through a scratch
+// draw list with AA off — the plain fill's index buffer IS the triangulation) and
+// re-emitted every frame below with the exact vertex/fringe layout of the original.
+// Spike-less blobs stay on the plain call: they are convex, ImGui's reflex list stays
+// empty, and the ear test is effectively free.
+
+std::vector<ImDrawIdx> triangulate_once(ImDrawList *ref, const ImVec2 *pts, int n) {
+    ImDrawList tmp(ref->_Data);
+    tmp._ResetForNewFrame();
+    tmp.Flags = ImDrawListFlags_None;
+    tmp.AddConcavePolyFilled(pts, n, IM_COL32_WHITE);
+    return std::vector<ImDrawIdx>(tmp.IdxBuffer.begin(), tmp.IdxBuffer.end());
+}
+
+// Byte-identical output to AddConcavePolyFilled (imgui_draw.cpp), minus the per-frame
+// triangulation. `tris` holds indices relative to the polygon's own 0..n-1 order.
+void add_concave_poly_cached(ImDrawList *draw, const ImVec2 *points, int points_count,
+                             ImU32 col, const std::vector<ImDrawIdx> &tris) {
+    if (points_count < 3 || (col & IM_COL32_A_MASK) == 0 || tris.empty()) {
+        return;
+    }
+    const ImVec2 uv = draw->_Data->TexUvWhitePixel;
+    if (draw->Flags & ImDrawListFlags_AntiAliasedFill) {
+        const float aa_size = draw->_FringeScale;
+        const ImU32 col_trans = col & ~IM_COL32_A_MASK;
+        draw->PrimReserve(static_cast<int>(tris.size()) + points_count * 6, points_count * 2);
+
+        const unsigned int vtx_inner_idx = draw->_VtxCurrentIdx;
+        const unsigned int vtx_outer_idx = draw->_VtxCurrentIdx + 1;
+        for (const ImDrawIdx t : tris) {
+            *draw->_IdxWritePtr++ =
+                static_cast<ImDrawIdx>(vtx_inner_idx + (static_cast<unsigned int>(t) << 1));
+        }
+
+        // Edge normals, then per-point inner/outer vertex pairs and fringe quads — the
+        // same math (IM_NORMALIZE2F_OVER_ZERO / IM_FIXNORMAL2F) as the ImGui original.
+        static std::vector<ImVec2> normals;
+        normals.resize(static_cast<std::size_t>(points_count));
+        for (int i0 = points_count - 1, i1 = 0; i1 < points_count; i0 = i1++) {
+            float dx = points[i1].x - points[i0].x;
+            float dy = points[i1].y - points[i0].y;
+            const float d2 = dx * dx + dy * dy;
+            if (d2 > 0.0f) {
+                const float inv_len = ImRsqrt(d2);
+                dx *= inv_len;
+                dy *= inv_len;
+            }
+            normals[static_cast<std::size_t>(i0)] = ImVec2(dy, -dx);
+        }
+        for (int i0 = points_count - 1, i1 = 0; i1 < points_count; i0 = i1++) {
+            const ImVec2 &n0 = normals[static_cast<std::size_t>(i0)];
+            const ImVec2 &n1 = normals[static_cast<std::size_t>(i1)];
+            float dm_x = (n0.x + n1.x) * 0.5f;
+            float dm_y = (n0.y + n1.y) * 0.5f;
+            const float d2 = dm_x * dm_x + dm_y * dm_y;
+            if (d2 > 0.000001f) {
+                const float inv_len2 = std::min(1.0f / d2, 100.0f);
+                dm_x *= inv_len2;
+                dm_y *= inv_len2;
+            }
+            dm_x *= aa_size * 0.5f;
+            dm_y *= aa_size * 0.5f;
+
+            draw->_VtxWritePtr[0].pos = ImVec2(points[i1].x - dm_x, points[i1].y - dm_y);
+            draw->_VtxWritePtr[0].uv = uv;
+            draw->_VtxWritePtr[0].col = col; // inner
+            draw->_VtxWritePtr[1].pos = ImVec2(points[i1].x + dm_x, points[i1].y + dm_y);
+            draw->_VtxWritePtr[1].uv = uv;
+            draw->_VtxWritePtr[1].col = col_trans; // outer
+            draw->_VtxWritePtr += 2;
+
+            const unsigned int u0 = static_cast<unsigned int>(i0) << 1;
+            const unsigned int u1 = static_cast<unsigned int>(i1) << 1;
+            draw->_IdxWritePtr[0] = static_cast<ImDrawIdx>(vtx_inner_idx + u1);
+            draw->_IdxWritePtr[1] = static_cast<ImDrawIdx>(vtx_inner_idx + u0);
+            draw->_IdxWritePtr[2] = static_cast<ImDrawIdx>(vtx_outer_idx + u0);
+            draw->_IdxWritePtr[3] = static_cast<ImDrawIdx>(vtx_outer_idx + u0);
+            draw->_IdxWritePtr[4] = static_cast<ImDrawIdx>(vtx_outer_idx + u1);
+            draw->_IdxWritePtr[5] = static_cast<ImDrawIdx>(vtx_inner_idx + u1);
+            draw->_IdxWritePtr += 6;
+        }
+        draw->_VtxCurrentIdx += static_cast<unsigned int>(points_count * 2);
+    } else {
+        draw->PrimReserve(static_cast<int>(tris.size()), points_count);
+        const unsigned int base = draw->_VtxCurrentIdx;
+        for (int i = 0; i < points_count; ++i) {
+            draw->_VtxWritePtr[0].pos = points[i];
+            draw->_VtxWritePtr[0].uv = uv;
+            draw->_VtxWritePtr[0].col = col;
+            ++draw->_VtxWritePtr;
+        }
+        for (const ImDrawIdx t : tris) {
+            *draw->_IdxWritePtr++ = static_cast<ImDrawIdx>(base + static_cast<unsigned int>(t));
+        }
+        draw->_VtxCurrentIdx += static_cast<unsigned int>(points_count);
+    }
+}
+
+// Starred-outline triangulations keyed by spike01 — the only Visual field that changes
+// the outline's shape (spikes>0 always samples 144 points; size/position only scale and
+// translate). Tuner remaps just add entries; a few hundred files at ~1 KB each is noise.
+void fill_outline(ImDrawList *draw, const std::vector<ImVec2> &pts, const sp::Visual &m,
+                  unsigned int col) {
+    if (m.spikes <= 0) {
+        draw->AddConcavePolyFilled(pts.data(), static_cast<int>(pts.size()), col);
+        return; // convex blob: the plain path is already cheap
+    }
+    static std::unordered_map<float, std::vector<ImDrawIdx>> cache;
+    if (cache.size() > 1024) {
+        cache.clear(); // the manual's attack slider sweeps spike01; don't grow unbounded
+    }
+    const float key = static_cast<float>(m.spike01);
+    auto it = cache.find(key);
+    if (it == cache.end()) {
+        it = cache.emplace(key, triangulate_once(draw, pts.data(), static_cast<int>(pts.size())))
+                 .first;
+    }
+    add_concave_poly_cached(draw, pts.data(), static_cast<int>(pts.size()), col, it->second);
 }
 
 } // namespace
@@ -71,7 +199,7 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
                             blob_center.y + outline[i][1] * scale);
         }
         unsigned int fill = hsl_to_rgba(m.hue_deg, m.sat, m.light, 1.0);
-        draw->AddConcavePolyFilled(pts.data(), static_cast<int>(pts.size()), fill);
+        fill_outline(draw, pts, m, fill);
 
         // Tonality rays: straight fan = tonal, wobbling fan = noise-like (same geometry as
         // the SVG sheet via glyph_rays).
@@ -87,14 +215,22 @@ void draw_glyph(ImDrawList *draw, const sp::Visual &v, ImVec2 center, float cell
 
         // Decay tail (trail revision): 5 fading crescent moons on EACH side, horns and
         // concave side facing the blob (same geometry as the SVG sheet via glyph_tail).
+        // Every crescent is the same shape up to translation/scale/mirroring (glyph_tail
+        // derives them all from one base arc pair), so two cached triangulations — left
+        // side and right side — cover every moon of every glyph.
+        static std::vector<ImDrawIdx> moon_tris[2];
         for (const sp::TailMoon &moon : sp::glyph_tail(m)) {
             std::vector<ImVec2> mpts(moon.pts.size());
             for (std::size_t k = 0; k < moon.pts.size(); ++k) {
                 mpts[k] = ImVec2(blob_center.x + moon.pts[k][0] * scale,
                                  blob_center.y + moon.pts[k][1] * scale);
             }
-            draw->AddConcavePolyFilled(mpts.data(), static_cast<int>(mpts.size()),
-                                       hsl_to_rgba(m.hue_deg, m.sat, m.light, moon.opacity));
+            std::vector<ImDrawIdx> &tris = moon_tris[moon.pts[0][0] < 0.0f ? 0 : 1];
+            if (tris.empty()) {
+                tris = triangulate_once(draw, mpts.data(), static_cast<int>(mpts.size()));
+            }
+            add_concave_poly_cached(draw, mpts.data(), static_cast<int>(mpts.size()),
+                                    hsl_to_rgba(m.hue_deg, m.sat, m.light, moon.opacity), tris);
         }
     }
 
@@ -304,9 +440,8 @@ void draw_grid(AppState &state) {
                                     pts[k] = ImVec2(center.x + outline[k][0] * gs,
                                                     center.y + outline[k][1] * gs);
                                 }
-                                draw->AddConcavePolyFilled(
-                                    pts.data(), static_cast<int>(pts.size()),
-                                    hsl_to_rgba(v.hue_deg, v.sat, v.light, 0.35));
+                                fill_outline(draw, pts, v,
+                                             hsl_to_rgba(v.hue_deg, v.sat, v.light, 0.35));
                             }
                         } else {
                             const GlyphMask mask{state.show_warmth,    state.show_tonality,
