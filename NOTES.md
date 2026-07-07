@@ -740,3 +740,20 @@ spikes on a blob" and "half moons actually like a crescent moon".
 
 golden palette.json byte-identical (geometry-only change); sheet.svg regenerated.
 55/55 unit + all integration green; GUI smoke inspected; docs/screenshot.png recaptured.
+
+## Trail winding fix + faster star-body shrink (user feedback, 2026-07-07)
+
+- **Left/right moon asymmetry**: mirroring the crescent with a plain x-flip reversed the
+  polygon winding, and ImGui's AddConcavePolyFilled shades reversed-winding polygons as a
+  filled blob — the LEFT moons rendered as solid ovals in the GUI while the SVG (whose
+  fill rule is winding-agnostic) looked fine, which is why it survived the sheet checks.
+  glyph_tail now builds the right-side crescent once and emits the left as a
+  mirrored-AND-reversed copy, so both sides carry identical (clockwise) winding.
+  Verified both orders under Xvfb: counter-clockwise renders both sides as blobs.
+- **Star body shrinks faster**: the inward blend weight is now s(2-s) against s for the
+  tips (equal where the star profile crosses the circle, so the radius stays continuous),
+  making mid-strength attacks read as a star instead of a round blob with nubs.
+  Tip envelope unchanged (still size * (1 + 0.5 * spike01)).
+
+palette.json untouched; sheet.svg regenerated (point order + morph). 55/55 unit + all
+integration green; GUI smoke inspected both trail sides; docs/screenshot.png recaptured.

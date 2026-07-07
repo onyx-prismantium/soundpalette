@@ -191,7 +191,12 @@ std::vector<std::array<float, 2>> glyph_outline(const Visual &v, int base_points
                     ? (r_tip * r_in * std::sin(delta)) /
                           (r_in * std::sin(delta - d) + r_tip * std::sin(d))
                     : r_in;
-            r = v.size_px * (1.0 - v.spike01) + star_r * v.spike01;
+            // The body pulls in faster than the tips push out (weight s(2-s) vs s, equal
+            // where the profiles cross), so mid-strength attacks already read as a star
+            // rather than a round blob with nubs.
+            const double w =
+                star_r < v.size_px ? v.spike01 * (2.0 - v.spike01) : v.spike01;
+            r = v.size_px * (1.0 - w) + star_r * w;
         }
 
         pts[static_cast<std::size_t>(i)] = {static_cast<float>(r * std::cos(theta)),
@@ -272,25 +277,36 @@ std::vector<TailMoon> glyph_tail(const Visual &v) {
         const double xc = (apex * apex - r * r) / (2.0 * (apex - xt));
         const double big_r = apex - xc;
         const double alpha = std::atan2(yt, xt - xc);
-        for (double side : {-1.0, 1.0}) {
-            TailMoon moon;
-            moon.opacity = opacity;
-            moon.pts.reserve(2 * kArcSegments);
-            // Outer arc: top horn -> away-facing equator -> bottom horn.
-            for (int k = 0; k <= kArcSegments; ++k) {
-                const double a = -gamma + k * 2.0 * gamma / kArcSegments;
-                moon.pts.push_back({static_cast<float>(side * (dx + r * std::cos(a))),
-                                    static_cast<float>(r * std::sin(a))});
-            }
-            // Inner arc back up through the apex; the horn tips are already on the outer
-            // arc, so both endpoints are skipped.
-            for (int k = 1; k < kArcSegments; ++k) {
-                const double a = alpha - k * 2.0 * alpha / kArcSegments;
-                moon.pts.push_back({static_cast<float>(side * (dx + xc + big_r * std::cos(a))),
-                                    static_cast<float>(big_r * std::sin(a))});
-            }
-            moons.push_back(std::move(moon));
+        // Build the right-side crescent once, then derive both sides with IDENTICAL
+        // winding: a plain mirror flips the winding order, and ImGui's concave fill
+        // shades reversed-winding polygons as a filled blob (the SVG fill rule is
+        // winding-agnostic, which hid this).
+        std::vector<std::array<float, 2>> base;
+        base.reserve(2 * kArcSegments);
+        // Outer arc: top horn -> away-facing equator -> bottom horn.
+        for (int k = 0; k <= kArcSegments; ++k) {
+            const double a = -gamma + k * 2.0 * gamma / kArcSegments;
+            base.push_back({static_cast<float>(dx + r * std::cos(a)),
+                            static_cast<float>(r * std::sin(a))});
         }
+        // Inner arc back up through the apex; the horn tips are already on the outer
+        // arc, so both endpoints are skipped.
+        for (int k = 1; k < kArcSegments; ++k) {
+            const double a = alpha - k * 2.0 * alpha / kArcSegments;
+            base.push_back({static_cast<float>(dx + xc + big_r * std::cos(a)),
+                            static_cast<float>(big_r * std::sin(a))});
+        }
+        TailMoon left;
+        left.opacity = opacity;
+        left.pts.reserve(base.size());
+        for (auto it = base.rbegin(); it != base.rend(); ++it) {
+            left.pts.push_back({-(*it)[0], (*it)[1]});
+        }
+        TailMoon right;
+        right.opacity = opacity;
+        right.pts = std::move(base);
+        moons.push_back(std::move(left));
+        moons.push_back(std::move(right));
     }
     return moons;
 }
