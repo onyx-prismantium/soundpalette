@@ -14,7 +14,7 @@ option(SP_WERROR "Treat compiler warnings as errors" ON)
 option(SP_BUILD_APP "Build soundpalette-app (GUI)" ON)
 option(SP_BUILD_TESTS "Build unit tests" ON)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(Warnings)
 include(Dependencies)
 

@@ -34,10 +34,13 @@ target_link_libraries(sp_imgui PUBLIC glfw OpenGL::GL)
 # Vendored stb_image_write implementation, isolated from our warning flags (same policy as
 # core's soundpalette_vendor_audio).
 add_library(sp_vendor_stb OBJECT gui/vendor_stb_impl.cpp)
-target_include_directories(sp_vendor_stb PRIVATE ${CMAKE_SOURCE_DIR}/extern/stb)
+target_include_directories(sp_vendor_stb PRIVATE ${PROJECT_SOURCE_DIR}/extern/stb)
 
-add_executable(soundpalette-app
-    main.cpp
+# GUI component library: every view except the executable's main().  External apps
+# (SoundPalette Studio) link this to embed the grid/inspector/tuner/constellation/
+# harmonize/manual views and the AppState machinery.  Include dirs are PUBLIC so
+# consumers get gui/, miniaudio and stb transitively.
+add_library(soundpalette_gui STATIC
     gui/app.cpp
     gui/grid.cpp
     gui/inspector.cpp
@@ -47,16 +50,21 @@ add_executable(soundpalette-app
     gui/manual.cpp
     $<TARGET_OBJECTS:sp_vendor_stb>
 )
-target_include_directories(soundpalette-app PRIVATE
+target_include_directories(soundpalette_gui PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/miniaudio  # playback via ma_engine (implementation lives in core)
-    ${CMAKE_SOURCE_DIR}/extern/stb        # stb_image_write for --smoke PNG
+    ${PROJECT_SOURCE_DIR}/extern/miniaudio  # playback via ma_engine (implementation lives in core)
+    ${PROJECT_SOURCE_DIR}/extern/stb        # stb_image_write for --smoke PNG
 )
-target_link_libraries(soundpalette-app PRIVATE soundpalette_core sp_imgui glfw OpenGL::GL nfd
+target_link_libraries(soundpalette_gui PUBLIC soundpalette_core sp_imgui glfw OpenGL::GL nfd
                       nlohmann_json::nlohmann_json)
+sp_set_warnings(soundpalette_gui)
+
+add_executable(soundpalette-app main.cpp)
+target_link_libraries(soundpalette-app PRIVATE soundpalette_gui)
 sp_set_warnings(soundpalette-app)
 if(MSVC)
     # std::getenv (SP_UI_SCALE override) trips MSVC's non-standard C4996 CRT deprecation;
     # same conventional opt-out as the unit-test target.
+    target_compile_definitions(soundpalette_gui PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_compile_definitions(soundpalette-app PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()

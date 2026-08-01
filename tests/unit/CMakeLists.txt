@@ -30,4 +30,4 @@ if(MSVC)
 endif()
 
 include("${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake")
-doctest_discover_tests(sp_unit_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+doctest_discover_tests(sp_unit_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

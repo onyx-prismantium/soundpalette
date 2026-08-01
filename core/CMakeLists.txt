@@ -24,8 +24,8 @@ add_library(soundpalette_vendor_audio OBJECT
     src/vendor_audio_impl.cpp
 )
 target_include_directories(soundpalette_vendor_audio PRIVATE
-    ${CMAKE_SOURCE_DIR}/extern/miniaudio
-    ${CMAKE_SOURCE_DIR}/extern/stb
+    ${PROJECT_SOURCE_DIR}/extern/miniaudio
+    ${PROJECT_SOURCE_DIR}/extern/stb
 )
 target_compile_features(soundpalette_vendor_audio PRIVATE cxx_std_20)
 find_package(Threads REQUIRED)
@@ -33,9 +33,9 @@ target_link_libraries(soundpalette_vendor_audio PUBLIC Threads::Threads)
 
 # Vendored SHA-256 (extern/sha256, public domain, §12/M3), also isolated from our warning flags.
 add_library(soundpalette_vendor_sha256 OBJECT
-    ${CMAKE_SOURCE_DIR}/extern/sha256/sha256.c
+    ${PROJECT_SOURCE_DIR}/extern/sha256/sha256.c
 )
-target_include_directories(soundpalette_vendor_sha256 PUBLIC ${CMAKE_SOURCE_DIR}/extern/sha256)
+target_include_directories(soundpalette_vendor_sha256 PUBLIC ${PROJECT_SOURCE_DIR}/extern/sha256)
 
 add_library(soundpalette_core STATIC
     src/version.cpp
@@ -65,8 +65,8 @@ target_include_directories(soundpalette_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_include_directories(soundpalette_core PRIVATE
-    ${CMAKE_SOURCE_DIR}/extern/miniaudio
-    ${CMAKE_SOURCE_DIR}/extern/sha256
+    ${PROJECT_SOURCE_DIR}/extern/miniaudio
+    ${PROJECT_SOURCE_DIR}/extern/sha256
     ${libebur128_SOURCE_DIR}/ebur128
 )
 

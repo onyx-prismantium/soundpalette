@@ -272,8 +272,17 @@ for s in tests/integration/*.sh; do bash "$s" || exit 1; done
 Layering is enforced: `core/` never includes GLFW/OpenGL/ImGui/NFD; the CLI links core only;
 the app links core + UI libraries.
 
+## SoundPalette Studio
+
+SoundPalette (this repo) is the free, open-source analysis core. **SoundPalette Studio** is an
+upcoming commercial companion built on top of it: a per-project cockpit that scans your game
+repo for the sounds it needs, stores a sound design system (palette profile + style guide),
+drives generative-audio providers with LLM-written prompts in your project's style — and
+validates every generated candidate against your palette with the psychoacoustic analysis you
+see here. Watch this repo for the announcement.
+
 ## License
 
-The SoundPalette source is provided under the MIT license. Third-party components are listed
-in [LICENSES.md](LICENSES.md); all are permissive (MIT/BSD/zlib/public-domain) and statically
-linked.
+SoundPalette is licensed under the [Apache License 2.0](LICENSE). Third-party components are
+listed in [LICENSES.md](LICENSES.md); all are permissive (MIT/BSD/zlib/public-domain) and
+statically linked.

@@ -71,5 +71,9 @@ xvfb-run -a ./build/app/soundpalette-app --smoke /tmp/smoke.png --dir tests/gold
 
 `core/` = headless engine (no GLFW/OpenGL/ImGui/NFD includes, ever — verify with
 `grep -rE "imgui|GLFW|GL/" core/`). `cli/` links core only. `app/` links core + UI libs.
+The app's views are built as the `soundpalette_gui` static lib (everything but `main.cpp`)
+so external consumers (SoundPalette Studio) can embed them; keep it linkable — new view code
+goes in the lib, `main.cpp` stays a thin bootstrap. CMake paths use `PROJECT_SOURCE_DIR`
+(never `CMAKE_SOURCE_DIR`) so the repo works as a FetchContent subproject.
 `cmake/Dependencies.cmake` is the pin registry; `DEPENDENCIES.md` is the human-readable version
 with licenses. Milestone status and any deviations live in `NOTES.md`.
