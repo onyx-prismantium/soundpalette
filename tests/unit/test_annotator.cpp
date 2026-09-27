@@ -101,8 +101,11 @@ TEST_CASE("annotator/wav16k") {
     std::filesystem::path p = std::filesystem::temp_directory_path() / "sp_test_16k.wav";
     std::string err;
     REQUIRE_MESSAGE(sp::write_wav_16k_mono(buf, p, err), err);
-    std::ifstream f(p, std::ios::binary);
-    std::string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    std::string bytes;
+    {
+        std::ifstream f(p, std::ios::binary);
+        bytes.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    } // closed before the remove below (Windows refuses to delete an open file)
     REQUIRE(bytes.size() == 44 + 8000 * 2);
     CHECK(bytes.substr(0, 4) == "RIFF");
     CHECK(bytes.substr(8, 4) == "WAVE");
