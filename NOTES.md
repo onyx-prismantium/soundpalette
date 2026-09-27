@@ -889,3 +889,27 @@ Synthetic library of 2000 WAVs (click.wav copies, 20 folders) on the factory VM 
 0.06 s (size+mtime check only → 10k files ≈ 0.3 s, well under the 2 s budget), FTS search
 < 10 ms, full 2000-row JSON dump 0.07 s, index 2 KB/file (100k files ≈ 200 MB). `scan`
 goldens unchanged throughout (golden_scan.sh byte-identical).
+
+### Extension 4 — model quality pass (§11, recorded, not gated), 2026-09-27
+
+Setup: Qwen2.5-Omni-7B Q4_K_M + mmproj Q8_0 under llama-server (CUDA, RTX 3060 12 GB, forge),
+`-c 32768 --parallel 2`, annotator `mcp/dist/annotate.js` with `--inflight 2`; sample = 100
+files drawn with seed 20260927 from the Minecraft reference pack (local only, never committed;
+0.3–3 s clips, folder names are the ground truth a human would use). ~5 s per file, two
+calls each (describe + choose), 0 errors / 0 timeouts once the context was sized (§ docs).
+
+- **prompt annotate_v1**: 59/100 landed in DOORS; the model copied the prompt's worked
+  example ("heavy wooden door creaks open ... latch click") and echoed the engine's timbre
+  words ("harsh, wobbling"). Only ~25 plausible top-level categories by my reading.
+- **prompt annotate_v2** (no example, no timbre hints, "never reuse wording"): 70 distinct
+  descriptions, 20 categories used, DOORS down to 16. Correct or defensible top-level
+  category on ~50/100 by my reading (water/liquid, splash, drip, hiss, scream, roar, burp,
+  leather creak, cloth, snow, door open/close all right); the failure mode is now honest
+  physics: very short block/step/attack clips become "a sharp click" (MECHANICAL/CLICK,
+  AIR/BURST) — true of the waveform, useless as a tag. CatID agreement with the folder
+  names is well below the §13 target of 60%; category agreement is around the 80% target
+  only for sounds longer than ~1 s. Andreas' scoring of the same sample is still to come;
+  these are my provisional numbers. Next levers, in order: (1) tell the model the clip is a
+  *game* sound and ask for the most likely in-game source when the physical description is
+  generic, (2) a larger/less quantized model (Q8 or Qwen3-Omni), (3) feed the folder path as
+  a weak prior in the choose stage. None of these change the protocol.

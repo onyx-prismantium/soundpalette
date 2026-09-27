@@ -60,7 +60,7 @@ function guarded<A extends unknown[]>(fn: (...args: A) => Promise<ToolResult>) {
   };
 }
 
-const server = new McpServer({ name: "soundpalette-mcp", version: "0.2.0" });
+const server = new McpServer({ name: "soundpalette-mcp", version: "0.3.0" });
 
 server.registerTool(
   "scan_folder",
