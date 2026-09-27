@@ -3,7 +3,8 @@
 # it with xdotool (open the Library tab, click a row, type a description into the inspector's
 # annotation editor, save), verifies through the CLI that the human edit landed and is locked,
 # and leaves screenshots in $OUT (default /tmp/sp-gui-library) for a visual check.
-# Needs: Xvfb, xdotool, import (ImageMagick). Skipped (exit 2) when any is missing.
+# Needs: Xvfb, xdotool, import (ImageMagick). Skipped (exit 0 with a notice) when any is
+# missing, so the plain integration loop stays green on machines without a GUI toolchain.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -13,7 +14,7 @@ BIN="./build/cli/soundpalette"
 FX="tests/golden/fixtures"
 OUT="${OUT:-/tmp/sp-gui-library}"
 for t in Xvfb xdotool import; do
-    command -v "$t" >/dev/null || { echo "gui_library.sh: $t missing, skipping" >&2; exit 2; }
+    command -v "$t" >/dev/null || { echo "gui_library.sh: $t missing, skipping" >&2; exit 0; }
 done
 [[ -x "$APP" && -x "$BIN" && -d "$FX" ]] || { echo "gui_library.sh: build + fixtures first" >&2; exit 2; }
 
