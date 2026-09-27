@@ -13,6 +13,7 @@ import {
   DescribeAnswerSchema,
   extractJson,
   normalizeDescribe,
+  parsePrompt,
 } from "../dist/annotate_common.js";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -26,6 +27,25 @@ test("extractJson tolerates fences, prose and trailing chatter", () => {
     { nested: { k: "v" } });
   assert.equal(extractJson("no json here"), null);
   assert.equal(extractJson('{"broken": '), null);
+});
+
+test("the shipped prompt parses into its four sections", () => {
+  const text = fs.readFileSync(path.join(REPO, "mcp", "prompts", "annotate_v1.md"), "utf8");
+  const p = parsePrompt(text);
+  assert.match(p.system, /sound librarian/);
+  assert.match(p.describe, /\{\{categories\}\}/);
+  assert.match(p.choose, /\{\{candidates\}\}/);
+  assert.match(p.retry, /JSON/);
+  assert.throws(() => parsePrompt("## system\nonly one"), /missing section 'describe'/);
+});
+
+test("answer schemas coerce string keywords and confidences", () => {
+  const a = DescribeAnswerSchema.parse({
+    description: "d", fx_name: "f", category: "GUNS", keywords: "pistol, shot; dry", confidence: "0.8",
+  });
+  assert.deepEqual(a.keywords, ["pistol", "shot", "dry"]);
+  assert.equal(a.confidence, 0.8);
+  assert.throws(() => DescribeAnswerSchema.parse({ description: "d", fx_name: "f", category: "GUNS", keywords: "" }));
 });
 
 test("normalizeDescribe caps and lowercases", () => {

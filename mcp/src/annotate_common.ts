@@ -56,18 +56,32 @@ export const ChooseRequestSchema = z.object({
 export type ChooseRequest = z.infer<typeof ChooseRequestSchema>;
 
 /** What the model must return for stage 1 (validated before it reaches the core). */
+// Models are sloppy with types: keywords arrive as "a, b, c", confidence as "0.8". Coerce
+// before validating so a usable answer is never thrown away for its punctuation.
+const keywordList = z.preprocess(
+  (v) =>
+    typeof v === "string"
+      ? v.split(/[,;\n]/).map((k) => k.trim()).filter((k) => k.length > 0)
+      : v,
+  z.array(z.string()).min(1).max(20),
+);
+const confidence01 = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v)) ? Number(v) : v),
+  z.number().min(0).max(1).optional().default(0.5),
+);
+
 export const DescribeAnswerSchema = z.object({
   description: z.string().min(1),
   fx_name: z.string().min(1),
   category: z.string().min(1),
-  keywords: z.array(z.string()).min(1).max(12),
-  confidence: z.number().min(0).max(1).optional().default(0.5),
+  keywords: keywordList,
+  confidence: confidence01,
 });
 export type DescribeAnswer = z.infer<typeof DescribeAnswerSchema>;
 
 export const ChooseAnswerSchema = z.object({
   cat_id: z.string().min(1),
-  confidence: z.number().min(0).max(1).optional().default(0.5),
+  confidence: confidence01,
 });
 export type ChooseAnswer = z.infer<typeof ChooseAnswerSchema>;
 
@@ -131,6 +145,47 @@ export function normalizeDescribe(a: DescribeAnswer): DescribeAnswer {
     category: a.category.trim().toUpperCase(),
     keywords: kw,
     confidence: a.confidence ?? 0.5,
+  };
+}
+
+export interface PromptParts {
+  system: string;
+  describe: string;
+  choose: string;
+  retry: string;
+}
+
+/**
+ * Parses a prompt file: one markdown document whose `## system`, `## describe`, `## choose`
+ * and `## retry` sections are the four prompt parts (anything before the first `## ` is a
+ * comment). Throws when a section is missing.
+ */
+export function parsePrompt(text: string): PromptParts {
+  const sections: Record<string, string> = {};
+  let current: string | null = null;
+  const buf: string[] = [];
+  const flush = () => {
+    if (current !== null) sections[current] = buf.join("\n").trim();
+    buf.length = 0;
+  };
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/^## (\w+)\s*$/);
+    if (m) {
+      flush();
+      current = m[1];
+    } else if (current !== null) {
+      buf.push(line);
+    }
+  }
+  flush();
+  for (const name of ["system", "describe", "choose", "retry"]) {
+    if (!sections[name]) throw new Error(`prompt: missing section '${name}'`);
+  }
+  return {
+    system: sections.system,
+    describe: sections.describe,
+    choose: sections.choose,
+    retry: sections.retry,
   };
 }
 

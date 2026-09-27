@@ -24,6 +24,8 @@ import {
   extractJson,
   HelloReply,
   normalizeDescribe,
+  parsePrompt,
+  PromptParts,
   PROTOCOL_VERSION,
   serve,
 } from "./annotate_common.js";
@@ -46,28 +48,13 @@ const CONCURRENCY = Math.max(1, parseInt(env("SP_LLM_CONCURRENCY", "2"), 10) || 
 const MAX_TOKENS = parseInt(env("SP_LLM_MAX_TOKENS", "400"), 10) || 400;
 const TEMPERATURE = parseFloat(env("SP_LLM_TEMPERATURE", "0.2"));
 
-interface PromptParts {
-  system: string;
-  describe: string;
-  choose: string;
-  retry: string;
-}
-
-/** The prompt file is one markdown document with `## system`, `## describe`, `## choose`,
- *  `## retry` sections; its filename is the prompt version recorded on every annotation. */
 function loadPrompt(): PromptParts {
-  const text = fs.readFileSync(path.join(PROMPT_DIR, PROMPT_VERSION + ".md"), "utf8");
-  const section = (name: string): string => {
-    const m = text.match(new RegExp(`^## ${name}\\s*\\n([\\s\\S]*?)(?=^## |\\Z)`, "m"));
-    if (!m) throw new Error(`prompt ${PROMPT_VERSION}: missing section '${name}'`);
-    return m[1].trim();
-  };
-  return {
-    system: section("system"),
-    describe: section("describe"),
-    choose: section("choose"),
-    retry: section("retry"),
-  };
+  const file = path.join(PROMPT_DIR, PROMPT_VERSION + ".md");
+  try {
+    return parsePrompt(fs.readFileSync(file, "utf8"));
+  } catch (e) {
+    throw new Error(`${file}: ${(e as Error).message}`);
+  }
 }
 
 const prompt = loadPrompt();
@@ -113,8 +100,9 @@ async function resolveModel(): Promise<string> {
     if (API_KEY) headers["authorization"] = `Bearer ${API_KEY}`;
     const res = await fetch(`${BASE_URL}/models`, { headers });
     if (res.ok) {
-      const data = (await res.json()) as { data?: { id?: string }[] };
-      const id = data.data?.[0]?.id;
+      // OpenAI shape {data:[{id}]}; llama.cpp also answers {models:[{name}]}
+      const data = (await res.json()) as { data?: { id?: string }[]; models?: { name?: string }[] };
+      const id = data.data?.[0]?.id ?? data.models?.[0]?.name;
       if (id) return id;
     }
   } catch {
