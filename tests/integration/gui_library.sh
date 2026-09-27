@@ -13,6 +13,13 @@ APP="./build/app/soundpalette-app"
 BIN="./build/cli/soundpalette"
 FX="tests/golden/fixtures"
 OUT="${OUT:-/tmp/sp-gui-library}"
+# The click positions below are tied to the 1280x800 layout captured on the development VM;
+# hosted runners place the window differently, so this is a local verification tool. CI covers
+# rendering with the --smoke capture instead.
+if [[ -n "${CI:-}" ]]; then
+    echo "gui_library.sh: skipped on CI (layout-dependent xdotool pass; run locally)" >&2
+    exit 0
+fi
 for t in Xvfb xdotool import; do
     command -v "$t" >/dev/null || { echo "gui_library.sh: $t missing, skipping" >&2; exit 0; }
 done
