@@ -109,6 +109,10 @@ void draw_inspector(AppState &state) {
         return;
     }
 
+    // M17: the library annotation comes first — in a library, what a sound *is* matters before
+    // how it measures; the section only appears when the folder has an index.
+    draw_annotation_section(state, state.selected);
+
     if (ImGui::CollapsingHeader("Decode", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Text("duration    %.4f s%s", e.duration_s, e.truncated ? " (truncated)" : "");
         ImGui::Text("source      %d Hz, %d ch", e.sample_rate, e.channels);

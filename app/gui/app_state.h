@@ -1,14 +1,18 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <set>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
+#include "soundpalette/annotator.h"
 #include "soundpalette/deviation.h"
+#include "soundpalette/library.h"
 #include "soundpalette/manifest.h"
 #include "soundpalette/mapping.h"
 #include "soundpalette/profile.h"
@@ -22,8 +26,8 @@ namespace spapp {
 // Sidebar sort modes (§10 + extension-2 §7.1 "by deviation").
 enum class SortMode { kHue = 0, kBrightness, kSize, kAttack, kTail, kName, kDeviation };
 
-// Central-view switcher (extension-2 §7.2).
-enum class ViewMode { kGrid = 0, kConstellation };
+// Central-view switcher (extension-2 §7.2; extension-4 §9.2 adds the library).
+enum class ViewMode { kGrid = 0, kConstellation, kLibrary };
 
 struct AppState {
     // Data.
@@ -120,6 +124,52 @@ struct AppState {
 
     bool smoke_mode = false; // suppresses NFD dialogs
     bool want_quit = false;  // set by File > Quit; main loop closes the window
+
+    // M17 library view (extension-4 §9.2). `library` is the open index for root_dir (null when
+    // the folder has none); rows are the current query result, parallel to lib_row_file.
+    std::unique_ptr<sp::Library> library;
+    std::string library_error;
+    bool lib_dirty = true; // re-run the query + refresh counts on the next frame
+    char lib_search[256] = {0};
+    std::string lib_category; // "" = all categories
+    std::string lib_catid;    // "" = all CatIDs of the category
+    bool lib_only_unannotated = false;
+    bool lib_only_low_conf = false; // confidence < 0.5
+    bool lib_only_locked = false;
+    std::vector<sp::LibraryRow> lib_rows;
+    std::vector<int> lib_row_file; // manifest.files index per row, -1 if not scanned
+    std::vector<std::pair<std::string, std::size_t>> lib_category_counts;
+    std::unordered_map<std::string, std::vector<std::pair<std::string, std::size_t>>>
+        lib_catid_counts; // per expanded category
+    std::size_t lib_file_count = 0;
+    std::size_t lib_annotated_count = 0;
+
+    // Inspector annotation editor: buffers belong to lib_edit_path.
+    std::string lib_edit_path;
+    std::optional<sp::LibraryRow> lib_edit_row;
+    char lib_edit_catid[32] = {0};
+    char lib_edit_fx[128] = {0};
+    char lib_edit_desc[256] = {0};
+    char lib_edit_kw[256] = {0};
+
+    // Background annotate job (worker thread; UI polls).
+    std::string annotator_command; // "" = $SP_ANNOTATOR or the default name
+    std::thread annotate_thread;
+    std::atomic<bool> annotating{false};
+    std::atomic<bool> annotate_cancel{false};
+    std::atomic<std::size_t> annotate_done{0};
+    std::atomic<std::size_t> annotate_total{0};
+    std::mutex annotate_mutex; // guards annotate_last_path + annotate_result
+    std::string annotate_last_path;
+    std::optional<sp::AnnotateReport> annotate_result;
+
+    // Annotator reachability probe (Library tab, once per command change).
+    std::thread probe_thread;
+    std::atomic<int> probe_state{0}; // 0 = not probed, 1 = probing, 2 = ok, 3 = failed
+    std::mutex probe_mutex;
+    sp::AnnotatorInfo probe_info;
+    std::string probe_error;
+    std::string probed_command;
 };
 
 // app.cpp — orchestration.
@@ -180,6 +230,21 @@ void draw_harmonize(AppState &state);   // inspector section for the selected ou
 // constellation.cpp (M11, extension-2 §7.2).
 void draw_constellation(AppState &state);
 void draw_deviation_section(AppState &state, int file_index); // shared inspector/tooltip part
+
+// library_view.cpp (M17, extension-4 §9.2).
+void library_open_for_root(AppState &state); // opens <root>/.soundpalette if present
+bool library_create(AppState &state);        // creates + ingests + classifies offline
+void library_update(AppState &state);        // incremental ingest (synchronous)
+void library_requery(AppState &state);       // runs the current filter/search
+void library_select_row(AppState &state, int row);
+void draw_library(AppState &state);                            // the Library tab
+void draw_library_menu(AppState &state);                       // "Library" menu
+void draw_library_status(AppState &state);                     // footer segment
+void draw_annotation_section(AppState &state, int file_index); // inspector part
+void start_annotate(AppState &state, std::vector<std::string> rel_paths);
+void poll_annotate(AppState &state);
+void shutdown_annotate_thread(AppState &state);
+void start_annotator_probe(AppState &state);
 
 // Shared helper: HSL (§7 visual attributes) -> ImGui-packed RGBA.
 unsigned int hsl_to_rgba(double hue_deg, double sat_pct, double light_pct, double alpha);

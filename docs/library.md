@@ -30,6 +30,20 @@ the model would write, `--limit n` caps a first try. Every annotation records `s
 (`filename`, `folder`, `model`, `human`), the model id, the prompt version and a timestamp;
 `library show <file>` prints them together with the stage-2 candidate list.
 
+## In the desktop app
+
+Open the folder, switch to the **Library** tab. If the folder has no index yet the tab offers
+to create one (same as `library init`). The tree on the left filters by UCS category and
+CatID; the search box covers names, descriptions and keywords; the chips narrow to untagged,
+low-confidence or locked rows. Clicking a row selects the sound and opens its **Annotation
+(UCS)** section at the top of the inspector: CatID with type-ahead suggestions, FX name,
+description, keywords. *Save* stores your edit as a human annotation and locks the row;
+*Unlock* releases it; *Ask model* sends just this file to the annotator; the model's shortlist
+appears as buttons. The Library menu creates/updates the index, runs the offline
+classification, annotates the unannotated rows, the selection or the current search result,
+cancels a running job, and sets the annotator command. The footer shows the index size, the
+job's progress, and whether the annotator answers.
+
 ## The annotator
 
 The core never talks to a model directly. It starts an **annotator command** and speaks a small

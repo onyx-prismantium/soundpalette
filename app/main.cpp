@@ -56,6 +56,7 @@ int main(int argc, char **argv) {
     std::string initial_dir;
     std::string initial_baseline;
     std::string initial_view;
+    std::string annotator_cmd;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--smoke") == 0 && i + 1 < argc) {
@@ -68,10 +69,12 @@ int main(int argc, char **argv) {
             initial_baseline = argv[++i]; // same loader handles .sppal.json and manifests
         } else if (std::strcmp(argv[i], "--view") == 0 && i + 1 < argc) {
             initial_view = argv[++i];
+        } else if (std::strcmp(argv[i], "--annotator") == 0 && i + 1 < argc) {
+            annotator_cmd = argv[++i];
         } else {
             std::fprintf(stderr, "usage: soundpalette-app [--smoke <out.png>] [--dir <folder>] "
-                                 "[--profile <p.sppal.json>] "
-                                 "[--view grid|constellation|manual|about]\n");
+                                 "[--profile <p.sppal.json>] [--annotator \"cmd\"] "
+                                 "[--view grid|constellation|library|manual|about]\n");
             return 2;
         }
     }
@@ -118,6 +121,7 @@ int main(int argc, char **argv) {
 
     spapp::AppState state;
     state.smoke_mode = smoke;
+    state.annotator_command = annotator_cmd;
 
     // DPI-aware UI: scale fonts (ImGui 1.92 dynamic font system) and style metrics by the
     // monitor content scale; the grid multiplies its cell metrics by the same factor. The
@@ -156,12 +160,16 @@ int main(int argc, char **argv) {
         state.last_scan_seconds =
             std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
         spapp::rebuild_visuals(state);
+        spapp::library_open_for_root(state); // M17: opens <dir>/.soundpalette if present
     }
     if (!initial_baseline.empty() && !spapp::load_baseline(state, initial_baseline)) {
         std::fprintf(stderr, "soundpalette-app: invalid baseline %s\n", initial_baseline.c_str());
     }
     if (initial_view == "constellation") {
         state.view_mode = spapp::ViewMode::kConstellation;
+        state.force_view_tab = true;
+    } else if (initial_view == "library") {
+        state.view_mode = spapp::ViewMode::kLibrary;
         state.force_view_tab = true;
     } else if (initial_view == "manual" || initial_view == "about") {
         // Smoke coverage for the Manual/About windows (over the default grid).
@@ -210,6 +218,7 @@ int main(int argc, char **argv) {
         glfwSwapBuffers(window);
     }
 
+    spapp::shutdown_annotate_thread(state); // M17: join annotate/probe workers first
     spapp::shutdown_scan_thread(state);
     spapp::playback_stop(state); // frees the active ma_sound before the engine goes away
     if (state.audio_ok) {

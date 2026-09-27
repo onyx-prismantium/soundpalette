@@ -459,4 +459,180 @@ server.registerTool(
   }),
 );
 
+// ---------------------------------------------------------------------------------------------
+// Extension-4 §9.3: the sound library. Every tool shells out to `soundpalette library ... --json`
+// and confines paths to --root like everything else.
+
+function libraryArgs(dir: string): string {
+  return resolveExistingInRoot(ROOT, dir);
+}
+
+server.registerTool(
+  "library_search",
+  {
+    description:
+      "Search a library index (created with `soundpalette library init`) by free text over " +
+      "names, descriptions and keywords, with optional UCS category / CatID filters. Returns " +
+      "rows with path, CatID, FX name, description, confidence and provenance.",
+    inputSchema: {
+      dir: z.string().default(".").describe("library root or any path inside it, relative to the server root"),
+      query: z.string().default(""),
+      category: z.string().optional().describe("exact UCS category, e.g. AMBIENCE"),
+      cat_id: z.string().optional().describe("CatID glob, e.g. AMB* or GUNPis"),
+      unannotated: z.boolean().default(false),
+      min_confidence: z.number().optional(),
+      limit: z.number().int().default(100),
+    },
+  },
+  guarded(async ({ dir, query, category, cat_id, unannotated, min_confidence, limit }) => {
+    const args = ["library", "search", libraryArgs(dir), "--json", "--limit", String(limit)];
+    if (query) args.push("--query", query);
+    if (category) args.push("--category", category);
+    if (cat_id) args.push("--catid", cat_id);
+    if (unannotated) args.push("--unannotated");
+    if (min_confidence !== undefined) args.push("--min-confidence", String(min_confidence));
+    const res = await runCli(BIN, args);
+    if (res.code !== 0) return toolError(res.stderr.trim() || `library search exited ${res.code}`);
+    const data = JSON.parse(res.stdout);
+    const lines = (data.results as { path: string; annotation: { cat_id?: string; fx_name?: string; description?: string } | null }[])
+      .map((r) => `${r.annotation?.cat_id || "-"}\t${r.path}\t${r.annotation?.fx_name ?? ""}: ${r.annotation?.description ?? ""}`);
+    return {
+      content: [{ type: "text", text: lines.length ? lines.join("\n") : "no results" }],
+      structuredContent: { count: data.count, results: data.results },
+    };
+  }),
+);
+
+server.registerTool(
+  "library_get",
+  {
+    description: "One library row: analysis entry plus its UCS annotation and provenance.",
+    inputSchema: { path: z.string().describe("audio file inside a library, relative to the server root") },
+  },
+  guarded(async ({ path: p }) => {
+    const res = await runCli(BIN, ["library", "show", resolveExistingInRoot(ROOT, p), "--json"]);
+    if (res.code !== 0) return toolError(res.stderr.trim() || `library show exited ${res.code}`);
+    const data = JSON.parse(res.stdout);
+    const a = data.annotation;
+    return {
+      content: [{ type: "text", text: a ? `${a.cat_id || "-"} ${a.fx_name}: ${a.description} [${a.source}${a.locked ? ", locked" : ""}]` : "unannotated" }],
+      structuredContent: data,
+    };
+  }),
+);
+
+server.registerTool(
+  "library_set_annotation",
+  {
+    description:
+      "Human edit of a library row (locks it against model overwrites). Empty fields are left " +
+      "unchanged; cat_id must be a UCS CatID.",
+    inputSchema: {
+      path: z.string(),
+      cat_id: z.string().optional(),
+      fx_name: z.string().optional(),
+      description: z.string().optional(),
+      keywords: z.array(z.string()).optional(),
+    },
+  },
+  guarded(async ({ path: p, cat_id, fx_name, description, keywords }) => {
+    if (!mcpCapability("mcp.write")) return toolError("mcp.write is not available");
+    const args = ["library", "set", resolveExistingInRoot(ROOT, p)];
+    if (cat_id !== undefined) args.push("--catid", cat_id);
+    if (fx_name !== undefined) args.push("--fx-name", fx_name);
+    if (description !== undefined) args.push("--description", description);
+    if (keywords !== undefined) args.push("--keywords", keywords.join(","));
+    if (args.length === 3) return toolError("nothing to set");
+    const res = await runCli(BIN, args);
+    if (res.code !== 0) return toolError(res.stderr.trim() || `library set exited ${res.code}`);
+    return { content: [{ type: "text", text: res.stdout.trim() }] };
+  }),
+);
+
+server.registerTool(
+  "library_annotate",
+  {
+    description:
+      "Run the model annotator over library rows (unannotated by default, or the given paths). " +
+      "Long-running; returns the summary and per-file results. Uses the server's SP_ANNOTATOR " +
+      "or the annotator argument.",
+    inputSchema: {
+      dir: z.string().default("."),
+      paths: z.array(z.string()).optional().describe("specific files instead of the folder selection"),
+      all: z.boolean().default(false),
+      dry_run: z.boolean().default(false),
+      limit: z.number().int().optional(),
+      annotator: z.string().optional().describe("annotator command override"),
+      timeout_s: z.number().default(120),
+    },
+  },
+  guarded(async ({ dir, paths, all, dry_run, limit, annotator, timeout_s }) => {
+    if (!dry_run && !mcpCapability("mcp.write")) return toolError("mcp.write is not available");
+    const common: string[] = ["--json", "--timeout", String(timeout_s)];
+    if (dry_run) common.push("--dry-run");
+    if (annotator) common.push("--annotator", annotator);
+    const reports: Record<string, unknown>[] = [];
+    if (paths && paths.length > 0) {
+      for (const p of paths) {
+        const res = await runCli(BIN, ["library", "annotate", resolveExistingInRoot(ROOT, p), ...common]);
+        if (res.code !== 0 && !res.stdout.trim()) return toolError(res.stderr.trim() || "annotate failed");
+        reports.push(JSON.parse(res.stdout));
+      }
+    } else {
+      const args = ["library", "annotate", libraryArgs(dir), ...common];
+      if (all) args.push("--all");
+      if (limit !== undefined) args.push("--limit", String(limit));
+      const res = await runCli(BIN, args);
+      if (res.code !== 0 && !res.stdout.trim()) return toolError(res.stderr.trim() || "annotate failed");
+      reports.push(JSON.parse(res.stdout));
+    }
+    const sum = (k: string) => reports.reduce((n, r) => n + (Number(r[k]) || 0), 0);
+    const files = reports.flatMap((r) => (r.files as unknown[]) ?? []);
+    const fatal = reports.map((r) => String(r.fatal ?? "")).filter((f) => f).join("; ");
+    const text = `annotated ${sum("annotated")} of ${sum("requested")} (${sum("errors")} errors, ` +
+      `${sum("skipped_locked")} locked)` + (fatal ? `; fatal: ${fatal}` : "");
+    return {
+      content: [{ type: "text", text }],
+      structuredContent: {
+        requested: sum("requested"), annotated: sum("annotated"), errors: sum("errors"),
+        skipped_locked: sum("skipped_locked"), timeouts: sum("timeouts"), fatal, files,
+        annotator: reports[0]?.annotator,
+      },
+      isError: fatal.length > 0,
+    };
+  }),
+);
+
+server.registerTool(
+  "library_export_manifest",
+  {
+    description:
+      "Write a canonical manifest (scan-compatible JSON) of the library rows matching a search, " +
+      "so lint_against_baseline / render_palette_sheet / propose_recipe can consume a search result.",
+    inputSchema: {
+      dir: z.string().default("."),
+      out_path: z.string().describe("manifest output path inside the server root"),
+      query: z.string().default(""),
+      category: z.string().optional(),
+      cat_id: z.string().optional(),
+      unannotated: z.boolean().default(false),
+    },
+  },
+  guarded(async ({ dir, out_path, query, category, cat_id, unannotated }) => {
+    const outAbs = resolveOutputInRoot(ROOT, out_path);
+    const args = ["library", "export", libraryArgs(dir), "--manifest", outAbs];
+    if (query) args.push("--query", query);
+    if (category) args.push("--category", category);
+    if (cat_id) args.push("--catid", cat_id);
+    if (unannotated) args.push("--unannotated");
+    const res = await runCli(BIN, args);
+    if (res.code !== 0) return toolError(res.stderr.trim() || `library export exited ${res.code}`);
+    const manifest = JSON.parse(fs.readFileSync(outAbs, "utf8"));
+    return {
+      content: [{ type: "text", text: `${res.stdout.trim()}` }],
+      structuredContent: { manifest_path: out_path, file_count: manifest.file_count, stats: manifest.stats },
+    };
+  }),
+);
+
 await server.connect(new StdioServerTransport());

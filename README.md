@@ -304,6 +304,9 @@ Other names are matched against the UCS synonym lists, but only when one categor
 unambiguously — acoustic features are never used to guess a category. Your own edits are
 locked and never overwritten.
 
+The desktop app shows the same index in its **Library** tab (category tree, search, table
+with glyphs) and edits annotations in the inspector; your edits lock the row.
+
 For everything the names cannot decide, `soundpalette library annotate ~/sfx` asks an
 audio-language model through a pluggable *annotator* (a local Qwen2-Audio behind llama.cpp or
 vLLM, or any hosted OpenAI-compatible endpoint that accepts audio). The model describes what

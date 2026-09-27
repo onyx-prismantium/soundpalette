@@ -547,6 +547,12 @@ AnnotateReport annotate_paths(Library &library, const std::vector<std::string> &
             }
             AnnotateFileResult res;
             res.path = rel_paths[i];
+            if (options.should_cancel && options.should_cancel()) {
+                res.ok = true;
+                res.status = "skipped: cancelled";
+                set_result(i, std::move(res));
+                continue;
+            }
 
             std::optional<LibraryRow> row;
             {
@@ -843,6 +849,16 @@ AnnotateReport annotate_paths(Library &library, const std::vector<std::string> &
         }
     }
     return report;
+}
+
+std::optional<AnnotatorInfo> probe_annotator(const AnnotatorOptions &options, std::string &err) {
+    AnnotatorClient client(annotator_argv(options), std::min(options.timeout_s, 60.0));
+    if (!client.start(err)) {
+        return std::nullopt;
+    }
+    AnnotatorInfo info = client.info();
+    client.stop();
+    return info;
 }
 
 } // namespace sp

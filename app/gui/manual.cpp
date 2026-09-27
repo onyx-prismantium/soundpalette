@@ -186,13 +186,13 @@ void draw_manual(AppState &state) {
         "three down, the sides left clear for the trail - so a hard transient is unmistakable "
         "at a glance. Clicks and hits are stars; pads and swells stay round.",
         c.atk_lo_s * 1000.0, c.atk_hi_s * 1000.0);
-    spectrum_strip(
-        "slow attack / round", "instant attack / star", cell, GlyphPart::blob, [&](double t) {
-            sp::Visual v = spectrum_base();
-            v.spike01 = t;
-            v.spikes = t > c.spike_threshold ? 5 : 0;
-            return v;
-        });
+    spectrum_strip("slow attack / round", "instant attack / star", cell, GlyphPart::blob,
+                   [&](double t) {
+                       sp::Visual v = spectrum_base();
+                       v.spike01 = t;
+                       v.spikes = t > c.spike_threshold ? 5 : 0;
+                       return v;
+                   });
 
     ImGui::SeparatorText("4. Decay tail -> blob trail");
     ImGui::TextWrapped(
@@ -347,6 +347,25 @@ void draw_manual(AppState &state) {
         "2-sigma (dashed) region. Pick any two dimensions or PCA axes; filter by category. "
         "Mouse wheel zooms about the cursor, left-drag pans, 'reset view' restores the fit. "
         "Click selects a point, double-click plays it, Space plays the current selection.");
+
+    ImGui::SeparatorText("Library (UCS tags)");
+    ImGui::TextWrapped(
+        "The Library tab turns the open folder into a searchable sound library. Library > "
+        "Create index analyzes every file once into <folder>/.soundpalette/library.sqlite and "
+        "classifies files by name into the Universal Category System (UCS v8.2.1, 753 "
+        "categories): a UCS-formatted name (CatID_FXName_Creator_Source.wav) is taken as is; "
+        "other names are matched against the UCS synonym lists only when one category wins "
+        "unambiguously. Nothing is ever guessed from the sound's features.");
+    ImGui::TextWrapped(
+        "Library > Annotate asks an audio-language model (a local Qwen model behind llama.cpp "
+        "or vLLM, or any hosted endpoint that accepts audio) to describe what it hears; "
+        "SoundPalette then picks the CatID deterministically from the model's category. Set "
+        "the annotator command under Library > Annotator command; the footer shows whether it "
+        "answers. The inspector's Annotation section edits CatID (with suggestions), FX name, "
+        "description and keywords; Save locks the row so no model run can overwrite it. "
+        "Search covers names, descriptions and keywords; the tree on the left filters by "
+        "category and CatID. The CLI offers the same under `soundpalette library ...`.");
+    ImGui::Spacing();
 
     ImGui::End();
 }

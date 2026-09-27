@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,9 @@ struct AnnotatorOptions {
     // (done, total, path, status) — status is "ok", "error: ...", "skipped: ..."
     std::function<void(std::size_t, std::size_t, const std::string &, const std::string &)>
         on_progress;
+    // Polled before each file; true stops the run (remaining files are left untouched and
+    // reported as "skipped: cancelled").
+    std::function<bool()> should_cancel;
 };
 
 struct AnnotatorInfo {
@@ -98,5 +102,9 @@ AnnotateReport annotate_paths(Library &library, const std::vector<std::string> &
 
 // Resolves the effective annotator argv (option, $SP_ANNOTATOR, default).
 std::vector<std::string> annotator_argv(const AnnotatorOptions &options);
+
+// Starts the annotator, performs the hello handshake and stops it again: the GUI's
+// "annotator reachable?" probe. nullopt + err when it cannot be started or does not answer.
+std::optional<AnnotatorInfo> probe_annotator(const AnnotatorOptions &options, std::string &err);
 
 } // namespace sp

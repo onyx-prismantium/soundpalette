@@ -828,3 +828,34 @@ Decisions / deviations:
   not accepted by Node 22).
 - Manual quality pass with a real local model (§11) is a separate step, recorded below when
   done; it is not a gate.
+
+## Extension 4 — M17: Library view + MCP tools (2026-09-27)
+
+Built: `app/gui/library_view.cpp` (Library tab: category/CatID tree with counts, live FTS
+search, untagged / low-conf / locked chips, table with glyph thumbnails + transport; the
+inspector's **Annotation (UCS)** editor with CatID type-ahead, Save = human + lock, Unlock,
+Clear, "Ask model", the model's shortlist as one-click buttons; background annotate job with
+cancel and footer progress; annotator reachability probe; Library menu; Manual section),
+`--view library` / `--annotator` flags, auto-open of `<dir>/.soundpalette` on folder open and
+rescan. MCP: `library_search`, `library_get`, `library_set_annotation` (gated by
+`mcp.write`), `library_annotate`, `library_export_manifest` (+ SDK-client test with the mock).
+CI: Library smoke PNG on the Linux job. `tests/integration/gui_library.sh`: Xvfb + xdotool
+round trip (open tab, select row, type description, Save) verified through the CLI
+(`human`, locked) with screenshots for the visual pass.
+68/68 unit, 20/20 integration, MCP 17/17.
+
+Decisions / deviations:
+- The annotation editor sits **first** in the inspector: in a library, what a sound is comes
+  before how it measures; it only appears when the folder has an index, so the analysis-only
+  layout is unchanged.
+- Index creation and `Update index` run synchronously on the UI thread (they reuse the
+  analysis thread pool internally); only the model annotate job is a background worker.
+  A big first ingest therefore blocks the UI once — acceptable for M17, noted for later.
+- xdotool must press and release in separate frames (`mousedown; sleep; mouseup`); a bare
+  `click` lands both in one ImGui frame and is dropped. The first click after mapping only
+  focuses the window. Both are encoded in the script.
+- §9.3 said existing MCP tools gain a `library` root argument; instead
+  `library_export_manifest` writes a scan-compatible manifest of any search, which every
+  existing tool already accepts — no signature churn.
+- Ctrl+Q does not fire while an InputText holds keyboard focus (pre-existing); the GUI script
+  falls back to a signal.

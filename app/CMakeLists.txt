@@ -48,6 +48,7 @@ add_library(soundpalette_gui STATIC
     gui/harmonize_panel.cpp
     gui/constellation.cpp
     gui/manual.cpp
+    gui/library_view.cpp
     $<TARGET_OBJECTS:sp_vendor_stb>
 )
 target_include_directories(soundpalette_gui PUBLIC

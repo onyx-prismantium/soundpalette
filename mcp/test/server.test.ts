@@ -40,6 +40,8 @@ before(async () => {
 after(async () => {
   await client?.close();
   fs.rmSync(path.join(ROOT, BASELINE), { force: true });
+  fs.rmSync(path.join(ROOT, ".soundpalette"), { recursive: true, force: true });
+  fs.rmSync(path.join(ROOT, "mcp-lib-export.json"), { force: true });
 });
 
 test("tools/list contains the four M8 tools", async () => {
@@ -272,4 +274,54 @@ test("render_palette_sheet with profile_path returns an image", async () => {
   const image = res.content.find((c) => c.type === "image");
   assert.equal(image?.mimeType, "image/png");
   assert.ok((image?.data ?? "").length > 10000);
+});
+
+// Extension-4 §9.3: library tools. The index is created inside ROOT (fixtures are generated
+// and the .soundpalette dir is gitignored); removed again in after().
+test("library tools: init via CLI, search/get/set/export, annotate with the mock", async () => {
+  fs.rmSync(path.join(ROOT, ".soundpalette"), { recursive: true, force: true });
+  await execFileP(BIN, ["library", "init", ROOT, "--quiet"]);
+
+  const search = await client.callTool({ name: "library_search", arguments: { dir: ".", query: "sine" } }) as
+    { structuredContent?: { count: number; results: { path: string }[] } };
+  assert.ok(search.structuredContent!.count >= 3, "sine* fixtures found by path tokens");
+  assert.ok(search.structuredContent!.results.some((r) => r.path === "sine440_1s.wav"));
+
+  const set = await client.callTool({
+    name: "library_set_annotation",
+    arguments: { path: "sine440_1s.wav", cat_id: "DSGNTonl", description: "A pure test tone.", keywords: ["sine", "tone"] },
+  }) as { content: { text?: string }[]; isError?: boolean };
+  assert.ok(!set.isError, JSON.stringify(set));
+
+  const get = await client.callTool({ name: "library_get", arguments: { path: "sine440_1s.wav" } }) as
+    { structuredContent?: { annotation: { cat_id: string; source: string; locked: boolean } } };
+  assert.equal(get.structuredContent!.annotation.cat_id, "DSGNTonl");
+  assert.equal(get.structuredContent!.annotation.source, "human");
+  assert.equal(get.structuredContent!.annotation.locked, true);
+
+  const bad = await client.callTool({ name: "library_set_annotation", arguments: { path: "sine440_1s.wav", cat_id: "NOPE" } }) as
+    { isError?: boolean };
+  assert.equal(bad.isError, true, "unknown CatID is rejected");
+
+  const mock = `${JSON.stringify(process.execPath)} ${JSON.stringify(path.join(REPO, "mcp", "dist", "annotate_mock.js"))}`;
+  const ann = await client.callTool({
+    name: "library_annotate", arguments: { dir: ".", paths: ["click.wav"], annotator: mock, timeout_s: 30 },
+  }) as { structuredContent?: { annotated: number; errors: number; files: { status: string }[] }; isError?: boolean };
+  assert.ok(!ann.isError, JSON.stringify(ann));
+  assert.equal(ann.structuredContent!.annotated, 1);
+  assert.equal(ann.structuredContent!.errors, 0);
+
+  const locked = await client.callTool({
+    name: "library_annotate", arguments: { dir: ".", paths: ["sine440_1s.wav"], annotator: mock, timeout_s: 30 },
+  }) as { structuredContent?: { skipped_locked: number } };
+  assert.equal(locked.structuredContent!.skipped_locked, 1, "human row survives the model");
+
+  const exp = await client.callTool({
+    name: "library_export_manifest", arguments: { dir: ".", out_path: "mcp-lib-export.json", cat_id: "DSGN*" },
+  }) as { structuredContent?: { file_count: number } };
+  assert.equal(exp.structuredContent!.file_count, 1);
+  assert.ok(fs.existsSync(path.join(ROOT, "mcp-lib-export.json")));
+
+  const escape = await client.callTool({ name: "library_get", arguments: { path: "../../../etc/passwd" } }) as { isError?: boolean };
+  assert.equal(escape.isError, true);
 });

@@ -129,6 +129,7 @@ void draw_menu_bar(AppState &state) {
         }
         ImGui::EndMenu();
     }
+    draw_library_menu(state); // M17 (extension-4 §9.2)
     // Top-level items (no dropdown): each opens its window.
     if (ImGui::MenuItem("Manual")) {
         state.show_manual = true;
@@ -207,6 +208,7 @@ void draw_status_bar(AppState &state) {
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.9f, 0.75f, 0.4f, 1.0f), "| %s", state.view_note.c_str());
         }
+        draw_library_status(state); // M17: index counts, annotate progress, annotator probe
     }
     if (!state.status_message.empty()) {
         ImGui::SameLine();
@@ -293,6 +295,7 @@ void poll_rescan(AppState &state) {
     state.last_scan_seconds = now_seconds() - state.scan_started_at;
     state.selected = -1;
     rebuild_visuals(state);
+    library_open_for_root(state); // M17: the index belongs to the folder
 }
 
 void rebuild_visuals(AppState &state) {
@@ -498,6 +501,7 @@ bool export_svg_to(AppState &state, const std::string &path) {
 
 void draw_ui(AppState &state) {
     poll_rescan(state);
+    poll_annotate(state);
     playback_update(state);
     draw_menu_bar(state);
 
@@ -531,6 +535,10 @@ void draw_ui(AppState &state) {
             state.force_view_tab && state.view_mode == ViewMode::kConstellation
                 ? ImGuiTabItemFlags_SetSelected
                 : 0;
+        const ImGuiTabItemFlags lib_flags =
+            state.force_view_tab && state.view_mode == ViewMode::kLibrary
+                ? ImGuiTabItemFlags_SetSelected
+                : 0;
         state.force_view_tab = false;
         if (ImGui::BeginTabItem("Grid", nullptr, grid_flags)) {
             state.view_mode = ViewMode::kGrid;
@@ -540,6 +548,11 @@ void draw_ui(AppState &state) {
         if (ImGui::BeginTabItem("Constellation", nullptr, con_flags)) {
             state.view_mode = ViewMode::kConstellation;
             draw_constellation(state);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Library", nullptr, lib_flags)) {
+            state.view_mode = ViewMode::kLibrary;
+            draw_library(state);
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();

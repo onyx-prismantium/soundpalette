@@ -68,7 +68,11 @@ M16 annotator: the core spawns an annotator subprocess (JSON lines, `core/src/su
 `input_audio`, prompt in `mcp/prompts/annotate_v1.md` = `prompt_version`), the test double is
 `mcp/src/annotate_mock.ts` (`SP_MOCK_MODE` failure matrix). Gates: `ctest -R annotator`,
 `bash tests/integration/library_annotate_mock.sh` (needs `npm run build` in mcp/), and the
-MCP `npm test` (16 node tests). CI never calls a model; docs in `docs/library.md`.
+MCP `npm test` (17 node tests). CI never calls a model; docs in `docs/library.md`.
+M17 GUI: `app/gui/library_view.cpp` (Library tab + inspector Annotation editor + annotate
+job + probe); smoke `--view library` needs an index (`library init` first); the xdotool pass
+is `bash tests/integration/gui_library.sh` (screenshots in $OUT, press/release in separate
+frames). MCP `library_*` tools shell out to `library ... --json`.
 
 Extension 2 (SoundPalette_extension2.md, M10/M11): fixtures via `--profile-set fixtures_m10`;
 unit gates `-R "glob|profile|deviation|seam"` and `-R "pca|ellipse"`; scripts
