@@ -1,5 +1,8 @@
 #include <doctest/doctest.h>
 
+#include <cstdint>
+#include <ostream> // doctest stringifies std::string_view operands via operator<< (MSVC needs it)
+
 #include <chrono>
 #include <cmath>
 #include <ctime>
