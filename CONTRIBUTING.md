@@ -34,5 +34,7 @@ plus `clang-format` clean (`.clang-format` at the repo root is authoritative).
 - One logical change per PR, with tests that demonstrate it.
 - Golden manifests are regenerated deliberately, never hand-edited — say so in the PR when
   you regenerate them, and why.
-- By submitting a contribution you agree it is licensed under the repository's
-  [Apache-2.0 license](LICENSE).
+- By submitting a contribution you license it to the project maintainer under the
+  [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), so that it can be
+  distributed under the repository's [FSL-1.1-Apache-2.0 license](LICENSE.md) and included
+  in SoundPalette Studio. You keep your copyright.

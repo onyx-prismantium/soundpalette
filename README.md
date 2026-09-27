@@ -283,6 +283,17 @@ see here. Watch this repo for the announcement.
 
 ## License
 
-SoundPalette is licensed under the [Apache License 2.0](LICENSE). Third-party components are
-listed in [LICENSES.md](LICENSES.md); all are permissive (MIT/BSD/zlib/public-domain) and
-statically linked.
+SoundPalette is licensed under the [Functional Source License, Version 1.1, Apache 2.0
+Future License](LICENSE.md) (`FSL-1.1-Apache-2.0`). In short:
+
+- You may use, modify and redistribute it for any purpose, including inside commercial games,
+  pipelines and services. Palettes, SVGs, profiles and other outputs are yours.
+- The one exclusion is *competing use*: offering SoundPalette or a derivative to others as a
+  commercial product or service that substitutes for it. That is the space reserved for
+  SoundPalette Studio.
+- Each release automatically becomes available under the Apache License 2.0 two years after
+  it is published.
+
+Releases up to and including v0.7.0 (commit `0562173`) were published under Apache-2.0 and
+remain so. Third-party components are listed in [LICENSES.md](LICENSES.md); all are
+permissive (MIT/BSD/zlib/public-domain) and statically linked.

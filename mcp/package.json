@@ -4,7 +4,7 @@
   "description": "MCP server (stdio) exposing the SoundPalette analysis suite to AI agents",
   "type": "module",
   "private": true,
-  "license": "MIT",
+  "license": "FSL-1.1-Apache-2.0",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "pretest": "tsc -p tsconfig.test.json",
