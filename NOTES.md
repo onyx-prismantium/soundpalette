@@ -757,3 +757,42 @@ golden palette.json byte-identical (geometry-only change); sheet.svg regenerated
 
 palette.json untouched; sheet.svg regenerated (point order + morph). 55/55 unit + all
 integration green; GUI smoke inspected both trail sides; docs/screenshot.png recaptured.
+
+## Extension 4 — M15: UCS taxonomy + library index (2026-09-27)
+
+Preflight at a23816e: 55/55 unit, all integration scripts green. Spec:
+`/workspace/concepts/SoundPalette_extension4.md` (decisions D1–D6 approved by Andreas 2026-09-27).
+
+Built: `core/ucs.*` (UCS v8.2.1 compiled in from `assets/ucs/ucs_v8.2.1.csv` via
+`tools/gen_ucs_table.py`, sha256 in `assets/ucs/PROVENANCE.md`), `core/library.*` (SQLite 3.53.4
+vendored, FTS5, schema v1 per §5.2), `core/offline_classify.cpp` (§8), manifest JSON parsers
+(`manifest_from_json`, `file_entry_{to,from}_json_string`), CLI `library
+init|update|classify|search|show|stats|export|set` and `ucs categories|list|find|rank`.
+63/63 unit (8 new), 18/18 integration incl. `library_roundtrip.sh` (export byte-identical to
+`scan`; 25-name offline golden). Layering grep over core/ still empty.
+
+Deviations / decisions (all documented in the headers):
+- **Ranking weights** (§4.2 said SubCategory 3 / Synonym 2 / Explanation 1): shipped
+  SubCategory 5, *Category word* 5 (new), Synonym 2, Explanation 1, plus light plural folding
+  in the tokenizer. Without the Category term, "explosion_large_distant" ranked BELLS/LARGE
+  first; with it the EXPLOSIONS entries tie and the classifier honestly refuses. Folder tokens
+  are capped at synonym weight (`ucs_rank_weak`) so a `foley/` folder cannot outvote the
+  file's own words ("foley/coin_pickup" → OBJCoin, not a FOLEY tie).
+- **Acceptance rule** (§8 said top ≥ 4 and ≥ 2× runner-up): shipped top ≥ 5 (i.e. at least
+  one Category/SubCategory hit or three synonym hits) and strictly above the runner-up. The
+  2× rule rejected clear winners like AMBForst 10 vs AMBAir 9; ties still refuse. Probed on
+  ~25 realistic names (`soundpalette ucs rank`), golden in `tests/golden/library_offline.json`.
+- **Locks** (§6.2 said `--force` overrides lock and precedence): `force` overrides precedence
+  only; a locked row is replaced by a human write and nothing else. A forced offline pass
+  must never be able to erase a hand edit.
+- **FTS table** is a regular FTS5 table (path tokens, fx name, description, keywords, CatID,
+  category, subcategory) refreshed per row, not the contentless sketch in §5.2; queries are
+  built from quoted tokens only, so user punctuation never reaches the FTS parser.
+- **`manifest_from_json` stats drift**: reparsing a *rounded* manifest and recomputing stats
+  moves atk01 by up to ~1e-3 (attack_s has 4 decimals; the mapping is steep there). That is
+  why `entry_json` is stored unrounded — `library export` re-rounds to the same bytes as a
+  fresh scan (tested). Unit test tolerance for the rounded round trip is 2e-3.
+- Version string is still 0.6.0 in `version.h` although main is tagged v0.7.0 (pre-existing);
+  the extension's closing milestone bumps it to 0.8.0.
+- Added beyond spec: `library stats`, `library set` (human edit from the CLI), the `ucs`
+  subcommand (needed to tune and explain the classifier).

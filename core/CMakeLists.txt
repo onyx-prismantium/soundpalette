@@ -37,6 +37,26 @@ add_library(soundpalette_vendor_sha256 OBJECT
 )
 target_include_directories(soundpalette_vendor_sha256 PUBLIC ${PROJECT_SOURCE_DIR}/extern/sha256)
 
+# Vendored SQLite amalgamation (extern/sqlite, public domain, extension-4 §2): FTS5 for the
+# library index; extension loading omitted (single static binary, no plugin surface).
+add_library(soundpalette_vendor_sqlite OBJECT
+    ${PROJECT_SOURCE_DIR}/extern/sqlite/sqlite3.c
+)
+target_include_directories(soundpalette_vendor_sqlite PUBLIC ${PROJECT_SOURCE_DIR}/extern/sqlite)
+target_compile_definitions(soundpalette_vendor_sqlite PRIVATE
+    SQLITE_ENABLE_FTS5=1
+    SQLITE_THREADSAFE=1
+    SQLITE_OMIT_LOAD_EXTENSION=1
+    SQLITE_DQS=0
+    SQLITE_DEFAULT_MEMSTATUS=0
+    SQLITE_OMIT_DEPRECATED=1
+)
+if(MSVC)
+    target_compile_options(soundpalette_vendor_sqlite PRIVATE /w)
+else()
+    target_compile_options(soundpalette_vendor_sqlite PRIVATE -w)
+endif()
+
 add_library(soundpalette_core STATIC
     src/version.cpp
     src/audio.cpp
@@ -57,8 +77,13 @@ add_library(soundpalette_core STATIC
     src/psycho/psycho.cpp
     src/pca.cpp
     src/lint.cpp
+    src/ucs.cpp
+    src/ucs_data.cpp
+    src/library.cpp
+    src/offline_classify.cpp
     $<TARGET_OBJECTS:soundpalette_vendor_audio>
     $<TARGET_OBJECTS:soundpalette_vendor_sha256>
+    $<TARGET_OBJECTS:soundpalette_vendor_sqlite>
 )
 
 target_include_directories(soundpalette_core PUBLIC
@@ -67,6 +92,7 @@ target_include_directories(soundpalette_core PUBLIC
 target_include_directories(soundpalette_core PRIVATE
     ${PROJECT_SOURCE_DIR}/extern/miniaudio
     ${PROJECT_SOURCE_DIR}/extern/sha256
+    ${PROJECT_SOURCE_DIR}/extern/sqlite
     ${libebur128_SOURCE_DIR}/ebur128
 )
 

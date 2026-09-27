@@ -12,6 +12,8 @@ under `extern/`.
 | [libebur128](https://github.com/jiixyj/libebur128) | v1.2.6 | MIT | EBU R128 integrated loudness + true peak |
 | [KissFFT](https://github.com/mborgerding/kissfft) | 131.1.0 | BSD-3-Clause | Real FFT for STFT features |
 | [nlohmann/json](https://github.com/nlohmann/json) | v3.11.3 | MIT | JSON serialization |
+| [SQLite](https://sqlite.org) | 3.53.4 (vendored amalgamation) | Public domain | Library index + FTS5 search (extension-4) |
+| [Universal Category System](https://universalcategorysystem.com) list | v8.2.1 (vendored CSV, `assets/ucs/`) | Public domain (data) | UCS taxonomy for library annotations (extension-4) |
 | [Dear ImGui](https://github.com/ocornut/imgui) (docking branch) | v1.92.8-docking | MIT | GUI |
 | [GLFW](https://github.com/glfw/glfw) | 3.4 | zlib | Window/input |
 | [nativefiledialog-extended](https://github.com/btzy/nativefiledialog-extended) | v1.2.1 | zlib | Native folder/save dialogs |

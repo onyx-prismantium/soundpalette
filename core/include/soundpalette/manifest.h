@@ -3,6 +3,7 @@
 #include <array>
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -76,5 +77,15 @@ void recompute_stats(Manifest &manifest);
 // Canonical serialization (§8): UTF-8, LF, 2-space indent, fixed key order, files sorted by
 // path, floats rounded to 4 decimal places, no timestamps or absolute paths.
 std::string manifest_to_json(const Manifest &manifest);
+
+// Inverse of manifest_to_json (extension-4 §5.2): files re-sorted by path, stats recomputed.
+// Returns nullopt and fills err on malformed input.
+std::optional<Manifest> manifest_from_json(const std::string &text, std::string &err);
+
+// One file's canonical object (the element shape of the manifest's "files" array). With
+// rounded == false, doubles keep full precision so a later rounded serialization is
+// byte-identical to a direct one.
+std::string file_entry_to_json_string(const FileEntry &e, bool rounded);
+std::optional<FileEntry> file_entry_from_json_string(const std::string &text, std::string &err);
 
 } // namespace sp

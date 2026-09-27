@@ -1387,13 +1387,15 @@ int cmd_watch(const std::vector<std::string> &args) {
 
 } // namespace
 
+int cmd_library(const std::vector<std::string> &args); // cli/library_cmd.cpp
+int cmd_ucs(const std::vector<std::string> &args);     // cli/library_cmd.cpp
+
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::fprintf(
-            stderr,
-            "usage: soundpalette "
-            "<scan|lint|describe|profile|propose|apply|harmonize|export-svg|watch|print-mapping> "
-            "[args...]\n");
+        std::fprintf(stderr, "usage: soundpalette "
+                             "<scan|lint|describe|profile|propose|apply|harmonize|export-svg|watch|"
+                             "print-mapping|library|ucs> "
+                             "[args...]\n");
         return 2;
     }
 
@@ -1423,6 +1425,10 @@ int main(int argc, char **argv) {
             return cmd_export_svg(args);
         } else if (subcommand == "watch") {
             return cmd_watch(args);
+        } else if (subcommand == "library") {
+            return cmd_library(args);
+        } else if (subcommand == "ucs") {
+            return cmd_ucs(args);
         } else {
             std::fprintf(stderr, "soundpalette: unknown subcommand '%s'\n", subcommand.c_str());
             return 2;

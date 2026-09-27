@@ -21,3 +21,6 @@ mcp/dist-test/
 # Development-time psychoacoustic oracle env (extension-3 §2); never a runtime dependency
 .venv-psycho/
 /fixtures_psycho/
+
+# Library index (extension-4 §5.1): one per root, never committed
+.soundpalette/

@@ -16,6 +16,8 @@ add_executable(sp_unit_tests
     test_psycho.cpp
     test_deviation.cpp
     test_pca.cpp
+    test_ucs.cpp
+    test_library.cpp
 )
 target_link_libraries(sp_unit_tests PRIVATE soundpalette_core doctest::doctest nlohmann_json::nlohmann_json)
 sp_set_warnings(sp_unit_tests)

@@ -16,6 +16,8 @@ See `cmake/Dependencies.cmake` for the FetchContent declarations (fetched ones) 
 | GLFW | tag `3.4` | FetchContent | zlib | Window/input (X11 + Wayland) |
 | nativefiledialog-extended | tag `v1.2.1` | FetchContent | zlib | Native folder picker |
 | doctest | tag `v2.4.12` | FetchContent | MIT | Unit test framework |
+| SQLite amalgamation | `3.53.4` (sqlite.org/2026/sqlite-amalgamation-3530400.zip, zip sha256 `1e71ddf93849c6a6ecf58b827c0692073d2dd7ee40196158068f7b29f422e87d`) | vendored (`extern/sqlite/`) | Public domain | Library index with FTS5 (extension-4 §5); built with `SQLITE_ENABLE_FTS5`, `SQLITE_OMIT_LOAD_EXTENSION`, `SQLITE_DQS=0` |
+| UCS category list | v8.2.1 (`assets/ucs/ucs_v8.2.1.csv`, see `assets/ucs/PROVENANCE.md`) | vendored data, compiled in via generated `core/src/ucs_data.cpp` | Public domain | Universal Category System taxonomy (extension-4 §4) |
 | sha256 (Brad Conte, crypto-algorithms) | commit `cfbde48414baacf51fc7c74f275190881f037d32` | vendored (`extern/sha256/`) | Public domain | Manifest `sha256` per-file hash (PLAN.md §12/M3 explicitly sanctions vendoring a small public-domain implementation) |
 
 PLAN.md §4 names libraries and known-good version numbers but not GitHub org/repo paths; those

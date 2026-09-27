@@ -281,6 +281,30 @@ drives generative-audio providers with LLM-written prompts in your project's sty
 validates every generated candidate against your palette with the psychoacoustic analysis you
 see here. Watch this repo for the announcement.
 
+## Library (UCS taxonomy)
+
+SoundPalette can also be the index of a sound library. Point it at a folder and every file is
+analyzed once, stored in `<folder>/.soundpalette/library.sqlite`, classified into the
+[Universal Category System](https://universalcategorysystem.com) (UCS v8.2.1, 753 categories,
+compiled in) and made searchable:
+
+```bash
+soundpalette library init ~/sfx            # ingest + offline classification
+soundpalette library search ~/sfx pistol   # full-text over names, descriptions, keywords
+soundpalette library search ~/sfx --category AMBIENCE --unannotated
+soundpalette library show ~/sfx/ui/click.wav
+soundpalette library set ~/sfx/ui/click.wav --catid UIClick --description "Soft confirm tap."
+soundpalette library export ~/sfx --manifest guns.json --category GUNS   # feed lint/export-svg
+soundpalette library update ~/sfx          # incremental: new/changed/moved/missing only
+soundpalette ucs rank sword swing whoosh   # why a name did (not) classify
+```
+
+Files already named per UCS (`CatID_FXName_CreatorID_SourceID.wav`) are recognized outright.
+Other names are matched against the UCS synonym lists, but only when one category wins
+unambiguously — acoustic features are never used to guess a category. Your own edits are
+locked and never overwritten. Model-based descriptions (a local or hosted audio-language model)
+arrive with the annotator in the next milestone.
+
 ## License
 
 SoundPalette is licensed under the [Functional Source License, Version 1.1, Apache 2.0

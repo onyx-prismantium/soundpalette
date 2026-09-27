@@ -14,6 +14,7 @@ extern "C" {
 #include "sha256.h" // plain C header (extern/sha256), no C++ guards of its own
 }
 
+#include "manifest_json.h"
 #include "soundpalette/audio.h"
 #include "soundpalette/version.h"
 
@@ -212,6 +213,71 @@ void recompute_stats(Manifest &manifest) {
     }
 }
 
+nlohmann::ordered_json file_entry_to_json(const FileEntry &e, bool rounded) {
+    using json = nlohmann::ordered_json;
+    auto r = [rounded](double x) { return rounded ? round4(x) : x; };
+    json fe = json::object();
+    fe["path"] = e.path;
+    fe["sha256"] = e.sha256;
+    fe["error"] = e.error;
+    fe["duration_s"] = r(e.duration_s);
+    fe["sample_rate"] = e.sample_rate;
+    fe["channels"] = e.channels;
+    fe["truncated"] = e.truncated;
+
+    json loudness = json::object();
+    loudness["lufs_i"] = std::isfinite(e.loudness.lufs_i) ? r(e.loudness.lufs_i) : -900.0;
+    loudness["true_peak_db"] = r(e.loudness.true_peak_db);
+    loudness["silent"] = e.loudness.silent;
+    fe["loudness"] = std::move(loudness);
+
+    json features = json::object();
+    features["centroid_hz"] = r(e.features.centroid_hz);
+    features["rolloff85_hz"] = r(e.features.rolloff85_hz);
+    features["flatness"] = r(e.features.flatness);
+    features["zcr"] = r(e.features.zcr);
+    features["attack_s"] = r(e.features.attack_s);
+    features["tail_s"] = r(e.features.tail_s);
+    features["tail_clipped"] = e.features.tail_clipped;
+    features["roughness"] = r(e.features.roughness);
+    features["warmth"] = r(e.features.warmth);
+    json bands = json::array();
+    for (double b : e.features.bands) {
+        bands.push_back(r(b));
+    }
+    features["bands"] = std::move(bands);
+    fe["features"] = std::move(features);
+
+    // Extension-3 §6: psychoacoustic block (schema 2), original-gain + ref_spl semantics.
+    json psycho = json::object();
+    psycho["ref_spl"] = r(e.psycho.ref_spl);
+    psycho["sones_n5"] = r(e.psycho.sones_n5);
+    psycho["sones_mean"] = r(e.psycho.sones_mean);
+    psycho["sharpness_acum"] = r(e.psycho.sharpness_acum);
+    psycho["roughness_asper"] = r(e.psycho.roughness_asper);
+    psycho["fluctuation_vacil"] = r(e.psycho.fluctuation_vacil);
+    psycho["experimental_fluctuation"] = e.psycho.experimental_fluctuation;
+    fe["psycho"] = std::move(psycho);
+
+    json visual = json::object();
+    visual["hue_deg"] = r(e.visual.hue_deg);
+    visual["sat"] = r(e.visual.sat);
+    visual["light"] = r(e.visual.light);
+    visual["size_px"] = r(e.visual.size_px);
+    visual["ton01"] = r(e.visual.ton01);
+    visual["spike01"] = r(e.visual.spike01);
+    visual["spikes"] = e.visual.spikes;
+    visual["jitter01"] = r(e.visual.jitter01);
+    visual["tail01"] = r(e.visual.tail01);
+    visual["fluct01"] = r(e.visual.fluct01);
+    visual["loud01"] = r(e.visual.loud01);
+    visual["sharp01"] = r(e.visual.sharp01);
+    visual["silent"] = e.visual.silent;
+    visual["seed"] = e.visual.seed;
+    fe["visual"] = std::move(visual);
+    return fe;
+}
+
 std::string manifest_to_json(const Manifest &manifest) {
     using json = nlohmann::ordered_json;
 
@@ -227,66 +293,7 @@ std::string manifest_to_json(const Manifest &manifest) {
 
     json files_arr = json::array();
     for (const FileEntry &e : manifest.files) {
-        json fe = json::object();
-        fe["path"] = e.path;
-        fe["sha256"] = e.sha256;
-        fe["error"] = e.error;
-        fe["duration_s"] = round4(e.duration_s);
-        fe["sample_rate"] = e.sample_rate;
-        fe["channels"] = e.channels;
-        fe["truncated"] = e.truncated;
-
-        json loudness = json::object();
-        loudness["lufs_i"] = std::isfinite(e.loudness.lufs_i) ? round4(e.loudness.lufs_i) : -900.0;
-        loudness["true_peak_db"] = round4(e.loudness.true_peak_db);
-        loudness["silent"] = e.loudness.silent;
-        fe["loudness"] = std::move(loudness);
-
-        json features = json::object();
-        features["centroid_hz"] = round4(e.features.centroid_hz);
-        features["rolloff85_hz"] = round4(e.features.rolloff85_hz);
-        features["flatness"] = round4(e.features.flatness);
-        features["zcr"] = round4(e.features.zcr);
-        features["attack_s"] = round4(e.features.attack_s);
-        features["tail_s"] = round4(e.features.tail_s);
-        features["tail_clipped"] = e.features.tail_clipped;
-        features["roughness"] = round4(e.features.roughness);
-        features["warmth"] = round4(e.features.warmth);
-        json bands = json::array();
-        for (double b : e.features.bands) {
-            bands.push_back(round4(b));
-        }
-        features["bands"] = std::move(bands);
-        fe["features"] = std::move(features);
-
-        // Extension-3 §6: psychoacoustic block (schema 2), original-gain + ref_spl semantics.
-        json psycho = json::object();
-        psycho["ref_spl"] = round4(e.psycho.ref_spl);
-        psycho["sones_n5"] = round4(e.psycho.sones_n5);
-        psycho["sones_mean"] = round4(e.psycho.sones_mean);
-        psycho["sharpness_acum"] = round4(e.psycho.sharpness_acum);
-        psycho["roughness_asper"] = round4(e.psycho.roughness_asper);
-        psycho["fluctuation_vacil"] = round4(e.psycho.fluctuation_vacil);
-        psycho["experimental_fluctuation"] = e.psycho.experimental_fluctuation;
-        fe["psycho"] = std::move(psycho);
-
-        json visual = json::object();
-        visual["hue_deg"] = round4(e.visual.hue_deg);
-        visual["sat"] = round4(e.visual.sat);
-        visual["light"] = round4(e.visual.light);
-        visual["size_px"] = round4(e.visual.size_px);
-        visual["ton01"] = round4(e.visual.ton01);
-        visual["spike01"] = round4(e.visual.spike01);
-        visual["spikes"] = e.visual.spikes;
-        visual["jitter01"] = round4(e.visual.jitter01);
-        visual["tail01"] = round4(e.visual.tail01);
-        visual["fluct01"] = round4(e.visual.fluct01);
-        visual["loud01"] = round4(e.visual.loud01);
-        visual["sharp01"] = round4(e.visual.sharp01);
-        visual["silent"] = e.visual.silent;
-        visual["seed"] = e.visual.seed;
-        fe["visual"] = std::move(visual);
-
+        json fe = file_entry_to_json(e, true);
         files_arr.push_back(std::move(fe));
     }
     root_obj["files"] = std::move(files_arr);
@@ -304,6 +311,130 @@ std::string manifest_to_json(const Manifest &manifest) {
     root_obj["stats"] = std::move(stats_obj);
 
     return root_obj.dump(2);
+}
+
+bool file_entry_from_json(const nlohmann::json &j, FileEntry &out, std::string &err) {
+    try {
+        FileEntry e;
+        e.path = j.at("path").get<std::string>();
+        e.sha256 = j.value("sha256", "");
+        e.error = j.value("error", "");
+        e.duration_s = j.value("duration_s", 0.0);
+        e.sample_rate = j.value("sample_rate", 0);
+        e.channels = j.value("channels", 0);
+        e.truncated = j.value("truncated", false);
+        if (j.contains("loudness")) {
+            const auto &lj = j.at("loudness");
+            e.loudness.lufs_i = lj.value("lufs_i", 0.0);
+            if (e.loudness.lufs_i <= -900.0) {
+                e.loudness.lufs_i = -HUGE_VAL;
+            }
+            e.loudness.true_peak_db = lj.value("true_peak_db", 0.0);
+            e.loudness.silent = lj.value("silent", false);
+        }
+        if (j.contains("features")) {
+            const auto &fj = j.at("features");
+            e.features.centroid_hz = fj.value("centroid_hz", 0.0);
+            e.features.rolloff85_hz = fj.value("rolloff85_hz", 0.0);
+            e.features.flatness = fj.value("flatness", 0.0);
+            e.features.zcr = fj.value("zcr", 0.0);
+            e.features.attack_s = fj.value("attack_s", 0.0);
+            e.features.tail_s = fj.value("tail_s", 0.0);
+            e.features.tail_clipped = fj.value("tail_clipped", false);
+            e.features.roughness = fj.value("roughness", 0.0);
+            e.features.warmth = fj.value("warmth", 0.0);
+            if (fj.contains("bands")) {
+                const auto &bands = fj.at("bands");
+                for (std::size_t k = 0; k < e.features.bands.size() && k < bands.size(); ++k) {
+                    e.features.bands[k] = bands[k].get<double>();
+                }
+            }
+        }
+        if (j.contains("psycho")) {
+            const auto &pj = j.at("psycho");
+            e.psycho.ref_spl = pj.value("ref_spl", 0.0);
+            e.psycho.sones_n5 = pj.value("sones_n5", 0.0);
+            e.psycho.sones_mean = pj.value("sones_mean", 0.0);
+            e.psycho.sharpness_acum = pj.value("sharpness_acum", 0.0);
+            e.psycho.roughness_asper = pj.value("roughness_asper", 0.0);
+            e.psycho.fluctuation_vacil = pj.value("fluctuation_vacil", 0.0);
+            e.psycho.experimental_fluctuation = pj.value("experimental_fluctuation", true);
+        }
+        if (j.contains("visual")) {
+            const auto &vj = j.at("visual");
+            e.visual.hue_deg = vj.value("hue_deg", 0.0);
+            e.visual.sat = vj.value("sat", 0.0);
+            e.visual.light = vj.value("light", 0.0);
+            e.visual.size_px = vj.value("size_px", 0.0);
+            e.visual.ton01 = vj.value("ton01", 0.0);
+            e.visual.spike01 = vj.value("spike01", 0.0);
+            e.visual.spikes = vj.value("spikes", 0);
+            e.visual.jitter01 = vj.value("jitter01", 0.0);
+            e.visual.tail01 = vj.value("tail01", 0.0);
+            e.visual.fluct01 = vj.value("fluct01", 0.0);
+            e.visual.loud01 = vj.value("loud01", 0.0);
+            e.visual.sharp01 = vj.value("sharp01", 0.0);
+            e.visual.silent = vj.value("silent", false);
+            e.visual.seed = vj.value("seed", static_cast<std::uint64_t>(0));
+        }
+        out = std::move(e);
+        return true;
+    } catch (const std::exception &ex) {
+        err = ex.what();
+        return false;
+    }
+}
+
+std::string file_entry_to_json_string(const FileEntry &e, bool rounded) {
+    return file_entry_to_json(e, rounded).dump();
+}
+
+std::optional<FileEntry> file_entry_from_json_string(const std::string &text, std::string &err) {
+    nlohmann::json j;
+    try {
+        j = nlohmann::json::parse(text);
+    } catch (const std::exception &ex) {
+        err = ex.what();
+        return std::nullopt;
+    }
+    FileEntry e;
+    if (!file_entry_from_json(j, e, err)) {
+        return std::nullopt;
+    }
+    return e;
+}
+
+std::optional<Manifest> manifest_from_json(const std::string &text, std::string &err) {
+    nlohmann::json j;
+    try {
+        j = nlohmann::json::parse(text);
+    } catch (const std::exception &ex) {
+        err = ex.what();
+        return std::nullopt;
+    }
+    Manifest m;
+    try {
+        m.schema_version = j.value("schema_version", 1);
+        m.ref_spl = j.value("ref_spl", 75.0);
+        m.mapping_version = j.value("mapping_version", 1);
+        m.include_meta = j.contains("engine_version");
+        m.engine_version = j.value("engine_version", "");
+        m.root = j.value("root", "");
+        for (const auto &fj : j.at("files")) {
+            FileEntry e;
+            if (!file_entry_from_json(fj, e, err)) {
+                return std::nullopt;
+            }
+            m.files.push_back(std::move(e));
+        }
+    } catch (const std::exception &ex) {
+        err = ex.what();
+        return std::nullopt;
+    }
+    std::sort(m.files.begin(), m.files.end(),
+              [](const FileEntry &a, const FileEntry &b) { return a.path < b.path; });
+    recompute_stats(m);
+    return m;
 }
 
 } // namespace sp

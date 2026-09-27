@@ -55,6 +55,15 @@ tools/psycho_oracle/requirements.txt); gates `ctest -R psycho`, `psycho_oracle_m
 `describe_units.sh`, `lint_jnd.sh`; mapping v2 artifacts (schema 2 manifests, ref_spl) refuse
 v1 inputs — regenerate rather than mix.
 
+Extension 4 (SoundPalette_extension4.md, M15–M18, the sound library): UCS taxonomy is
+compiled in from `assets/ucs/ucs_v8.2.1.csv` via `tools/gen_ucs_table.py` → `core/src/ucs_data.cpp`
+(regenerate only when the CSV changes; output is committed). The per-root index lives in
+`<root>/.soundpalette/library.sqlite` (SQLite vendored in `extern/sqlite/`, FTS5 on). Gates:
+`ctest -R "ucs|library"` and `bash tests/integration/library_roundtrip.sh` (its golden is
+`tests/golden/library_offline.json`; `library export --manifest` must stay byte-identical to
+`scan`). `soundpalette ucs rank <words>` shows why the offline classifier chose (or refused)
+a CatID. Human annotations lock a row; nothing but another human write may replace them.
+
 Extension 2 (SoundPalette_extension2.md, M10/M11): fixtures via `--profile-set fixtures_m10`;
 unit gates `-R "glob|profile|deviation|seam"` and `-R "pca|ellipse"`; scripts
 `profile_roundtrip.sh`, `category_lint.sh`, `svg_halos.sh`; GUI smokes take
