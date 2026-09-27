@@ -63,6 +63,12 @@ compiled in from `assets/ucs/ucs_v8.2.1.csv` via `tools/gen_ucs_table.py` → `c
 `tests/golden/library_offline.json`; `library export --manifest` must stay byte-identical to
 `scan`). `soundpalette ucs rank <words>` shows why the offline classifier chose (or refused)
 a CatID. Human annotations lock a row; nothing but another human write may replace them.
+M16 annotator: the core spawns an annotator subprocess (JSON lines, `core/src/subprocess.*`,
+`core/src/annotator.cpp`); the reference one is `mcp/src/annotate.ts` (OpenAI-compatible
+`input_audio`, prompt in `mcp/prompts/annotate_v1.md` = `prompt_version`), the test double is
+`mcp/src/annotate_mock.ts` (`SP_MOCK_MODE` failure matrix). Gates: `ctest -R annotator`,
+`bash tests/integration/library_annotate_mock.sh` (needs `npm run build` in mcp/), and the
+MCP `npm test` (16 node tests). CI never calls a model; docs in `docs/library.md`.
 
 Extension 2 (SoundPalette_extension2.md, M10/M11): fixtures via `--profile-set fixtures_m10`;
 unit gates `-R "glob|profile|deviation|seam"` and `-R "pca|ellipse"`; scripts

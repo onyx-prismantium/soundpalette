@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "soundpalette/annotator.h"
 #include "soundpalette/library.h"
 #include "soundpalette/manifest.h"
 #include "soundpalette/ucs.h"
@@ -31,7 +32,10 @@ int usage() {
         "  export <path> --manifest out.json [--query \"...\"] [--catid GLOB] [--category NAME]\n"
         "         [--unannotated]\n"
         "  set <file> [--catid X] [--fx-name N] [--description D] [--keywords a,b] [--unlock]\n"
-        "                                                human edit (locks the row)\n");
+        "                                                human edit (locks the row)\n"
+        "  annotate <path> [--unannotated (default) | --all | --min-confidence x] [--limit n]\n"
+        "           [--dry-run] [--force] [--annotator \"cmd\"] [--inflight n] [--timeout s]\n"
+        "           [--json]                          run the model annotator ($SP_ANNOTATOR)\n");
     return 2;
 }
 
@@ -665,6 +669,155 @@ int cmd_ucs_impl(const std::vector<std::string> &args) {
     return usage_ucs();
 }
 
+int cmd_annotate(const std::vector<std::string> &args) {
+    if (args.size() < 2) {
+        return usage();
+    }
+    sp::AnnotatorOptions opt;
+    sp::SearchQuery q;
+    q.limit = 0;
+    bool all = false;
+    bool as_json = false;
+    double args_min_conf = -1.0;
+    for (std::size_t i = 2; i < args.size(); ++i) {
+        const std::string &a = args[i];
+        auto next = [&](std::string &dst) {
+            if (i + 1 >= args.size()) {
+                return false;
+            }
+            dst = args[++i];
+            return true;
+        };
+        std::string v;
+        if (a == "--json") {
+            as_json = true;
+        } else if (a == "--all") {
+            all = true;
+        } else if (a == "--unannotated") {
+            all = false;
+        } else if (a == "--dry-run") {
+            opt.dry_run = true;
+        } else if (a == "--force") {
+            opt.force = true;
+        } else if (a == "--annotator") {
+            if (!next(opt.command)) {
+                return usage();
+            }
+        } else if (a == "--inflight") {
+            if (!next(v)) {
+                return usage();
+            }
+            opt.inflight = std::stoi(v);
+        } else if (a == "--timeout") {
+            if (!next(v)) {
+                return usage();
+            }
+            opt.timeout_s = std::stod(v);
+        } else if (a == "--min-confidence") {
+            if (!next(v)) {
+                return usage();
+            }
+            // re-annotate everything below this confidence (plus unannotated rows)
+            args_min_conf = std::stod(v);
+            all = true;
+            opt.force = true;
+        } else if (a == "--limit") {
+            if (!next(v)) {
+                return usage();
+            }
+            q.limit = std::stoi(v);
+        } else if (a == "--category") {
+            if (!next(q.category)) {
+                return usage();
+            }
+        } else if (a == "--catid") {
+            if (!next(q.cat_id_glob)) {
+                return usage();
+            }
+        } else {
+            return usage();
+        }
+    }
+    std::string err;
+    std::unique_ptr<sp::Library> lib = open_for(args[1], err);
+    if (!lib) {
+        std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+        return 2;
+    }
+    std::vector<std::string> paths;
+    std::error_code ec;
+    std::filesystem::path abs = std::filesystem::absolute(args[1], ec).lexically_normal();
+    if (std::filesystem::is_regular_file(abs, ec)) {
+        paths.push_back(rel_of(*lib, args[1]));
+    } else {
+        std::string prefix;
+        if (!std::filesystem::equivalent(abs, lib->root(), ec)) {
+            prefix = rel_of(*lib, args[1]) + "/";
+        }
+        q.unannotated = !all && args_min_conf < 0.0;
+        std::vector<sp::LibraryRow> rows = lib->search(q, err);
+        for (const sp::LibraryRow &r : rows) {
+            if (!prefix.empty() && r.path.rfind(prefix, 0) != 0) {
+                continue;
+            }
+            if (args_min_conf >= 0.0 && r.annotation && r.annotation->confidence >= args_min_conf) {
+                continue;
+            }
+            paths.push_back(r.path);
+        }
+    }
+    if (!as_json) {
+        opt.on_progress = [](std::size_t done, std::size_t total, const std::string &path,
+                             const std::string &status) {
+            std::fprintf(stderr, "[%zu/%zu] %s: %s\n", done, total, path.c_str(), status.c_str());
+        };
+        std::fprintf(stderr, "annotating %zu file%s%s\n", paths.size(),
+                     paths.size() == 1 ? "" : "s", opt.dry_run ? " (dry run)" : "");
+    }
+    sp::AnnotateReport rep = sp::annotate_paths(*lib, paths, opt);
+    if (as_json) {
+        json j = json::object();
+        j["root"] = lib->root().generic_string();
+        j["requested"] = rep.requested;
+        j["annotated"] = rep.annotated;
+        j["skipped_locked"] = rep.skipped_locked;
+        j["skipped_precedence"] = rep.skipped_precedence;
+        j["errors"] = rep.errors;
+        j["timeouts"] = rep.timeouts;
+        j["restarts"] = rep.restarts;
+        j["fatal"] = rep.fatal;
+        json an = json::object();
+        an["name"] = rep.annotator.name;
+        an["model"] = rep.annotator.model;
+        an["prompt_version"] = rep.annotator.prompt_version;
+        j["annotator"] = std::move(an);
+        json files = json::array();
+        for (const sp::AnnotateFileResult &r : rep.files) {
+            json f = json::object();
+            f["path"] = r.path;
+            f["ok"] = r.ok;
+            f["status"] = r.status;
+            f["error"] = r.error;
+            f["annotation"] = r.ok ? annotation_json(r.annotation) : json(nullptr);
+            files.push_back(std::move(f));
+        }
+        j["files"] = std::move(files);
+        std::printf("%s\n", j.dump(2).c_str());
+    } else {
+        if (!rep.fatal.empty()) {
+            std::fprintf(stderr, "soundpalette: %s\n", rep.fatal.c_str());
+        }
+        std::printf(
+            "library annotate: %zu requested, %zu %s, %zu locked, %zu kept (higher source), "
+            "%zu errors (%zu timeouts, %zu restarts); annotator %s model %s prompt %s\n",
+            rep.requested, rep.annotated, opt.dry_run ? "would write" : "written",
+            rep.skipped_locked, rep.skipped_precedence, rep.errors, rep.timeouts, rep.restarts,
+            rep.annotator.name.c_str(), rep.annotator.model.c_str(),
+            rep.annotator.prompt_version.c_str());
+    }
+    return rep.fatal.empty() ? 0 : 2;
+}
+
 } // namespace
 
 int cmd_ucs(const std::vector<std::string> &args) {
@@ -699,6 +852,9 @@ int cmd_library(const std::vector<std::string> &args) {
     }
     if (verb == "set") {
         return cmd_set(args);
+    }
+    if (verb == "annotate") {
+        return cmd_annotate(args);
     }
     return usage();
 }

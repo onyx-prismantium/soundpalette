@@ -796,3 +796,35 @@ Deviations / decisions (all documented in the headers):
   the extension's closing milestone bumps it to 0.8.0.
 - Added beyond spec: `library stats`, `library set` (human edit from the CLI), the `ucs`
   subcommand (needed to tune and explain the classifier).
+
+## Extension 4 — M16: annotator (2026-09-27)
+
+Built: `core/src/subprocess.*` (posix_spawn / CreateProcess, stdin pipe + stdout reader
+thread, no shell ever), `core/src/annotator.cpp` (`AnnotatorClient` JSON-lines protocol with
+handshake, per-request timeout → kill + respawn, id-correlated out-of-order answers, restart
+cap 5; `stage2_shortlist` / `resolve_stage2` per §7.2; 16 kHz mono excerpt via 63-tap
+windowed-sinc decimation), CLI `library annotate`, reference annotator `mcp/src/annotate.ts`
+(OpenAI-compatible `/chat/completions` with `input_audio`, JSON extraction + one retry, zod
+validation, prompt sections from `mcp/prompts/annotate_v1.md`), mock annotator
+`mcp/src/annotate_mock.ts` (`SP_MOCK_MODE`: malformed / unknown_category / outside_shortlist /
+error / timeout / crash / no_choose), `docs/library.md`.
+68/68 unit (5 new), 19/19 integration incl. `library_annotate_mock.sh` (full failure matrix),
+MCP node tests 16/16 (3 new). CI still never touches a model.
+
+Decisions / deviations:
+- **Stage-2 confidence** is the model's stage-2 self-report (clamped), halved when its pick
+  had to be replaced by the shortlist top; when the annotator has no `choose` stage the top
+  candidate is taken at half the stage-1 confidence. All of it lands in `candidates_json` and
+  the per-file status note so the inspector can show why.
+- **Timeouts** fail only the file that timed out; other in-flight workers see the restart,
+  retry once, and continue. A crash-looping annotator ends the *run* after 5 restarts with a
+  fatal message (exit 2), never the process.
+- **Hello handshake** is capped at 60 s regardless of `--timeout` so a wrong command fails
+  fast; an unstartable command is a fatal report with every file marked error.
+- **Analysis hints** are sent as words and perceptual units (LUFS, sones, acum, asper), never
+  as raw feature vectors — the prompt says they are hints, not truth.
+- The mcp package now emits `.d.ts` files (needed so the node tests can import the built
+  protocol helpers) and `npm test` lists its test files explicitly (`node --test <dir>` is
+  not accepted by Node 22).
+- Manual quality pass with a real local model (§11) is a separate step, recorded below when
+  done; it is not a gate.

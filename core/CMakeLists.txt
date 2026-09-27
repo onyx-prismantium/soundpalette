@@ -81,6 +81,8 @@ add_library(soundpalette_core STATIC
     src/ucs_data.cpp
     src/library.cpp
     src/offline_classify.cpp
+    src/subprocess.cpp
+    src/annotator.cpp
     $<TARGET_OBJECTS:soundpalette_vendor_audio>
     $<TARGET_OBJECTS:soundpalette_vendor_sha256>
     $<TARGET_OBJECTS:soundpalette_vendor_sqlite>

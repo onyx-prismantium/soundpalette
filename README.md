@@ -302,8 +302,14 @@ soundpalette ucs rank sword swing whoosh   # why a name did (not) classify
 Files already named per UCS (`CatID_FXName_CreatorID_SourceID.wav`) are recognized outright.
 Other names are matched against the UCS synonym lists, but only when one category wins
 unambiguously — acoustic features are never used to guess a category. Your own edits are
-locked and never overwritten. Model-based descriptions (a local or hosted audio-language model)
-arrive with the annotator in the next milestone.
+locked and never overwritten.
+
+For everything the names cannot decide, `soundpalette library annotate ~/sfx` asks an
+audio-language model through a pluggable *annotator* (a local Qwen2-Audio behind llama.cpp or
+vLLM, or any hosted OpenAI-compatible endpoint that accepts audio). The model describes what
+it hears; SoundPalette picks the UCS CatID deterministically from that. Setup, the JSON-lines
+protocol for your own annotator, and the privacy note for hosted endpoints are in
+[docs/library.md](docs/library.md).
 
 ## License
 

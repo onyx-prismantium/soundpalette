@@ -5,10 +5,14 @@
   "type": "module",
   "private": true,
   "license": "FSL-1.1-Apache-2.0",
+  "bin": {
+    "soundpalette-annotate": "dist/annotate.js",
+    "soundpalette-annotate-mock": "dist/annotate_mock.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "pretest": "tsc -p tsconfig.test.json",
-    "test": "node --test dist-test/server.test.js"
+    "test": "node --test dist-test/server.test.js dist-test/annotate.test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
