@@ -79,22 +79,36 @@ flags after the script, e.g. `--base-url`):
 `--timeout s` (default 120) kills and restarts a stuck annotator after one unanswered request.
 Timeouts and restarts are counted in the summary; the run never blocks on a single file.
 
-### Local: llama.cpp + Qwen2-Audio (recommended)
+### Local: llama.cpp + Qwen2.5-Omni (verified recipe)
 
-Qwen2-Audio-7B-Instruct (Apache-2.0) runs on a 12 GB GPU in 4-bit. With a llama.cpp build
-that includes the multimodal server:
+The setup this was developed against: [llama.cpp](https://github.com/ggml-org/llama.cpp)
+built with CUDA, serving the official `ggml-org/Qwen2.5-Omni-7B-GGUF` quantization (Apache-2.0)
+on a 12 GB GPU. Qwen2.5-Omni is the audio-capable successor of Qwen2-Audio and the one llama.cpp
+ships GGUFs with an audio projector for.
 
 ```bash
-llama-server -m Qwen2-Audio-7B-Instruct-Q4_K_M.gguf --mmproj mmproj-Qwen2-Audio-7B-Instruct.gguf \
-             -ngl 99 --port 8080 -c 8192
-export SP_LLM_BASE_URL=http://127.0.0.1:8080/v1
-soundpalette library annotate ~/sfx --annotator "node mcp/dist/annotate.js"
+# build once (llama-server target only), then fetch model + audio projector (~6.2 GB)
+cmake -S llama.cpp -B llama.cpp/build -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build llama.cpp/build --target llama-server -j
+llama-server -hf ggml-org/Qwen2.5-Omni-7B-GGUF -ngl 99 -c 32768 --parallel 2 --port 8080 \
+             --alias qwen2.5-omni-7b
+# (equivalently: -m Qwen2.5-Omni-7B-Q4_K_M.gguf --mmproj mmproj-Qwen2.5-Omni-7B-Q8_0.gguf)
+
+export SP_LLM_BASE_URL=http://127.0.0.1:8080/v1 SP_LLM_MODEL=qwen2.5-omni-7b
+soundpalette library annotate ~/sfx --annotator "node mcp/dist/annotate.js" --inflight 2
 ```
 
-vLLM works the same way: `vllm serve Qwen/Qwen2-Audio-7B-Instruct --port 8000` and
-`SP_LLM_BASE_URL=http://127.0.0.1:8000/v1`. Newer audio models (Qwen2.5-Omni, Qwen3-Omni) are a
-change of endpoint, not of SoundPalette; the prompt asks for JSON only and the annotator
-retries once when a model chats instead.
+Sizing: one file costs roughly 4k prompt tokens (system prompt, the 82-category list with
+sub-categories, up to 30 s of audio at ~25 tokens/s) and takes about 4-6 s on an RTX 3060.
+Give the server at least 8k context **per slot** (`-c 32768 --parallel 2` above); with the
+default 8k shared across four slots the first long files fail with "Context size has been
+exceeded". Keep `--inflight` equal to `--parallel`. VRAM at these settings: about 9 GB.
+
+vLLM works the same way with Qwen2-Audio or Qwen2.5-Omni
+(`vllm serve Qwen/Qwen2-Audio-7B-Instruct --port 8000`,
+`SP_LLM_BASE_URL=http://127.0.0.1:8000/v1`). Newer audio models are a change of endpoint, not
+of SoundPalette; the prompt asks for JSON only and the annotator retries once when a model
+chats instead.
 
 ### Hosted endpoints
 

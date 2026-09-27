@@ -30,8 +30,15 @@ test("extractJson tolerates fences, prose and trailing chatter", () => {
 });
 
 test("the shipped prompt parses into its four sections", () => {
-  const text = fs.readFileSync(path.join(REPO, "mcp", "prompts", "annotate_v1.md"), "utf8");
-  const p = parsePrompt(text);
+  for (const version of ["annotate_v1", "annotate_v2"]) {
+    const text = fs.readFileSync(path.join(REPO, "mcp", "prompts", `${version}.md`), "utf8");
+    const p = parsePrompt(text);
+    assert.match(p.system, /sound librarian/);
+    assert.match(p.describe, /\{\{categories\}\}/);
+    assert.match(p.choose, /\{\{candidates\}\}/);
+    assert.match(p.retry, /JSON/);
+  }
+  const p = parsePrompt(fs.readFileSync(path.join(REPO, "mcp", "prompts", "annotate_v2.md"), "utf8"));
   assert.match(p.system, /sound librarian/);
   assert.match(p.describe, /\{\{categories\}\}/);
   assert.match(p.choose, /\{\{candidates\}\}/);

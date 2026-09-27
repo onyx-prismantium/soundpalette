@@ -32,7 +32,7 @@ import {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PROMPT_DIR = path.resolve(HERE, "..", "prompts");
-const PROMPT_VERSION = "annotate_v1";
+const PROMPT_VERSION = process.env.SP_PROMPT_VERSION ?? "annotate_v2";
 
 function env(name: string, fallback: string): string {
   const flag = "--" + name.replace(/^SP_LLM_/, "").toLowerCase().replace(/_/g, "-");
@@ -122,19 +122,14 @@ function categoriesText(req: DescribeRequest): string {
 }
 
 function hintsText(req: DescribeRequest): string {
+  // Only facts about the file. The engine's timbre words are deliberately NOT passed: v1 showed
+  // the model echoes them instead of listening (see prompts/annotate_v2.md).
   const a = req.analysis;
-  if (!a) return "(none)";
   const parts: string[] = [];
-  if (typeof a.duration_s === "number") parts.push(`duration ${a.duration_s.toFixed(2)} s`);
-  if (typeof a.lufs_i === "number" && a.lufs_i > -200) parts.push(`${a.lufs_i.toFixed(1)} LUFS`);
-  if (a.silent) parts.push("measured as silent");
-  if (a.describe) parts.push(`analysis words: ${a.describe}`);
-  if (a.psycho) {
-    const p = a.psycho;
-    if (typeof p.sones_n5 === "number") parts.push(`loudness ${p.sones_n5.toFixed(1)} sone`);
-    if (typeof p.sharpness_acum === "number") parts.push(`sharpness ${p.sharpness_acum.toFixed(2)} acum`);
-    if (typeof p.roughness_asper === "number") parts.push(`roughness ${p.roughness_asper.toFixed(2)} asper`);
-  }
+  const dur = a?.duration_s ?? req.audio.duration_s;
+  if (typeof dur === "number") parts.push(`duration ${dur.toFixed(2)} s`);
+  if (a && typeof a.lufs_i === "number" && a.lufs_i > -200) parts.push(`${a.lufs_i.toFixed(1)} LUFS`);
+  if (a?.silent) parts.push("measured as silent");
   if (req.audio.truncated) parts.push("only the first 30 s are attached");
   return parts.join("; ") || "(none)";
 }

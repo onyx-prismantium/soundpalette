@@ -881,3 +881,11 @@ Decisions / deviations:
 - `rename` sanitizes `_ / \ :` in the FX name to `-` (UCS reserves `_` as the field
   separator); CreatorID/SourceID may not contain `_`.
 - Write-back for FLAC/OGG/MP3 remains a non-goal (§15) and is refused explicitly.
+
+### Extension 4 — success metrics (§13), measured 2026-09-27
+
+Synthetic library of 2000 WAVs (click.wav copies, 20 folders) on the factory VM (6 cores):
+`library init` 11.3 s (analysis-bound, ~5.6 ms/file), `library update` with nothing changed
+0.06 s (size+mtime check only → 10k files ≈ 0.3 s, well under the 2 s budget), FTS search
+< 10 ms, full 2000-row JSON dump 0.07 s, index 2 KB/file (100k files ≈ 200 MB). `scan`
+goldens unchanged throughout (golden_scan.sh byte-identical).

@@ -311,7 +311,7 @@ The desktop app shows the same index in its **Library** tab (category tree, sear
 with glyphs) and edits annotations in the inspector; your edits lock the row.
 
 For everything the names cannot decide, `soundpalette library annotate ~/sfx` asks an
-audio-language model through a pluggable *annotator* (a local Qwen2-Audio behind llama.cpp or
+audio-language model through a pluggable *annotator* (a local Qwen2.5-Omni behind llama.cpp or
 vLLM, or any hosted OpenAI-compatible endpoint that accepts audio). The model describes what
 it hears; SoundPalette picks the UCS CatID deterministically from that. Setup, the JSON-lines
 protocol for your own annotator, and the privacy note for hosted endpoints are in
