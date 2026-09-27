@@ -114,9 +114,11 @@ bool library_create(AppState &state) {
         return false;
     }
     sp::UpdateReport rep = state.library->update(sp::UpdateOptions{}, err);
+    sp::ClassifyReport mrep = state.library->classify_from_metadata(false);
     sp::ClassifyReport crep = state.library->classify_offline(false);
     state.status_message = "library created: " + std::to_string(rep.analyzed) + " analyzed, " +
-                           std::to_string(crep.written) + " classified from names";
+                           std::to_string(mrep.written) + " from embedded tags, " +
+                           std::to_string(crep.written) + " from names";
     state.lib_dirty = true;
     return true;
 }

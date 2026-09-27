@@ -859,3 +859,25 @@ Decisions / deviations:
   existing tool already accepts — no signature churn.
 - Ctrl+Q does not fire while an InputText holds keyboard focus (pre-existing); the GUI script
   falls back to a signal.
+
+## Extension 4 — M18: write-back (2026-09-27)
+
+Built: `core/metadata.h` + `core/src/metadata_wav.cpp` (RIFF/WAVE chunk reader with a
+header-only mode for ingest, iXML `<USER>` UCS fields parse + merge that keeps foreign
+fields, bext Description "FXName - description" with a fresh 602-byte bext when none exists,
+rewrite via temp file + rename with sha256 verification of the data chunk), `Library::
+classify_from_metadata` (source `metadata`, runs on `init` before the name pass) and
+`Library::rename_file` (disk rename + row/entry/FTS move in one transaction), CLI `library
+embed [--apply] [--backup]`, `library rename --creator --source [--apply]`, `library classify
+--from-metadata`. 70/70 unit (2 new), 21/21 integration incl. `library_embed_roundtrip.sh`.
+
+Decisions / deviations:
+- iXML fields go into a `<USER>` block with upper-case tag names (`CATID`, `CATEGORY`,
+  `SUBCATEGORY`, `FXNAME`, `DESCRIPTION`, `KEYWORDS`, `LIBRARY`, `CREATORID`, `SOURCEID`);
+  parsing is case-insensitive and also looks outside `<USER>` so tags written by other tools
+  at the document root are found. No XML library: the merge is a targeted element splice.
+- bext Description is written, never read as a source of truth (free text; only iXML CatID
+  drives `metadata` annotations).
+- `rename` sanitizes `_ / \ :` in the FX name to `-` (UCS reserves `_` as the field
+  separator); CreatorID/SourceID may not contain `_`.
+- Write-back for FLAC/OGG/MP3 remains a non-goal (§15) and is refused explicitly.

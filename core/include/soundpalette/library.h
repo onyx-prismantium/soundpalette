@@ -132,6 +132,13 @@ public:
 
     // §8 offline pass over every present row (filename grammar, then token match).
     ClassifyReport classify_offline(bool force);
+    // §10: annotate from UCS metadata already embedded in the files (iXML <USER> fields),
+    // source "metadata". WAV only; files without the fields are skipped.
+    ClassifyReport classify_from_metadata(bool force);
+
+    // §10 `library rename`: renames on disk and moves the row (analysis, annotation, FTS) in
+    // one step. rel paths, forward slashes; refuses if the target exists.
+    bool rename_file(std::string_view rel_old, std::string_view rel_new, std::string &err);
 
     // A canonical manifest of the matching rows (all present rows when query is null); root
     // is written as given so `scan <root>` and `library export <root>` produce identical bytes.

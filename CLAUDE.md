@@ -73,6 +73,9 @@ M17 GUI: `app/gui/library_view.cpp` (Library tab + inspector Annotation editor +
 job + probe); smoke `--view library` needs an index (`library init` first); the xdotool pass
 is `bash tests/integration/gui_library.sh` (screenshots in $OUT, press/release in separate
 frames). MCP `library_*` tools shell out to `library ... --json`.
+M18 write-back: `core/src/metadata_wav.cpp` (RIFF chunk list, iXML <USER> merge/parse, bext
+Description, data-chunk hash verification); `library embed` / `library rename` are dry runs
+unless `--apply`; gates `ctest -R metadata` and `bash tests/integration/library_embed_roundtrip.sh`.
 
 Extension 2 (SoundPalette_extension2.md, M10/M11): fixtures via `--profile-set fixtures_m10`;
 unit gates `-R "glob|profile|deviation|seam"` and `-R "pca|ellipse"`; scripts

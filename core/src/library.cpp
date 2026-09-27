@@ -16,6 +16,7 @@
 
 #include "manifest_json.h"
 #include "soundpalette/mapping.h"
+#include "soundpalette/metadata.h"
 #include "soundpalette/recipe.h"
 #include "soundpalette/ucs.h"
 #include "soundpalette/version.h"
@@ -977,6 +978,97 @@ ClassifyReport Library::classify_offline(bool force) {
     }
     exec(db_, "COMMIT");
     return report;
+}
+
+ClassifyReport Library::classify_from_metadata(bool force) {
+    ClassifyReport report;
+    std::vector<std::string> paths;
+    {
+        Stmt s(db_, "SELECT path FROM files WHERE present = 1 ORDER BY path");
+        while (s.step()) {
+            paths.push_back(s.text(0));
+        }
+    }
+    for (const std::string &p : paths) {
+        std::string lower = p;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (lower.size() < 4 || lower.compare(lower.size() - 4, 4, ".wav") != 0) {
+            continue;
+        }
+        ++report.examined;
+        std::string err;
+        std::optional<UcsMetadata> m = read_wav_ucs_metadata(root_ / p, err);
+        if (!m || m->cat_id.empty() || ucs_find(m->cat_id) == nullptr) {
+            ++report.unmatched;
+            continue;
+        }
+        Annotation a;
+        a.cat_id = m->cat_id;
+        a.fx_name = m->fx_name;
+        a.description = m->description;
+        a.keywords = m->keywords;
+        a.confidence = 1.0;
+        a.source = AnnotationSource::kMetadata;
+        switch (set_annotation(p, a, force)) {
+        case SetResult::kWritten:
+            ++report.written;
+            break;
+        case SetResult::kSkippedLocked:
+            ++report.skipped_locked;
+            break;
+        case SetResult::kSkippedLowerPrecedence:
+            ++report.skipped_precedence;
+            break;
+        case SetResult::kUnknownPath:
+            break;
+        }
+    }
+    return report;
+}
+
+bool Library::rename_file(std::string_view rel_old, std::string_view rel_new, std::string &err) {
+    std::optional<LibraryRow> row = get(rel_old);
+    if (!row) {
+        err = "not in the library: " + std::string(rel_old);
+        return false;
+    }
+    std::filesystem::path from = root_ / std::string(rel_old);
+    std::filesystem::path to = root_ / std::string(rel_new);
+    std::error_code ec;
+    if (std::filesystem::exists(to, ec)) {
+        err = "target exists: " + std::string(rel_new);
+        return false;
+    }
+    if (get(rel_new)) {
+        err = "target already indexed: " + std::string(rel_new);
+        return false;
+    }
+    std::filesystem::create_directories(to.parent_path(), ec);
+    std::filesystem::rename(from, to, ec);
+    if (ec) {
+        err = "rename failed: " + ec.message();
+        return false;
+    }
+    FileEntry e = row->entry;
+    e.path = std::string(rel_new);
+    e.visual = map_v2(e.features, e.loudness, e.psycho, path_seed(e.path));
+    exec(db_, "BEGIN");
+    try {
+        Stmt s(db_, "UPDATE files SET path = ?2, mtime_ns = ?3, entry_json = ?4 WHERE id = ?1");
+        s.bind(1, row->id)
+            .bind(2, rel_new)
+            .bind(3, mtime_ns_of(to))
+            .bind(4, file_entry_to_json_string(e, false));
+        s.step();
+        refresh_fts(row->id);
+        exec(db_, "COMMIT");
+    } catch (const std::exception &ex) {
+        exec(db_, "ROLLBACK");
+        err = ex.what();
+        return false;
+    }
+    return true;
 }
 
 Manifest Library::export_manifest(const SearchQuery *query, const std::string &root_as_given,

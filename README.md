@@ -296,10 +296,13 @@ soundpalette library show ~/sfx/ui/click.wav
 soundpalette library set ~/sfx/ui/click.wav --catid UIClick --description "Soft confirm tap."
 soundpalette library export ~/sfx --manifest guns.json --category GUNS   # feed lint/export-svg
 soundpalette library update ~/sfx          # incremental: new/changed/moved/missing only
+soundpalette library embed ~/sfx --apply   # write UCS iXML/bext tags into the WAVs (opt-in)
+soundpalette library rename ~/sfx --creator AS --source LIB --apply   # UCS filenames
 soundpalette ucs rank sword swing whoosh   # why a name did (not) classify
 ```
 
-Files already named per UCS (`CatID_FXName_CreatorID_SourceID.wav`) are recognized outright.
+Files already named per UCS (`CatID_FXName_CreatorID_SourceID.wav`) or carrying UCS iXML
+metadata are recognized outright.
 Other names are matched against the UCS synonym lists, but only when one category wins
 unambiguously — acoustic features are never used to guess a category. Your own edits are
 locked and never overwritten.

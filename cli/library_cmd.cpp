@@ -1,8 +1,10 @@
 // `soundpalette library ...` (extension-4 §9.1). Every verb locates the index by walking up
 // from the given path, so a sub-folder or a single file works as the argument.
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -11,6 +13,7 @@
 #include "soundpalette/annotator.h"
 #include "soundpalette/library.h"
 #include "soundpalette/manifest.h"
+#include "soundpalette/metadata.h"
 #include "soundpalette/ucs.h"
 
 namespace {
@@ -33,6 +36,12 @@ int usage() {
         "         [--unannotated]\n"
         "  set <file> [--catid X] [--fx-name N] [--description D] [--keywords a,b] [--unlock]\n"
         "                                                human edit (locks the row)\n"
+        "  embed <path> [--apply] [--backup] [--query ...] [--catid G] [--category C]\n"
+        "                                                write UCS iXML/bext into WAVs (dry run\n"
+        "                                                unless --apply)\n"
+        "  rename <path> --creator ID --source ID [--apply] [--query ...] [--catid G]\n"
+        "                                                UCS filenames (dry run unless --apply)\n"
+        "  classify <path> --from-metadata [--force]     read embedded UCS iXML fields\n"
         "  annotate <path> [--unannotated (default) | --all | --min-confidence x] [--limit n]\n"
         "           [--dry-run] [--force] [--annotator \"cmd\"] [--inflight n] [--timeout s]\n"
         "           [--json]                          run the model annotator ($SP_ANNOTATOR)\n");
@@ -230,7 +239,10 @@ int cmd_init_or_update(const std::vector<std::string> &args, bool is_init) {
     }
     sp::ClassifyReport crep;
     if (is_init) {
+        // embedded UCS metadata first (source "metadata" outranks name guesses), then names
+        sp::ClassifyReport m = lib->classify_from_metadata(false);
         crep = lib->classify_offline(false);
+        crep.written += m.written;
     }
     if (as_json) {
         json j = json::object();
@@ -259,13 +271,16 @@ int cmd_classify(const std::vector<std::string> &args) {
     }
     bool force = false;
     bool as_json = false;
+    bool from_metadata = false;
     for (std::size_t i = 2; i < args.size(); ++i) {
         if (args[i] == "--force") {
             force = true;
         } else if (args[i] == "--json") {
             as_json = true;
         } else if (args[i] == "--offline") {
-            // the only mode until M16; accepted for forward compatibility
+            // name-based pass (the default)
+        } else if (args[i] == "--from-metadata") {
+            from_metadata = true;
         } else {
             return usage();
         }
@@ -276,7 +291,8 @@ int cmd_classify(const std::vector<std::string> &args) {
         std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
         return 2;
     }
-    sp::ClassifyReport rep = lib->classify_offline(force);
+    sp::ClassifyReport rep =
+        from_metadata ? lib->classify_from_metadata(force) : lib->classify_offline(force);
     if (as_json) {
         std::printf("%s\n", classify_json(rep).dump(2).c_str());
     } else {
@@ -818,6 +834,257 @@ int cmd_annotate(const std::vector<std::string> &args) {
     return rep.fatal.empty() ? 0 : 2;
 }
 
+// Rows selected by the shared query flags, restricted to annotated ones with a CatID.
+std::vector<sp::LibraryRow> annotated_rows(sp::Library &lib, sp::SearchQuery q, std::string &err) {
+    q.limit = 0;
+    std::vector<sp::LibraryRow> out;
+    for (sp::LibraryRow &r : lib.search(q, err)) {
+        if (r.annotation && !r.annotation->cat_id.empty() && r.entry.error.empty()) {
+            out.push_back(std::move(r));
+        }
+    }
+    return out;
+}
+
+bool ends_with_ci(const std::string &s, const char *suffix) {
+    std::string l = s;
+    std::transform(l.begin(), l.end(), l.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string suf = suffix;
+    return l.size() >= suf.size() && l.compare(l.size() - suf.size(), suf.size(), suf) == 0;
+}
+
+int cmd_embed(const std::vector<std::string> &args) {
+    if (args.size() < 2) {
+        return usage();
+    }
+    sp::SearchQuery q;
+    bool as_json = false;
+    bool apply = false;
+    bool backup = false;
+    std::vector<std::string> words;
+    std::string unused;
+    std::vector<std::string> rest;
+    for (std::size_t i = 2; i < args.size(); ++i) {
+        if (args[i] == "--apply") {
+            apply = true;
+        } else if (args[i] == "--backup") {
+            backup = true;
+        } else {
+            rest.push_back(args[i]);
+        }
+    }
+    std::vector<std::string> pargs = {args[0], args[1]};
+    pargs.insert(pargs.end(), rest.begin(), rest.end());
+    if (!parse_query_flags(pargs, 2, q, as_json, words, unused)) {
+        return usage();
+    }
+    std::string err;
+    std::unique_ptr<sp::Library> lib = open_for(args[1], err);
+    if (!lib) {
+        std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+        return 2;
+    }
+    std::vector<sp::LibraryRow> rows;
+    std::error_code ec;
+    std::filesystem::path abs = std::filesystem::absolute(args[1], ec).lexically_normal();
+    if (std::filesystem::is_regular_file(abs, ec)) {
+        if (auto r = lib->get(rel_of(*lib, args[1]))) {
+            rows.push_back(*r);
+        }
+    } else {
+        rows = annotated_rows(*lib, q, err);
+    }
+    json out = json::array();
+    std::size_t written = 0, skipped = 0, failed = 0;
+    for (const sp::LibraryRow &r : rows) {
+        json j = json::object();
+        j["path"] = r.path;
+        if (!r.annotation || r.annotation->cat_id.empty()) {
+            j["status"] = "skipped: unannotated";
+            ++skipped;
+            out.push_back(j);
+            continue;
+        }
+        if (!ends_with_ci(r.path, ".wav")) {
+            j["status"] = "skipped: not a WAV (FLAC/OGG/MP3 write-back is not supported)";
+            ++skipped;
+            out.push_back(j);
+            continue;
+        }
+        sp::UcsMetadata m;
+        m.cat_id = r.annotation->cat_id;
+        if (const sp::UcsEntry *e = sp::ucs_find(m.cat_id)) {
+            m.category = std::string(e->category);
+            m.sub_category = std::string(e->sub_category);
+        }
+        m.fx_name = r.annotation->fx_name;
+        m.description = r.annotation->description;
+        m.keywords = r.annotation->keywords;
+        m.library = lib->root().filename().generic_string();
+        sp::EmbedReport rep;
+        if (apply) {
+            if (sp::write_wav_ucs_metadata(lib->root() / r.path, m, backup, rep, err)) {
+                j["status"] = "written";
+                ++written;
+            } else {
+                j["status"] = "error: " + err;
+                ++failed;
+            }
+        } else {
+            std::vector<sp::RiffChunk> chunks;
+            std::string image;
+            if (sp::read_wav_chunks(lib->root() / r.path, chunks, err) &&
+                sp::build_wav_with_ucs_metadata(chunks, m, image, rep, err)) {
+                j["status"] = "would write";
+                ++written;
+            } else {
+                j["status"] = "error: " + err;
+                ++failed;
+            }
+        }
+        j["ixml"] = rep.ixml_added ? "added" : (rep.ixml_updated ? "updated" : "unchanged");
+        j["bext"] = rep.bext_added ? "added" : (rep.bext_updated ? "updated" : "unchanged");
+        j["data_sha256"] = rep.data_sha256;
+        out.push_back(j);
+    }
+    if (as_json) {
+        json j = json::object();
+        j["applied"] = apply;
+        j["written"] = written;
+        j["skipped"] = skipped;
+        j["errors"] = failed;
+        j["files"] = out;
+        std::printf("%s\n", j.dump(2).c_str());
+    } else {
+        for (const auto &j : out) {
+            std::printf("%-50s %s\n", j["path"].get<std::string>().c_str(),
+                        j["status"].get<std::string>().c_str());
+        }
+        std::printf("library embed: %zu %s, %zu skipped, %zu errors%s\n", written,
+                    apply ? "written" : "would be written", skipped, failed,
+                    apply ? "" : " (dry run; add --apply to write)");
+    }
+    return failed ? 1 : 0;
+}
+
+int cmd_rename(const std::vector<std::string> &args) {
+    if (args.size() < 2) {
+        return usage();
+    }
+    sp::SearchQuery q;
+    bool as_json = false;
+    bool apply = false;
+    std::string creator, source;
+    std::vector<std::string> words;
+    std::string unused;
+    std::vector<std::string> rest;
+    for (std::size_t i = 2; i < args.size(); ++i) {
+        if (args[i] == "--apply") {
+            apply = true;
+        } else if (args[i] == "--creator" && i + 1 < args.size()) {
+            creator = args[++i];
+        } else if (args[i] == "--source" && i + 1 < args.size()) {
+            source = args[++i];
+        } else {
+            rest.push_back(args[i]);
+        }
+    }
+    std::vector<std::string> pargs = {args[0], args[1]};
+    pargs.insert(pargs.end(), rest.begin(), rest.end());
+    if (!parse_query_flags(pargs, 2, q, as_json, words, unused) || creator.empty() ||
+        source.empty()) {
+        std::fprintf(stderr, "soundpalette: rename needs --creator and --source\n");
+        return usage();
+    }
+    if (creator.find('_') != std::string::npos || source.find('_') != std::string::npos) {
+        std::fprintf(stderr, "soundpalette: CreatorID/SourceID must not contain '_'\n");
+        return 2;
+    }
+    std::string err;
+    std::unique_ptr<sp::Library> lib = open_for(args[1], err);
+    if (!lib) {
+        std::fprintf(stderr, "soundpalette: %s\n", err.c_str());
+        return 2;
+    }
+    std::vector<sp::LibraryRow> rows = annotated_rows(*lib, q, err);
+    std::set<std::string> targets;
+    json out = json::array();
+    std::size_t renamed = 0, skipped = 0, failed = 0;
+    for (const sp::LibraryRow &r : rows) {
+        json j = json::object();
+        j["path"] = r.path;
+        std::string dir =
+            r.path.find('/') == std::string::npos ? "" : r.path.substr(0, r.path.rfind('/') + 1);
+        std::string file = r.path.substr(dir.size());
+        std::string ext = file.rfind('.') == std::string::npos ? "" : file.substr(file.rfind('.'));
+        if (sp::ucs_parse_filename(file)) {
+            j["status"] = "skipped: already UCS-named";
+            ++skipped;
+            out.push_back(j);
+            continue;
+        }
+        sp::UcsFilename f;
+        f.cat_id = r.annotation->cat_id;
+        f.fx_name = r.annotation->fx_name;
+        for (char &c : f.fx_name) {
+            if (c == '_' || c == '/' || c == '\\' || c == ':') {
+                c = '-';
+            }
+        }
+        if (f.fx_name.empty()) {
+            j["status"] = "skipped: no FX name";
+            ++skipped;
+            out.push_back(j);
+            continue;
+        }
+        f.creator_id = creator;
+        f.source_id = source;
+        std::string target = dir + sp::ucs_compose_stem(f) + ext;
+        j["target"] = target;
+        std::error_code ec;
+        if (targets.count(target) || std::filesystem::exists(lib->root() / target, ec)) {
+            j["status"] = "skipped: target exists";
+            ++skipped;
+            out.push_back(j);
+            continue;
+        }
+        targets.insert(target);
+        if (apply) {
+            if (lib->rename_file(r.path, target, err)) {
+                j["status"] = "renamed";
+                ++renamed;
+            } else {
+                j["status"] = "error: " + err;
+                ++failed;
+            }
+        } else {
+            j["status"] = "would rename";
+            ++renamed;
+        }
+        out.push_back(j);
+    }
+    if (as_json) {
+        json j = json::object();
+        j["applied"] = apply;
+        j["renamed"] = renamed;
+        j["skipped"] = skipped;
+        j["errors"] = failed;
+        j["files"] = out;
+        std::printf("%s\n", j.dump(2).c_str());
+    } else {
+        for (const auto &j : out) {
+            std::printf("%-40s -> %-40s %s\n", j["path"].get<std::string>().c_str(),
+                        j.contains("target") ? j["target"].get<std::string>().c_str() : "",
+                        j["status"].get<std::string>().c_str());
+        }
+        std::printf("library rename: %zu %s, %zu skipped, %zu errors%s\n", renamed,
+                    apply ? "renamed" : "would be renamed", skipped, failed,
+                    apply ? "" : " (dry run; add --apply to rename)");
+    }
+    return failed ? 1 : 0;
+}
+
 } // namespace
 
 int cmd_ucs(const std::vector<std::string> &args) {
@@ -855,6 +1122,12 @@ int cmd_library(const std::vector<std::string> &args) {
     }
     if (verb == "annotate") {
         return cmd_annotate(args);
+    }
+    if (verb == "embed") {
+        return cmd_embed(args);
+    }
+    if (verb == "rename") {
+        return cmd_rename(args);
     }
     return usage();
 }

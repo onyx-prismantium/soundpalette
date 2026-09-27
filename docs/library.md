@@ -135,6 +135,37 @@ be an annotator (Python, Go, a shell around a different API). The contract:
 Log to stderr, never to stdout. The audio file is deleted after your answer. The mock
 annotator (`mcp/src/annotate_mock.ts`) is a complete, tiny example.
 
+## Writing tags back into the files (opt-in)
+
+Everything above lives in the index. To make the tags portable to Soundminer, BaseHead,
+Reaper's media explorer and friends, `library embed` writes them into the WAV files
+themselves, as iXML `<USER>` fields (`CATID`, `CATEGORY`, `SUBCATEGORY`, `FXNAME`,
+`DESCRIPTION`, `KEYWORDS`, `LIBRARY`) plus a bext Description of the form
+`FXName - description`:
+
+```bash
+soundpalette library embed ~/sfx                    # dry run: what would change
+soundpalette library embed ~/sfx --apply --backup   # rewrite, keeping <file>.bak copies
+soundpalette library embed ~/sfx/ui/click.wav --apply
+```
+
+Only the iXML and bext chunks are rewritten; every other chunk is preserved byte for byte
+and the audio `data` chunk is hash-verified before and after. FLAC, OGG and MP3 are refused
+(their write-back is not implemented). Files that already carry UCS iXML fields are picked
+up on `library init` and by `library classify --from-metadata` as source `metadata`, which
+outranks a name-based guess and yields to your edits.
+
+`library rename` composes UCS filenames from the annotations
+(`CatID_FXName_CreatorID_SourceID.ext`), skips files already named per UCS, refuses
+collisions, and moves the index rows with the files so annotations stay attached:
+
+```bash
+soundpalette library rename ~/sfx --creator AS --source MYLIB          # dry run
+soundpalette library rename ~/sfx --creator AS --source MYLIB --apply
+```
+
+Both commands are dry runs unless you pass `--apply`.
+
 ## What the model cannot know
 
 An audio-language model hears a mono excerpt. It cannot know a recording's provenance, rights
