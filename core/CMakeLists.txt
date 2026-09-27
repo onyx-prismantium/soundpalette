@@ -101,4 +101,9 @@ target_include_directories(soundpalette_core PRIVATE
 target_compile_features(soundpalette_core PUBLIC cxx_std_20)
 sp_set_warnings(soundpalette_core)
 target_link_libraries(soundpalette_core PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
+if(MSVC)
+    # std::getenv (SP_ANNOTATOR lookup, extension-4 §7.1) trips MSVC's non-standard C4996 CRT
+    # deprecation; same conventional opt-out as the app and unit-test targets.
+    target_compile_definitions(soundpalette_core PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 target_link_libraries(soundpalette_core PRIVATE ebur128 kissfft nlohmann_json::nlohmann_json)
